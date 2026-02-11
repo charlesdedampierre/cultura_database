@@ -1,0 +1,27 @@
+# Environment
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Data files
+*.json
+*.csv
+*.db
+*.geojson
+*.zip
+
+# Large folders
+archive/
+raw_to_db/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/

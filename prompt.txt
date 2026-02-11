@@ -1,0 +1,11 @@
+❯ create a .venv and a requirements.txt. Then I want to redo the databasde as much as I can.? Can you reogrnaise the scripts. I want the             
+  wikidata scritpos in a folder, and the enhciment steps scritps in annoter. I wantgood documentaiton to extract botht individials and the           
+  woirks of indivudals.                                                                                                                              
+  ⎿  Interrupted · What should Claude do instead?                                                                                                    
+                                                                                                                                                     
+❯ then i want you to create some disctint scritps foir each nrichment types; make thinfs way more clean,n and remov ewhat is not unsuses. In         
+  terms of flow, I want you to first extarct data as Json and tehn to parse the json and put them in the database. Once things are in the            
+  database, we can start cleaning. Find good anmes for the columns; I don't want to have the full too complex trandormatuionto pydnatic and the      
+  full pipleine whihc is just to heavy, too many things. Also for the moemtn, put aside all the thigns related to wikipedia, and the the             
+  statistics of the pages; I will take care of it in the future. Remember I want clarity bceaude tyhe dtaabse that ytou create will ofteh be         
+  updated and enriched. I also don"t need chekcpont_dev anymore given the fact the enrichment sill be incremental with different scripts.  
