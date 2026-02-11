@@ -1,156 +1,90 @@
 # Cultura Database
 
-A database of cultural figures (artists, scientists, writers) born before 1850, sourced from Wikidata and enriched with geographic, temporal, and bibliographic metadata.
+Database of ~2.8 million cultural figures (scientists, writers & artists) extracted from Wikidata.
 
-## Pipeline Overview
+**Source:** [Wikidata SPARQL endpoint](https://query.wikidata.org/)
 
-The project follows three phases:
+## Summary
 
-```
-Extract (SPARQL -> JSON) -> Load (JSON -> SQLite) -> Enrich (SQLite -> SQLite)
-```
+| Metric | Count |
+|--------|-------|
+| Occupations | 3,158 |
+| Unique individuals | 2,810,360 |
+| Individual-occupation mappings | 4,222,528 |
 
-### Phase 1: Extraction (`extraction/`)
+| Category | Occupations | Individuals |
+|----------|-------------|-------------|
+| artist | 1,300 | 2,446,609 |
+| scientist | 1,858 | 1,776,019 |
 
-SPARQL queries against Wikidata, saving results as JSON to `data/extracted/`.
+## Pipeline
+
+### Step 1: Extract Occupations
 
 ```bash
-# Run in order:
 python extraction/individuals/01_extract_occupations.py
+```
+
+Output: `data/extracted/individuals/occupations.json`
+
+### Step 2: Extract Individuals per Occupation
+
+```bash
 python extraction/individuals/02_extract_individuals.py
-python extraction/individuals/03_extract_individual_info.py
-python extraction/individuals/04_extract_sitelinks.py
-python extraction/individuals/05_extract_birthcity_details.py
-python extraction/individuals/06_extract_deathcity_details.py
-python extraction/individuals/07_extract_nationality_coords.py
-python extraction/individuals/08_extract_identifiers.py
-python extraction/individuals/09_extract_deathyear.py
-
-python extraction/works/01_extract_notable_works.py
-python extraction/works/02_extract_authored_works.py
-python extraction/works/03_extract_work_instances.py
-python extraction/works/04_extract_work_identifiers.py
 ```
 
-### Phase 2: Loading (`loading/`)
+Output: `data/extracted/individuals/occupation/{Q_ID}.json`
 
-Reads JSON from `data/extracted/` and inserts into SQLite at `data/cultura.db`.
+For large occupations (cursor-based pagination, 50k/page):
 
 ```bash
-python loading/01_load_individuals.py
-python loading/02_load_occupations.py
-python loading/03_load_locations.py
-python loading/04_load_sitelinks.py
-python loading/05_load_identifiers.py
-python loading/06_load_works.py
-python loading/07_load_deathyear.py
-python loading/08_load_reference_tables.py
+python extraction/individuals/02e_extract_actor_ids.py      # 365k actors
+python extraction/individuals/02f_extract_remaining_ids.py  # historian, economist, theologian, university teacher
+python extraction/individuals/02g_extract_writer_ids.py     # 400k writers
 ```
 
-### Phase 3: Enrichment (`enrichment/`)
-
-Reads from the database, computes derived data, writes back.
+### Step 3: Create Database
 
 ```bash
-python enrichment/01_enrich_country.py       # Geopandas point-in-polygon -> country
-python enrichment/02_enrich_impact_years.py   # birthyear -> impact year range
-python enrichment/03_enrich_regions.py        # Country+time+space -> regions
-python enrichment/04_enrich_regions_manual.py # Manual corrections from Excel/CSV
-python enrichment/05_clean_individuals.py     # Final filters -> individuals_kept
+python create_database.py
 ```
+
+Output: `cultura_database.db`
 
 ## Database Schema
 
-### Core tables
+```sql
+CREATE TABLE occupations (
+    occupation_id TEXT PRIMARY KEY,
+    occupation_name TEXT,
+    occupation_category TEXT  -- 'artist' or 'scientist'
+);
 
-| Table | Description |
-|-------|-------------|
-| `individuals` | Wikidata ID, name, birthyear, country, impact years |
-| `individual_gender` | Gender per individual |
-| `occupations` | Occupation types (artist, scientist, writer subtypes) |
-| `individual_occupations` | Individual-to-occupation mapping |
-| `individuals_kept` | Filtered subset of individuals passing quality checks |
+CREATE TABLE individuals (
+    wikidata_id TEXT,
+    occupation_id TEXT,
+    PRIMARY KEY (wikidata_id, occupation_id)
+);
 
-### Location tables
-
-| Table | Description |
-|-------|-------------|
-| `individual_birthcity` | Birth city per individual |
-| `birthcity` | Birth city metadata (country, coordinates) |
-| `individual_deathcity` | Death city per individual |
-| `deathcity` | Death city metadata (country, coordinates) |
-| `individual_nationality` | Nationality with coordinates |
-
-### Works tables
-
-| Table | Description |
-|-------|-------------|
-| `works` | Work metadata (instance type, creation year) |
-| `individual_works` | Individual-to-work mapping (notable_work or creator) |
-| `work_identifiers` | External identifiers for works |
-
-### Reference tables
-
-| Table | Description |
-|-------|-------------|
-| `identifiers` | External identifier types (VIAF, GND, etc.) |
-| `individual_identifiers` | Individual-to-identifier mapping |
-| `individual_sitelinks` | Wikipedia page URLs per individual |
-| `individual_viaf` | VIAF IDs per individual |
-| `deathyear` | Death year per individual |
-| `regions` | Region codes and names |
-| `individual_regions` | Individual-to-region mapping |
-| `country_continent` | Country-to-continent mapping |
-
-## Setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+CREATE TABLE occupation_counts (
+    occupation_id TEXT PRIMARY KEY,
+    occupation_name TEXT,
+    occupation_category TEXT,
+    individual_count INTEGER
+);
 ```
 
-## Project Structure
+## Top 10 Occupations
 
-```
-cultura_database/
-├── extraction/              # Phase 1: SPARQL -> JSON
-│   ├── wikidata_api.py      # Shared SPARQL wrapper
-│   ├── individuals/         # 9 extraction scripts
-│   └── works/               # 4 extraction scripts
-├── loading/                 # Phase 2: JSON -> SQLite
-│   ├── utils.py             # DB connection, helpers
-│   └── 01-08 scripts        # One per table group
-├── enrichment/              # Phase 3: SQLite -> SQLite
-│   └── 01-05 scripts        # Country, impact years, regions, cleanup
-├── data/
-│   ├── extracted/           # JSON output from extraction
-│   └── cultura.db           # The SQLite database
-├── scraping/                # Original extraction scripts (reference)
-├── archive/                 # Legacy code and Wikipedia data
-├── requirements.txt
-└── .env
-```
-
-## Quick Query Example
-
-```python
-import sqlite3
-import pandas as pd
-
-conn = sqlite3.connect("data/cultura.db")
-
-# Get all kept individuals with their country
-df = pd.read_sql_query("""
-    SELECT i.wikidata_id, i.name, i.birthyear, i.country_name
-    FROM individuals i
-    JOIN individuals_kept k ON i.wikidata_id = k.wikidata_id
-    ORDER BY i.birthyear
-""", conn)
-```
-
-## Data Sources
-
-- [Wikidata](https://www.wikidata.org/) via SPARQL endpoint
-- [Natural Earth](https://www.naturalearthdata.com/) for country boundaries (via geopandas)
-- Manual corrections from ENS Cultural Index research
+| Occupation | Count |
+|------------|-------|
+| writer | 400,073 |
+| actor | 365,015 |
+| university teacher | 316,059 |
+| poet | 127,034 |
+| singer | 123,885 |
+| historian | 120,734 |
+| composer | 114,573 |
+| film director | 99,507 |
+| musician | 97,773 |
+| teacher | 92,293 |
