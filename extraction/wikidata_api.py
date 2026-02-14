@@ -16,11 +16,13 @@ RETRY_DELAY = 1  # seconds - reduced for faster recovery
 # Allow runtime endpoint override
 _current_endpoint = ENDPOINT_URL
 
+
 def set_endpoint(url: str):
     """Set the SPARQL endpoint URL."""
     global _current_endpoint
     _current_endpoint = url
     print(f"SPARQL endpoint set to: {url}")
+
 
 def get_endpoint() -> str:
     """Get the current SPARQL endpoint URL."""
@@ -52,7 +54,9 @@ def sparql_query(query: str) -> list[dict]:
         except Exception as e:
             if attempt < MAX_RETRIES - 1:
                 wait = RETRY_DELAY * (attempt + 1)
-                print(f"  SPARQL error (attempt {attempt + 1}): {e}. Retrying in {wait}s...")
+                print(
+                    f"  SPARQL error (attempt {attempt + 1}): {e}. Retrying in {wait}s..."
+                )
                 time.sleep(wait)
             else:
                 raise

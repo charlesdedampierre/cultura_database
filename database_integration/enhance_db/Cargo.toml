@@ -1,0 +1,87 @@
+[package]
+name = "enhance_db"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "01_create_modern_country"
+path = "src/bin/01_create_modern_country.rs"
+
+[[bin]]
+name = "02_fix_encoding"
+path = "src/bin/02_fix_encoding.rs"
+
+[[bin]]
+name = "03_add_gender"
+path = "src/bin/03_add_gender.rs"
+
+[[bin]]
+name = "04_add_names_to_identifiers_sitelinks"
+path = "src/bin/04_add_names_to_identifiers_sitelinks.rs"
+
+[[bin]]
+name = "05_add_identifier_count"
+path = "src/bin/05_add_identifier_count.rs"
+
+[[bin]]
+name = "06_restructure_nationalities"
+path = "src/bin/06_restructure_nationalities.rs"
+
+[[bin]]
+name = "07_clean_properties_definition"
+path = "src/bin/07_clean_properties_definition.rs"
+
+[[bin]]
+name = "08_create_writing_languages"
+path = "src/bin/08_create_writing_languages.rs"
+
+[[bin]]
+name = "09_order_by_count"
+path = "src/bin/09_order_by_count.rs"
+
+[[bin]]
+name = "10_fix_cities"
+path = "src/bin/10_fix_cities.rs"
+
+[[bin]]
+name = "11_reorder_identifiers"
+path = "src/bin/11_reorder_identifiers.rs"
+
+[[bin]]
+name = "12_enhance_individuals"
+path = "src/bin/12_enhance_individuals.rs"
+
+[[bin]]
+name = "13_fix_modern_country"
+path = "src/bin/13_fix_modern_country.rs"
+
+[[bin]]
+name = "14_clean_properties"
+path = "src/bin/14_clean_properties.rs"
+
+[[bin]]
+name = "15_reorder_sitelinks"
+path = "src/bin/15_reorder_sitelinks.rs"
+
+[[bin]]
+name = "check_schema"
+path = "src/bin/check_schema.rs"
+
+[[bin]]
+name = "16_clean_columns"
+path = "src/bin/16_clean_columns.rs"
+
+[[bin]]
+name = "repair_db"
+path = "src/bin/repair_db.rs"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+indicatif = "0.17"
+anyhow = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
