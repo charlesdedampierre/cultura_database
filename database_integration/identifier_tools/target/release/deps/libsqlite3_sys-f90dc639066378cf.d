@@ -1,0 +1,11 @@
+/Users/charlesdedampierre/Desktop/Rsearch Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/deps/libsqlite3_sys-f90dc639066378cf.d: /Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/lib.rs /Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/error.rs /Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/build/libsqlite3-sys-d7ea90338bd8f8cd/out/bindgen.rs
+
+/Users/charlesdedampierre/Desktop/Rsearch Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/deps/liblibsqlite3_sys-f90dc639066378cf.rlib: /Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/lib.rs /Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/error.rs /Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/build/libsqlite3-sys-d7ea90338bd8f8cd/out/bindgen.rs
+
+/Users/charlesdedampierre/Desktop/Rsearch Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/deps/liblibsqlite3_sys-f90dc639066378cf.rmeta: /Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/lib.rs /Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/error.rs /Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/build/libsqlite3-sys-d7ea90338bd8f8cd/out/bindgen.rs
+
+/Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/lib.rs:
+/Users/charlesdedampierre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.28.0/src/error.rs:
+/Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/build/libsqlite3-sys-d7ea90338bd8f8cd/out/bindgen.rs:
+
+# env-dep:OUT_DIR=/Users/charlesdedampierre/Desktop/Rsearch Folder/cultura_database/all_humans_to_sqlite3/identifier_tools/target/release/build/libsqlite3-sys-d7ea90338bd8f8cd/out

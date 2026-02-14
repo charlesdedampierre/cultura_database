@@ -11,7 +11,20 @@ ENDPOINT_URL = "https://query.wikidata.org/sparql"
 USER_AGENT = "CulturaDatabase Python/%s.%s" % (sys.version_info[0], sys.version_info[1])
 
 MAX_RETRIES = 3
-RETRY_DELAY = 30  # seconds
+RETRY_DELAY = 1  # seconds - reduced for faster recovery
+
+# Allow runtime endpoint override
+_current_endpoint = ENDPOINT_URL
+
+def set_endpoint(url: str):
+    """Set the SPARQL endpoint URL."""
+    global _current_endpoint
+    _current_endpoint = url
+    print(f"SPARQL endpoint set to: {url}")
+
+def get_endpoint() -> str:
+    """Get the current SPARQL endpoint URL."""
+    return _current_endpoint
 
 
 def sparql_query(query: str) -> list[dict]:
@@ -21,7 +34,7 @@ def sparql_query(query: str) -> list[dict]:
     with values already extracted from the JSON response.
     Retries on transient errors (timeout, 429, 500).
     """
-    sparql = SPARQLWrapper(ENDPOINT_URL, agent=USER_AGENT)
+    sparql = SPARQLWrapper(_current_endpoint, agent=USER_AGENT)
     sparql.setQuery(query)
     sparql.setReturnFormat(JSON)
 

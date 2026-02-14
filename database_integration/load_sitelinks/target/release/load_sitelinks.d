@@ -1,0 +1,1 @@
+/Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/database_integration/load_sitelinks/target/release/load_sitelinks: /Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/database_integration/load_sitelinks/src/main.rs

@@ -88,3 +88,28 @@ CREATE TABLE occupation_counts (
 | film director | 99,507 |
 | musician | 97,773 |
 | teacher | 92,293 |
+
+## External Identifiers
+
+The database includes external identifiers (VIAF, ISNI, IMDb, etc.) for individuals, with metadata about each identifier property.
+
+### Identifier Metadata
+
+Each identifier property includes:
+
+| Column | Description | Source |
+|--------|-------------|--------|
+| `property_id` | Wikidata property ID (e.g., P214) | Wikidata |
+| `property_name` | Human-readable name | Wikidata |
+| `count` | Number of individuals with this identifier | Computed |
+| `description` | Property description | Wikidata `schema:description` |
+| `issuer_name` | Organization maintaining the identifier | Wikidata `P2378` (issued by) |
+| `issuer_id` | Wikidata ID of issuer | Wikidata `P2378` |
+| `issuer_instance` | Type of issuer organization | Wikidata `P31` of issuer |
+| `country_name` | Country of origin | Wikidata `P17` (country) |
+| `country_id` | Wikidata ID of country | Wikidata `P17` |
+| `inception` | Year created | Wikidata `P571` (inception) |
+| `database_records` | Total items in external database | Wikidata `P4876` (number of records) |
+| `website` | Source website URL | Wikidata `P1896` (source website) |
+
+All metadata is extracted directly from Wikidata using SPARQL queries.
