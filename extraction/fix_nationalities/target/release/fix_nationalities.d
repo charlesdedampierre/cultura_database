@@ -1,0 +1,1 @@
+/Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/extraction/fix_nationalities/target/release/fix_nationalities: /Users/charlesdedampierre/Desktop/Rsearch\ Folder/cultura_database/extraction/fix_nationalities/src/main.rs

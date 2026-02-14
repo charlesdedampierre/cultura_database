@@ -8,8 +8,15 @@ __pycache__/
 *.json
 *.csv
 *.db
+*.sqlite3
+*.sqlite
 *.geojson
 *.zip
+*.parquet
+*.pkl
+*.pickle
+*.log
+data/
 
 # Large folders
 archive/

@@ -68,7 +68,9 @@ def get_info(wiki_id: str) -> dict | None:
              ?mannerOfDeath ?mannerOfDeathLabel
              ?fieldOfWork ?fieldOfWorkLabel
              ?viaf ?description ?descLang
-    """ % tuple([wiki_id] * 16)
+    """ % tuple(
+        [wiki_id] * 16
+    )
 
     try:
         rows = sparql_query(query)

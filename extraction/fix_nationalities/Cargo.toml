@@ -1,0 +1,12 @@
+[package]
+name = "fix_nationalities"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.10"
+ureq = { version = "2.9", features = ["json"] }
+unicode-normalization = "0.1"

@@ -1,0 +1,21 @@
+[package]
+name = "identifier_tools"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "02_create_identifier_view"
+path = "src/bin/02_create_identifier_view.rs"
+
+[[bin]]
+name = "03_add_identifier_counts"
+path = "src/bin/03_add_identifier_counts.rs"
+
+[[bin]]
+name = "05_enrich_identifiers"
+path = "src/bin/05_enrich_identifiers.rs"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
+indicatif = "0.17"
+anyhow = "1.0"
