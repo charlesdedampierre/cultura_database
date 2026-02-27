@@ -75,6 +75,134 @@ path = "src/bin/16_clean_columns.rs"
 name = "repair_db"
 path = "src/bin/repair_db.rs"
 
+[[bin]]
+name = "17_create_impact_date"
+path = "src/bin/17_create_impact_date.rs"
+
+[[bin]]
+name = "18_fix_nationalities"
+path = "src/bin/18_fix_nationalities.rs"
+
+[[bin]]
+name = "19_add_iso_a3_to_cities"
+path = "src/bin/19_add_iso_a3_to_cities.rs"
+
+[[bin]]
+name = "20_create_individuals_countries"
+path = "src/bin/20_create_individuals_countries.rs"
+
+[[bin]]
+name = "21_fix_cities_modern_country"
+path = "src/bin/21_fix_cities_modern_country.rs"
+
+[[bin]]
+name = "22_rebuild_individuals_countries"
+path = "src/bin/22_rebuild_individuals_countries.rs"
+
+[[bin]]
+name = "23_rename_columns_and_enrich_cities"
+path = "src/bin/23_rename_columns_and_enrich_cities.rs"
+
+[[bin]]
+name = "24_fix_cities_and_individuals_countries"
+path = "src/bin/24_fix_cities_and_individuals_countries.rs"
+
+[[bin]]
+name = "25_fix_null_coord_cities"
+path = "src/bin/25_fix_null_coord_cities.rs"
+
+[[bin]]
+name = "26_fill_nationality_countries"
+path = "src/bin/26_fill_nationality_countries.rs"
+
+[[bin]]
+name = "27_fill_nationality_location_countries"
+path = "src/bin/27_fill_nationality_location_countries.rs"
+
+[[bin]]
+name = "28_create_regions"
+path = "src/bin/28_create_regions.rs"
+
+[[bin]]
+name = "28b_add_missing_regions"
+path = "src/bin/28b_add_missing_regions.rs"
+
+[[bin]]
+name = "31_rebuild_individuals_countries"
+path = "src/bin/31_rebuild_individuals_countries.rs"
+
+[[bin]]
+name = "28c_fix_region_gaps"
+path = "src/bin/28c_fix_region_gaps.rs"
+
+[[bin]]
+name = "29_add_regions_to_individuals_countries"
+path = "src/bin/29_add_regions_to_individuals_countries.rs"
+
+[[bin]]
+name = "30_create_individuals_regions_cliopatria"
+path = "src/bin/30_create_individuals_regions_cliopatria.rs"
+
+[[bin]]
+name = "32_transfer_to_clean_db"
+path = "src/bin/32_transfer_to_clean_db.rs"
+
+[[bin]]
+name = "33_create_individuals_countries"
+path = "src/bin/33_create_individuals_countries.rs"
+
+[[bin]]
+name = "34_create_individuals_countries"
+path = "src/bin/34_create_individuals_countries.rs"
+
+[[bin]]
+name = "35_create_individuals_regions_cliopatria"
+path = "src/bin/35_create_individuals_regions_cliopatria.rs"
+
+[[bin]]
+name = "36_add_polities_cliopatria"
+path = "src/bin/36_add_polities_cliopatria.rs"
+
+[[bin]]
+name = "37_create_polities_cliopatria"
+path = "src/bin/37_create_polities_cliopatria.rs"
+
+[[bin]]
+name = "38_copy_polity_periods"
+path = "src/bin/38_copy_polity_periods.rs"
+
+[[bin]]
+name = "39_create_individuals_cliopatria"
+path = "src/bin/39_create_individuals_cliopatria.rs"
+
+[[bin]]
+name = "40_drop_individuals_regions_cliopatria"
+path = "src/bin/40_drop_individuals_regions_cliopatria.rs"
+
+[[bin]]
+name = "41_create_individuals_keys"
+path = "src/bin/41_create_individuals_keys.rs"
+
+[[bin]]
+name = "42_recreate_individuals_cliopatria"
+path = "src/bin/42_recreate_individuals_cliopatria.rs"
+
+[[bin]]
+name = "43_create_individuals_regions"
+path = "src/bin/43_create_individuals_regions.rs"
+
+[[bin]]
+name = "44_fix_properties_definition"
+path = "src/bin/44_fix_properties_definition.rs"
+
+[[bin]]
+name = "45_create_consolidate"
+path = "src/bin/45_create_consolidate.rs"
+
+[[bin]]
+name = "46_add_individuals_with_impact_count"
+path = "src/bin/46_add_individuals_with_impact_count.rs"
+
 [dependencies]
 rusqlite = { version = "0.31", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
