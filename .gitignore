@@ -21,6 +21,7 @@ __pycache__/
 
 # Data directories
 data/
+data_limited/
 cliopatria_data/
 archive/
 analysis/

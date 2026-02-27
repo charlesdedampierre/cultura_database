@@ -1,0 +1,25 @@
+To: charlesdedampierre@gmail.com
+Subject: [database_integration] individuals_countries table created
+
+The individuals_countries table has been successfully created in data/humans_clean.sqlite3.
+
+Summary:
+- Total individuals processed: 13,002,897
+- Total matched to a country: 6,374,506
+  - Via nationality: 5,568,208
+  - Via deathplace: 384,285
+  - Via birthplace: 422,013
+- With region assigned: 5,319,041
+- Unmatched (no country found): 6,628,391
+
+Top 5 countries:
+1. United States (USA) - 720,615
+2. Germany (DEU) - 494,809
+3. France (FRA) - 417,969
+4. China (CHN) - 371,846
+5. United Kingdom (GBR) - 328,373
+
+Origins breakdown:
+- "nationality" column used for 87.4% of matches
+- "deathplace" column used for 6.0% of matches
+- "birthplace" column used for 6.6% of matches
