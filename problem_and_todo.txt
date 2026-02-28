@@ -1,14 +1,8 @@
 
-
-Hubert de Dampierre no identifiers
-
-add the full url for the individuals, as it is in wikidata
-some names are not present (Micake jackson)
-
-
-The database is corrupt, I may to transfer all the columns to another database but this may take time.
-I can operate on this one:/Users/charlesdedampierre/Desktop/humans_clean.sqlite3
+I am not sure to add the URL, in the preprint I will make some tests to see how good the rtesutls are, compared to only the polygons.
 
 
 
-How come there is more dtaa in the url that in the mixed approach ?
+
+I feel the indoviudlas with URL get liked to the polity, regarless of the date on which they shoud get linked. Can you maekj sure that someoine belongs to a molity when the URL and the imapct date macthes the polity ? 
+add tghe imapct date missing in indivudlas cliopatria.

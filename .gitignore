@@ -24,7 +24,7 @@ data/
 data_limited/
 cliopatria_data/
 archive/
-analysis/
+paper/
 
 # Claude AI workspace
 claude/

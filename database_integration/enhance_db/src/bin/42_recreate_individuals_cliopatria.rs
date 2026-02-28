@@ -5,9 +5,9 @@
 /// 1. Deathplace polygon (with impact_date check)
 /// 2. Birthplace polygon (with impact_date check)
 /// 3. Nationality polygon (with impact_date check)
-/// 4. URL nationality
-/// 5. URL deathcity
-/// 6. URL birthcity
+/// 4. URL nationality (with impact_date check against polity periods)
+/// 5. URL deathcity (with impact_date check against polity periods)
+/// 6. URL birthcity (with impact_date check against polity periods)
 ///
 /// New columns vs old: matched_wikidata_id, impact_date
 use anyhow::Result;
@@ -339,6 +339,23 @@ fn main() -> Result<()> {
     }
     log(&format!("[42] Impact date lookup: {} entries", impact_lookup.len()));
 
+    // Polity-id to year-ranges lookup (all periods, not just those with geometry)
+    log("[42] Building polity year-range lookup...");
+    let mut polity_id_to_years: HashMap<i64, Vec<(i32, i32)>> = HashMap::new();
+    {
+        let mut stmt = conn.prepare(
+            "SELECT polity_id, from_year, to_year FROM cliopatria_polity_periods",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, i32>(1)?, r.get::<_, i32>(2)?))
+        })?;
+        for r in rows {
+            let (pid, from, to) = r?;
+            polity_id_to_years.entry(pid).or_default().push((from, to));
+        }
+    }
+    log(&format!("[42] Polity year-range lookup: {} polities", polity_id_to_years.len()));
+
     // ========================================================
     // PHASE 3: Create individuals_cliopatria table
     // ========================================================
@@ -535,29 +552,35 @@ fn main() -> Result<()> {
                     }
                 }
 
-                // === URL FALLBACK ===
+                // === URL FALLBACK (requires impact_date within polity period) ===
 
                 // Priority 4: URL nationality
                 if matched.is_none() {
-                    if let Some(nat_ids_str) = nationalities_ids {
-                        for nat_id in nat_ids_str.split(';') {
-                            let nat_id = nat_id.trim();
-                            if nat_id.is_empty() {
-                                continue;
-                            }
-                            if let Some(nat_info) = nat_lookup.get(nat_id) {
-                                if let Some(url) = &nat_info.url {
-                                    if let Some((polity_name, polity_id)) = url_to_polity.get(url.as_str()) {
-                                        matched = Some((
-                                            polity_name.clone(),
-                                            *polity_id,
-                                            "nationality",
-                                            nat_info.name_en.clone(),
-                                            nat_id.to_string(),
-                                            "url",
-                                            None,
-                                        ));
-                                        break;
+                    if let Some(&year) = impact_lookup.get(wikidata_id.as_str()) {
+                        if let Some(nat_ids_str) = nationalities_ids {
+                            for nat_id in nat_ids_str.split(';') {
+                                let nat_id = nat_id.trim();
+                                if nat_id.is_empty() {
+                                    continue;
+                                }
+                                if let Some(nat_info) = nat_lookup.get(nat_id) {
+                                    if let Some(url) = &nat_info.url {
+                                        if let Some((polity_name, polity_id)) = url_to_polity.get(url.as_str()) {
+                                            if polity_id_to_years.get(polity_id).map_or(false, |yrs| {
+                                                yrs.iter().any(|(from, to)| year >= *from && year <= *to)
+                                            }) {
+                                                matched = Some((
+                                                    polity_name.clone(),
+                                                    *polity_id,
+                                                    "nationality",
+                                                    nat_info.name_en.clone(),
+                                                    nat_id.to_string(),
+                                                    "url",
+                                                    Some(year),
+                                                ));
+                                                break;
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -567,21 +590,27 @@ fn main() -> Result<()> {
 
                 // Priority 5: URL deathcity
                 if matched.is_none() {
-                    if let Some(dc_id) = deathcity_id {
-                        let dc_id = dc_id.trim();
-                        if !dc_id.is_empty() {
-                            if let Some(city_info) = city_lookup.get(dc_id) {
-                                if let Some(url) = &city_info.url {
-                                    if let Some((polity_name, polity_id)) = url_to_polity.get(url.as_str()) {
-                                        matched = Some((
-                                            polity_name.clone(),
-                                            *polity_id,
-                                            "deathplace",
-                                            city_info.name_en.clone(),
-                                            dc_id.to_string(),
-                                            "url",
-                                            None,
-                                        ));
+                    if let Some(&year) = impact_lookup.get(wikidata_id.as_str()) {
+                        if let Some(dc_id) = deathcity_id {
+                            let dc_id = dc_id.trim();
+                            if !dc_id.is_empty() {
+                                if let Some(city_info) = city_lookup.get(dc_id) {
+                                    if let Some(url) = &city_info.url {
+                                        if let Some((polity_name, polity_id)) = url_to_polity.get(url.as_str()) {
+                                            if polity_id_to_years.get(polity_id).map_or(false, |yrs| {
+                                                yrs.iter().any(|(from, to)| year >= *from && year <= *to)
+                                            }) {
+                                                matched = Some((
+                                                    polity_name.clone(),
+                                                    *polity_id,
+                                                    "deathplace",
+                                                    city_info.name_en.clone(),
+                                                    dc_id.to_string(),
+                                                    "url",
+                                                    Some(year),
+                                                ));
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -591,21 +620,27 @@ fn main() -> Result<()> {
 
                 // Priority 6: URL birthcity
                 if matched.is_none() {
-                    if let Some(bc_id) = birthcity_id {
-                        let bc_id = bc_id.trim();
-                        if !bc_id.is_empty() {
-                            if let Some(city_info) = city_lookup.get(bc_id) {
-                                if let Some(url) = &city_info.url {
-                                    if let Some((polity_name, polity_id)) = url_to_polity.get(url.as_str()) {
-                                        matched = Some((
-                                            polity_name.clone(),
-                                            *polity_id,
-                                            "birthplace",
-                                            city_info.name_en.clone(),
-                                            bc_id.to_string(),
-                                            "url",
-                                            None,
-                                        ));
+                    if let Some(&year) = impact_lookup.get(wikidata_id.as_str()) {
+                        if let Some(bc_id) = birthcity_id {
+                            let bc_id = bc_id.trim();
+                            if !bc_id.is_empty() {
+                                if let Some(city_info) = city_lookup.get(bc_id) {
+                                    if let Some(url) = &city_info.url {
+                                        if let Some((polity_name, polity_id)) = url_to_polity.get(url.as_str()) {
+                                            if polity_id_to_years.get(polity_id).map_or(false, |yrs| {
+                                                yrs.iter().any(|(from, to)| year >= *from && year <= *to)
+                                            }) {
+                                                matched = Some((
+                                                    polity_name.clone(),
+                                                    *polity_id,
+                                                    "birthplace",
+                                                    city_info.name_en.clone(),
+                                                    bc_id.to_string(),
+                                                    "url",
+                                                    Some(year),
+                                                ));
+                                            }
+                                        }
                                     }
                                 }
                             }
