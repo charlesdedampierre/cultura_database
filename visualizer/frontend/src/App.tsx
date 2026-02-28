@@ -89,13 +89,13 @@ function App() {
           </nav>
         </header>
 
-        {/* Timeline Slider */}
-        <TimelineSlider />
-
         {/* Map - fixed height */}
         <div className="h-[55vh] relative overflow-hidden flex-shrink-0">
           <WorldMap />
         </div>
+
+        {/* Timeline Slider */}
+        <TimelineSlider />
 
         {/* Polity Panel - below map, two columns */}
         <div className="flex-1 border-t border-gray-200 bg-white">

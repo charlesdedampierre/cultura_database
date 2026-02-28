@@ -10,6 +10,34 @@ const POLITY_COLORS = [
   '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
 ];
 
+function makeStyle(projection: 'mercator' | 'globe'): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    projection: { type: projection } as any,
+    sources: {
+      'carto-light': {
+        type: 'raster',
+        tiles: [
+          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        ],
+        tileSize: 256,
+        attribution: '',
+      },
+    },
+    layers: [
+      {
+        id: 'carto-light-layer',
+        type: 'raster',
+        source: 'carto-light',
+        minzoom: 0,
+        maxzoom: 22,
+      },
+    ],
+  };
+}
+
 export function WorldMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -18,12 +46,18 @@ export function WorldMap() {
 
   const { selectedYear, selectedPolityId, setSelectedPolityId } = useAppStore();
 
+  // Store the latest polities data and selection in refs so we can re-apply after style change
+  const latestFeaturesRef = useRef<any[]>([]);
+  const setSelectedPolityIdRef = useRef(setSelectedPolityId);
+  setSelectedPolityIdRef.current = setSelectedPolityId;
+
   const toggleGlobe = useCallback(() => {
     if (!map.current) return;
     const newIsGlobe = !isGlobe;
     setIsGlobe(newIsGlobe);
-    // MapLibre GL v4+ supports globe projection
-    (map.current as any).setProjection(newIsGlobe ? { type: 'globe' } : { type: 'mercator' });
+
+    // Set the full style with the new projection; diff:false to force full reload
+    map.current.setStyle(makeStyle(newIsGlobe ? 'globe' : 'mercator'), { diff: false });
   }, [isGlobe]);
 
   // Fetch active polities
@@ -38,30 +72,7 @@ export function WorldMap() {
 
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          'carto-light': {
-            type: 'raster',
-            tiles: [
-              'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-              'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-              'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-            ],
-            tileSize: 256,
-            attribution: '',
-          },
-        },
-        layers: [
-          {
-            id: 'carto-light-layer',
-            type: 'raster',
-            source: 'carto-light',
-            minzoom: 0,
-            maxzoom: 22,
-          },
-        ],
-      },
+      style: makeStyle('mercator'),
       center: [20, 30],
       zoom: 2.5,
       attributionControl: false,
@@ -69,52 +80,60 @@ export function WorldMap() {
 
     mapInstance.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    mapInstance.on('load', () => {
-      // Add empty source for polities
-      mapInstance.addSource('polities', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
+    // Re-add polity layers whenever the style finishes loading (initial or after setStyle)
+    mapInstance.on('style.load', () => {
+      // Add polities source if it doesn't exist yet
+      if (!mapInstance.getSource('polities')) {
+        mapInstance.addSource('polities', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
 
-      // Add fill layer
-      mapInstance.addLayer({
-        id: 'polities-fill',
-        type: 'fill',
-        source: 'polities',
-        paint: {
-          'fill-color': ['get', 'color'],
-          'fill-opacity': ['case', ['get', 'selected'], 0.6, 0.3],
-        },
-      });
+        mapInstance.addLayer({
+          id: 'polities-fill',
+          type: 'fill',
+          source: 'polities',
+          paint: {
+            'fill-color': ['get', 'color'],
+            'fill-opacity': ['case', ['get', 'selected'], 0.6, 0.3],
+          },
+        });
 
-      // Add outline layer
-      mapInstance.addLayer({
-        id: 'polities-outline',
-        type: 'line',
-        source: 'polities',
-        paint: {
-          'line-color': ['get', 'color'],
-          'line-width': ['case', ['get', 'selected'], 3, 1],
-        },
-      });
+        mapInstance.addLayer({
+          id: 'polities-outline',
+          type: 'line',
+          source: 'polities',
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': ['case', ['get', 'selected'], 3, 1],
+          },
+        });
 
-      // Single click handler
-      mapInstance.on('click', 'polities-fill', (e) => {
-        if (e.features && e.features.length > 0) {
-          const polityId = e.features[0].properties?.id;
-          if (polityId) {
-            setSelectedPolityId(polityId);
+        mapInstance.on('click', 'polities-fill', (e) => {
+          if (e.features && e.features.length > 0) {
+            const polityId = e.features[0].properties?.id;
+            if (polityId) {
+              setSelectedPolityIdRef.current(polityId);
+            }
           }
-        }
-      });
+        });
 
-      // Hover cursor
-      mapInstance.on('mouseenter', 'polities-fill', () => {
-        mapInstance.getCanvas().style.cursor = 'pointer';
-      });
-      mapInstance.on('mouseleave', 'polities-fill', () => {
-        mapInstance.getCanvas().style.cursor = '';
-      });
+        mapInstance.on('mouseenter', 'polities-fill', () => {
+          mapInstance.getCanvas().style.cursor = 'pointer';
+        });
+        mapInstance.on('mouseleave', 'polities-fill', () => {
+          mapInstance.getCanvas().style.cursor = '';
+        });
+      }
+
+      // Re-apply the latest features data
+      const source = mapInstance.getSource('polities') as maplibregl.GeoJSONSource;
+      if (source && latestFeaturesRef.current.length > 0) {
+        source.setData({
+          type: 'FeatureCollection',
+          features: latestFeaturesRef.current,
+        });
+      }
 
       setMapReady(true);
     });
@@ -125,7 +144,7 @@ export function WorldMap() {
       mapInstance.remove();
       map.current = null;
     };
-  }, [setSelectedPolityId]);
+  }, []);
 
   // Update polities data when year changes or selection changes
   useEffect(() => {
@@ -143,6 +162,9 @@ export function WorldMap() {
         },
         geometry: polity.geometry!,
       }));
+
+    // Store in ref so we can re-apply after style changes
+    latestFeaturesRef.current = features;
 
     const source = map.current.getSource('polities') as maplibregl.GeoJSONSource;
     if (source) {
