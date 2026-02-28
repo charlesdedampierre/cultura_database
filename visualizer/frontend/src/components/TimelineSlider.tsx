@@ -18,21 +18,12 @@ function formatYear(year: number): string {
 
 function parseYearInput(input: string): number | null {
   const trimmed = input.trim().toUpperCase();
-  // Try "XXXX BCE" format
   const bceMatch = trimmed.match(/^(\d+)\s*BCE$/);
-  if (bceMatch) {
-    return -parseInt(bceMatch[1], 10);
-  }
-  // Try "XXXX CE" format
+  if (bceMatch) return -parseInt(bceMatch[1], 10);
   const ceMatch = trimmed.match(/^(\d+)\s*CE$/);
-  if (ceMatch) {
-    return parseInt(ceMatch[1], 10);
-  }
-  // Try plain number (negative = BCE, positive = CE)
+  if (ceMatch) return parseInt(ceMatch[1], 10);
   const num = parseInt(trimmed, 10);
-  if (!isNaN(num)) {
-    return num;
-  }
+  if (!isNaN(num)) return num;
   return null;
 }
 
@@ -52,11 +43,26 @@ export function TimelineSlider() {
     }
   }, [yearInput, setSelectedYear]);
 
+  const stepBack = () => setSelectedYear(Math.max(MIN_YEAR, selectedYear - STEP));
+  const stepForward = () => setSelectedYear(Math.min(MAX_YEAR, selectedYear + STEP));
+
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="bg-white border-t border-b border-gray-200 px-6 py-3">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500 whitespace-nowrap">{formatYear(MIN_YEAR)}</span>
+        <div className="flex items-center gap-3">
+          {/* Step back arrow */}
+          <button
+            onClick={stepBack}
+            disabled={selectedYear <= MIN_YEAR}
+            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600"
+            title="Step back 50 years"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <span className="text-xs text-gray-400 whitespace-nowrap">{formatYear(MIN_YEAR)}</span>
 
           <Slider.Root
             className="relative flex items-center select-none touch-none w-full h-5"
@@ -75,9 +81,21 @@ export function TimelineSlider() {
             />
           </Slider.Root>
 
-          <span className="text-sm text-gray-500 whitespace-nowrap">{formatYear(MAX_YEAR)}</span>
+          <span className="text-xs text-gray-400 whitespace-nowrap">{formatYear(MAX_YEAR)}</span>
 
-          <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-medium min-w-32 text-center whitespace-nowrap">
+          {/* Step forward arrow */}
+          <button
+            onClick={stepForward}
+            disabled={selectedYear >= MAX_YEAR}
+            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600"
+            title="Step forward 50 years"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-medium min-w-28 text-center text-sm whitespace-nowrap">
             {formatYear(selectedYear)}
           </div>
 
