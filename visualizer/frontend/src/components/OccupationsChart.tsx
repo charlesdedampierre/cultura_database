@@ -6,6 +6,8 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  Cell,
+  Label,
 } from 'recharts';
 import { useAppStore } from '../store';
 
@@ -49,8 +51,9 @@ export function OccupationsChart() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleBarClick = (data: any) => {
-    if (data?.name) {
-      setFilterOccupation(data.name);
+    const name = data?.name ?? data?.payload?.name;
+    if (name) {
+      setFilterOccupation(name);
     }
   };
 
@@ -69,13 +72,25 @@ export function OccupationsChart() {
             layout="vertical"
             margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
             style={{ cursor: 'pointer' }}
+            onClick={(state) => {
+              if (state?.activePayload?.[0]?.payload) {
+                handleBarClick(state.activePayload[0].payload);
+              }
+            }}
           >
             <XAxis
               type="number"
               tickFormatter={(value) => value.toLocaleString()}
               tick={{ fontSize: 11 }}
               stroke="#9ca3af"
-            />
+            >
+              <Label
+                value="Number of Individuals"
+                position="insideBottom"
+                offset={-2}
+                style={{ textAnchor: 'middle', fill: '#6b7280', fontSize: 11 }}
+              />
+            </XAxis>
             <YAxis
               type="category"
               dataKey="name"
@@ -95,27 +110,21 @@ export function OccupationsChart() {
             />
             <Bar
               dataKey="count"
-              fill="#10b981"
               radius={[0, 4, 4, 0]}
-              onClick={handleBarClick}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              shape={(props: any) => {
-                const { x, y, width, height, payload } = props;
-                const isSelected = filterOccupation === payload.name;
-                const isDimmed = filterOccupation && !isSelected;
+            >
+              {occupations.map((entry) => {
+                const isSelected = filterOccupation === entry.name;
+                const isDimmed = filterOccupation != null && !isSelected;
                 return (
-                  <rect
-                    x={x}
-                    y={y}
-                    width={width}
-                    height={height}
-                    rx={4}
+                  <Cell
+                    key={entry.name}
                     fill={isSelected ? '#059669' : '#10b981'}
                     opacity={isDimmed ? 0.4 : 1}
+                    cursor="pointer"
                   />
                 );
-              }}
-            />
+              })}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

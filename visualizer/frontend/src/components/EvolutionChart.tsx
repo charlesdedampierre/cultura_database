@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  Label,
 } from 'recharts';
 import { useAppStore } from '../store';
 
@@ -90,7 +91,15 @@ export function EvolutionChart() {
             tickFormatter={(value) => value.toLocaleString()}
             tick={{ fontSize: 11 }}
             stroke="#9ca3af"
-          />
+          >
+            <Label
+              value="Number of Individuals"
+              angle={-90}
+              position="insideLeft"
+              style={{ textAnchor: 'middle', fill: '#6b7280', fontSize: 11 }}
+              offset={0}
+            />
+          </YAxis>
           <Tooltip
             labelFormatter={(year) => formatYear(year as number)}
             formatter={(value) => [(value as number).toLocaleString(), 'Individuals']}

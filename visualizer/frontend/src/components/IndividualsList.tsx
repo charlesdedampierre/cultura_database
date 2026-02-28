@@ -28,13 +28,16 @@ export function IndividualsList() {
     setSortField,
     toggleSortOrder,
     setCurrentPage,
+    filterOccupation,
+    setFilterOccupation,
+    filterYear,
   } = useAppStore();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['polityIndividuals', selectedPolityId, currentPage, sortField, sortOrder],
+    queryKey: ['polityIndividuals', selectedPolityId, currentPage, sortField, sortOrder, filterYear, filterOccupation],
     queryFn: () =>
       selectedPolityId
-        ? getPolityIndividuals(selectedPolityId, currentPage, ITEMS_PER_PAGE, sortField, sortOrder)
+        ? getPolityIndividuals(selectedPolityId, currentPage, ITEMS_PER_PAGE, sortField, sortOrder, filterYear, filterOccupation)
         : Promise.resolve(null),
     enabled: !!selectedPolityId,
   });
@@ -80,10 +83,24 @@ export function IndividualsList() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Active filter indicator */}
+      {filterOccupation && (
+        <div className="mb-2 flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-gray-500">Filtered by:</span>
+          <span
+            className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded cursor-pointer hover:bg-green-200"
+            onClick={() => setFilterOccupation(null)}
+          >
+            {filterOccupation} ✕
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <span className="text-sm text-gray-500">
-          {data.total.toLocaleString()} individuals
+          {data.total.toLocaleString()} individual{data.total !== 1 ? 's' : ''}
+          {filterOccupation ? ' (filtered)' : ''}
         </span>
         <div className="flex gap-2">
           <button

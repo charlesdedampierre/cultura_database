@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store';
@@ -14,8 +14,17 @@ export function WorldMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [isGlobe, setIsGlobe] = useState(false);
 
   const { selectedYear, selectedPolityId, setSelectedPolityId } = useAppStore();
+
+  const toggleGlobe = useCallback(() => {
+    if (!map.current) return;
+    const newIsGlobe = !isGlobe;
+    setIsGlobe(newIsGlobe);
+    // MapLibre GL v4+ supports globe projection
+    (map.current as any).setProjection(newIsGlobe ? { type: 'globe' } : { type: 'mercator' });
+  }, [isGlobe]);
 
   // Fetch active polities
   const { data: politiesData, isLoading } = useQuery({
@@ -147,8 +156,20 @@ export function WorldMap() {
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="absolute inset-0" />
+      {/* Globe toggle button */}
+      <button
+        onClick={toggleGlobe}
+        className="absolute top-4 left-4 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 z-10 border border-gray-200"
+        title={isGlobe ? 'Switch to flat map' : 'Switch to globe view'}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
+          <path strokeWidth={1.5} d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z" />
+        </svg>
+        {isGlobe ? 'Flat Map' : 'Globe'}
+      </button>
       {isLoading && (
-        <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-600">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-600">
           Loading polities...
         </div>
       )}
