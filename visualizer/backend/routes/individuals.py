@@ -1,10 +1,12 @@
 """Individual-related API endpoints."""
 
+import logging
 from fastapi import APIRouter, Query, HTTPException
 from typing import Literal
 from ..database import get_db
 from ..models import PaginatedIndividuals, Individual
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/individuals", tags=["individuals"])
 
@@ -39,8 +41,10 @@ def get_polity_individuals(
             params.append(impact_year)
 
         if occupation is not None:
+            logger.info(f"Filtering by occupation: {occupation}")
             where += " AND (occupations_en = ? OR occupations_en LIKE ? OR occupations_en LIKE ? OR occupations_en LIKE ?)"
             params.extend([occupation, f"{occupation}; %", f"%; {occupation}; %", f"%; {occupation}"])
+            logger.info(f"WHERE clause: {where}, params: {params}")
 
         # Get total count
         cursor.execute(f"SELECT COUNT(*) as cnt FROM individuals_light WHERE {where}", params)

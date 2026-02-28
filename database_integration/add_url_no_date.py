@@ -11,12 +11,14 @@ DB_PATH = "/workspace/data/humans_clean.sqlite3"
 TASK_LOG = "/workspace/task.log"
 BATCH = 50_000
 
+
 def log(msg):
     ts = time.strftime("%H:%M:%S")
     line = f"[{ts}] {msg}"
     print(line, flush=True)
     with open(TASK_LOG, "a") as f:
         f.write(line + "\n")
+
 
 def main():
     log("=== Add URL-matched individuals without impact_date ===")
@@ -60,10 +62,12 @@ def main():
 
     # 4. Process unmatched individuals in batches
     log("[4/5] Processing unmatched individuals for URL matches...")
-    total_unmatched = conn.execute("""
+    total_unmatched = conn.execute(
+        """
         SELECT COUNT(*) FROM individuals i
         WHERE NOT EXISTS (SELECT 1 FROM individuals_cliopatria ic WHERE ic.wikidata_id = i.wikidata_id)
-    """).fetchone()[0]
+    """
+    ).fetchone()[0]
     log(f"    {total_unmatched:,} unmatched individuals to check")
 
     offset = 0
@@ -73,14 +77,17 @@ def main():
     cnt_birth = 0
 
     while True:
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT i.wikidata_id, i.name_en, k.nationalities_ids, k.birthcity_id, k.deathcity_id
             FROM individuals i
             LEFT JOIN individuals_keys k ON i.wikidata_id = k.wikidata_id
             WHERE NOT EXISTS (SELECT 1 FROM individuals_cliopatria ic WHERE ic.wikidata_id = i.wikidata_id)
             ORDER BY i.rowid
             LIMIT ? OFFSET ?
-        """, (BATCH, offset)).fetchall()
+        """,
+            (BATCH, offset),
+        ).fetchall()
 
         if not rows:
             break
@@ -105,7 +112,14 @@ def main():
                         nat_name, url = info
                         polity = url_to_polity.get(url)
                         if polity:
-                            matched = (polity[0], polity[1], "nationality", nat_name, nat_id, "url")
+                            matched = (
+                                polity[0],
+                                polity[1],
+                                "nationality",
+                                nat_name,
+                                nat_id,
+                                "url",
+                            )
                             break
 
             # Priority: URL deathcity
@@ -117,7 +131,14 @@ def main():
                         city_name, url = info
                         polity = url_to_polity.get(url)
                         if polity:
-                            matched = (polity[0], polity[1], "deathplace", city_name, dc_id, "url")
+                            matched = (
+                                polity[0],
+                                polity[1],
+                                "deathplace",
+                                city_name,
+                                dc_id,
+                                "url",
+                            )
 
             # Priority: URL birthcity
             if not matched and bc_id:
@@ -128,11 +149,31 @@ def main():
                         city_name, url = info
                         polity = url_to_polity.get(url)
                         if polity:
-                            matched = (polity[0], polity[1], "birthplace", city_name, bc_id, "url")
+                            matched = (
+                                polity[0],
+                                polity[1],
+                                "birthplace",
+                                city_name,
+                                bc_id,
+                                "url",
+                            )
 
             if matched:
-                polity_name, polity_id, origin, matched_name, matched_wid, method = matched
-                to_insert.append((wid, name_en, polity_name, polity_id, origin, matched_name, matched_wid, method))
+                polity_name, polity_id, origin, matched_name, matched_wid, method = (
+                    matched
+                )
+                to_insert.append(
+                    (
+                        wid,
+                        name_en,
+                        polity_name,
+                        polity_id,
+                        origin,
+                        matched_name,
+                        matched_wid,
+                        method,
+                    )
+                )
                 if origin == "nationality":
                     cnt_nat += 1
                 elif origin == "deathplace":
@@ -142,42 +183,54 @@ def main():
 
         if to_insert:
             conn.execute("BEGIN TRANSACTION")
-            conn.executemany("""
+            conn.executemany(
+                """
                 INSERT OR IGNORE INTO individuals_cliopatria
                 (wikidata_id, name_en, polity_name, polity_id, origin, matched_name, matched_wikidata_id, method, impact_date)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
-            """, to_insert)
+            """,
+                to_insert,
+            )
             conn.commit()
             inserted += len(to_insert)
 
         offset += len(rows)
         if offset % 500_000 < BATCH:
-            log(f"    Progress: {offset:,}/{total_unmatched:,} checked, {inserted:,} inserted")
+            log(
+                f"    Progress: {offset:,}/{total_unmatched:,} checked, {inserted:,} inserted"
+            )
 
-    log(f"    Done: {inserted:,} URL matches added (nat:{cnt_nat:,}, death:{cnt_death:,}, birth:{cnt_birth:,})")
+    log(
+        f"    Done: {inserted:,} URL matches added (nat:{cnt_nat:,}, death:{cnt_death:,}, birth:{cnt_birth:,})"
+    )
 
     # 5. Update consolidate + individuals_count
     log("[5/5] Updating consolidate and polities_cliopatria...")
 
-    added_to_consolidate = conn.execute("""
+    added_to_consolidate = conn.execute(
+        """
         INSERT INTO consolidate (wikidata_id, name_en, impact_year, polity_name, occupations, gender, references_count)
         SELECT ic.wikidata_id, ic.name_en, NULL, ic.polity_name, i.occupations_en, i.gender, i.identifiers_count
         FROM individuals_cliopatria ic
         JOIN individuals i ON ic.wikidata_id = i.wikidata_id
         WHERE ic.method = 'url' AND ic.impact_date IS NULL
         AND NOT EXISTS (SELECT 1 FROM consolidate c WHERE c.wikidata_id = ic.wikidata_id)
-    """, []).rowcount
+    """,
+        [],
+    ).rowcount
     conn.commit()
     log(f"    Added {added_to_consolidate:,} rows to consolidate")
 
     # Update individuals_count in polities_cliopatria
     conn.execute("UPDATE polities_cliopatria SET individuals_count = 0")
-    conn.execute("""
+    conn.execute(
+        """
         UPDATE polities_cliopatria SET individuals_count = (
             SELECT COUNT(*) FROM individuals_cliopatria ic
             WHERE ic.polity_id = polities_cliopatria.id
         )
-    """)
+    """
+    )
     conn.commit()
     log("    Updated polities_cliopatria.individuals_count")
 
@@ -189,6 +242,7 @@ def main():
 
     conn.close()
     log("=== Done ===")
+
 
 if __name__ == "__main__":
     main()

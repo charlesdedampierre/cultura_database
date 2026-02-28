@@ -1,9 +1,9 @@
+/* MapLibre GL CSS */
+@import "maplibre-gl/dist/maplibre-gl.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* MapLibre GL CSS */
-@import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
   --primary: #3b82f6;
