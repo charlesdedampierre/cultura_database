@@ -72,6 +72,7 @@ class Individual(BaseModel):
     occupations_en: Optional[str] = None
     sitelinks_count: Optional[int] = None
     impact_date: Optional[int] = None
+    impact_date_raw: Optional[int] = None
 
 
 class PaginatedIndividuals(BaseModel):

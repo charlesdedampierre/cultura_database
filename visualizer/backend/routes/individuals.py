@@ -65,7 +65,8 @@ def get_polity_individuals(
                 name_en,
                 occupations_en,
                 sitelinks_count,
-                impact_date
+                impact_date,
+                impact_date_raw
             FROM individuals_light
             WHERE {where}
             ORDER BY {sort_clause}
@@ -80,7 +81,8 @@ def get_polity_individuals(
                 name_en=row['name_en'],
                 occupations_en=row['occupations_en'],
                 sitelinks_count=row['sitelinks_count'],
-                impact_date=row['impact_date']
+                impact_date=row['impact_date'],
+                impact_date_raw=row['impact_date_raw']
             )
             for row in rows
         ]

@@ -4,7 +4,7 @@ import { useAppStore } from '../store';
 
 const MIN_YEAR = -3400;
 const MAX_YEAR = 2000;
-const STEP = 50;
+const STEP = 25;
 
 function formatYear(year: number): string {
   if (year < 0) {
@@ -55,7 +55,7 @@ export function TimelineSlider() {
             onClick={stepBack}
             disabled={selectedYear <= MIN_YEAR}
             className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600"
-            title="Step back 50 years"
+            title="Step back 25 years"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -88,7 +88,7 @@ export function TimelineSlider() {
             onClick={stepForward}
             disabled={selectedYear >= MAX_YEAR}
             className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600"
-            title="Step forward 50 years"
+            title="Step forward 25 years"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
