@@ -181,7 +181,7 @@ print(by_country.head(20))
 
 #### `individuals_countries` -- Individual-to-country mapping (6,374,506 rows)
 
-Each individual is mapped to a single modern country based on a priority system: nationality first, then death city, then birth city.
+Each individual is mapped to a single modern country based on a priority system: nationality first, then birth city, then death city.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -237,12 +237,13 @@ Maps individuals to historical polities from the Cliopatria dataset using a two-
 
 **Matching priority order:**
 
-1. Death city coordinates + impact date (polygon match)
-2. Birth city coordinates + impact date (polygon match)
-3. Nationality coordinates + impact date (polygon match)
-4. Nationality Wikipedia URL (url match)
-5. Death city Wikipedia URL (url match)
-6. Birth city Wikipedia URL (url match)
+1. Nationality coordinates + impact date (polygon match)
+2. Nationality Wikipedia URL + impact date (url match)
+3. Birth city coordinates + impact date (polygon match)
+4. Birth city country Wikipedia URL + impact date (url match)
+5. Death city coordinates + impact date (polygon match)
+6. Death city country Wikipedia URL + impact date (url match)
+7. Nationality/birth/death Wikipedia URL without year check (url_fallback -- only for individuals without impact year)
 
 #### `individuals_keys` -- Wikidata ID cross-references (13,002,897 rows)
 
@@ -407,7 +408,7 @@ These tables support mapping individuals to historical polities using the [Cliop
 | `type` | TEXT | Polity type |
 | `wikipedia_url` | TEXT | Wikipedia URL |
 | `wikidata_id` | TEXT | Wikidata ID |
-| `individuals_count` | INTEGER | Number of individuals matched to this polity |
+| `number_individuals` | INTEGER | Number of individuals matched to this polity |
 
 #### `cliopatria_polity_periods` -- Polity time-space boundaries (15,690 rows)
 
@@ -442,10 +443,10 @@ Documents which Wikidata properties (P-numbers) were used to build the database 
 Each individual is mapped to a single modern country using a three-tier priority:
 
 1. **Nationality** (P27) -- if the individual has a country of citizenship, use the first one that maps to a known modern country
-2. **Death city** (P20) -- if no nationality match, use the country of the death city
-3. **Birth city** (P19) -- last resort, use the country of the birth city
+2. **Birth city** (P19) -- if no nationality match, use the country of the birth city
+3. **Death city** (P20) -- last resort, use the country of the death city
 
-This priority was chosen because nationality is the most reliable indicator of cultural affiliation, while cities can be ambiguous (e.g., Florence could be in Italy or Alabama).
+This priority was chosen because nationality is the most reliable indicator of cultural affiliation. Birth city is preferred over death city as a secondary source because it more directly reflects cultural origin, while death city may reflect later-life migration.
 
 ### Nationality-to-Modern-Country Resolution
 
@@ -480,10 +481,20 @@ Regions are based on the Cliopatria classification system with temporal boundari
 
 ### Cliopatria Polity Matching
 
-Individuals are matched to historical polities (e.g., Ottoman Empire, Kingdom of France) using:
+Individuals are matched to historical polities (e.g., Ottoman Empire, Kingdom of France) using a priority-based system. The impact year must fall within the polity's time period for all matches (except the final fallback). Polities are identified by their unique ID (not name) to handle duplicate polity names correctly.
 
-1. **Polygon matching** (preferred): city coordinates + impact date checked against polity boundary geometries. The smallest matching polygon is selected for specificity.
-2. **URL matching** (fallback): Wikipedia URLs of nationalities/cities matched against polity Wikipedia URLs.
+**Priority order (for individuals with an impact year):**
+
+1. **Nationality-location polygon** -- nationality coordinates + impact year checked against polity boundary polygons (smallest polygon selected for specificity)
+2. **Nationality URL** -- nationality Wikipedia URL matched against polity Wikipedia URLs, with impact year validated against polity time period
+3. **Birth-location polygon** -- birth city coordinates + impact year checked against polity boundary polygons
+4. **Birth-location country URL** -- birth city's country Wikipedia URL matched against polity URLs, with impact year validation
+5. **Death-location polygon** -- death city coordinates + impact year checked against polity boundary polygons
+6. **Death-location country URL** -- death city's country Wikipedia URL matched against polity URLs, with impact year validation
+
+**Fallback (for individuals without an impact year only):**
+
+7. **URL matching without year check** -- Wikipedia URLs of nationalities, then birth cities, then death cities matched against polity URLs. This fallback is only used for individuals who have no impact year at all. Individuals who have an impact year but did not match any polity in steps 1-6 remain unmatched.
 
 ## Methodology
 
