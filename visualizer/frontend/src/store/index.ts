@@ -31,13 +31,10 @@ interface AppState {
   clearFilters: () => void;
 }
 
-// Round year to nearest 25
-const roundTo25 = (year: number) => Math.round(year / 25) * 25;
-
 export const useAppStore = create<AppState>((set) => ({
   // Timeline - default to 1500 CE
   selectedYear: 1500,
-  setSelectedYear: (year) => set({ selectedYear: roundTo25(year), currentPage: 1 }),
+  setSelectedYear: (year) => set({ selectedYear: year, currentPage: 1 }),
 
   // Hierarchy toggle - default to leaf (smaller polities)
   hierarchyMode: 'leaf',
