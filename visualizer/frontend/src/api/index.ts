@@ -23,8 +23,8 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 // Get active polities at a specific year
-export async function getActivePolities(year: number): Promise<ActivePolitiesResponse> {
-  return fetchJson<ActivePolitiesResponse>(`${API_BASE}/polities/active?year=${year}`);
+export async function getActivePolities(year: number, hierarchy: 'leaf' | 'aggregate' = 'leaf'): Promise<ActivePolitiesResponse> {
+  return fetchJson<ActivePolitiesResponse>(`${API_BASE}/polities/active?year=${year}&hierarchy=${hierarchy}`);
 }
 
 // Get polity details

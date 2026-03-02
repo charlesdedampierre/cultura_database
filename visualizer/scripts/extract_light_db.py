@@ -2,18 +2,23 @@
 Extract a light SQLite database for the visualizer from the main database.
 
 Creates visualizer/data/visualizer.sqlite3 with:
-- polities: Polity metadata
+- polities: Polity metadata with display_mode for hierarchy toggle
 - polity_periods: Geometries (simplified)
-- individuals_light: Only needed columns for display
+- individuals_light: One row per (individual, polity) pair
 - cities: City coordinates
-- evolution_cache: Pre-computed cumulative counts per polity/year (rounded to 50)
+- evolution_cache: Pre-computed counts per polity/year
 - top_cities_cache: Pre-computed top 10 cities per polity
+
+Also generates:
+- visualizer/frontend/public/evolution.json
+- visualizer/frontend/public/occupations.json
 """
 
 import sqlite3
 import json
 import os
 from pathlib import Path
+from collections import defaultdict
 from tqdm import tqdm
 
 
@@ -49,13 +54,94 @@ def simplify_geometry(geom_json: str, tolerance: float = 0.1) -> str:
         return geom_json
 
 
+def build_display_mode_mapping(source_conn, clio_conn):
+    """Determine display_mode for each polity based on hierarchy.
+
+    Returns dict: polity_id -> display_mode ('both', 'leaf', 'aggregate', 'skip')
+
+    - 'both': Standalone polities shown in both modes
+    - 'leaf': Shown only in leaf/default mode (children of real aggregates)
+    - 'aggregate': Shown only in aggregate mode (parenthesized real aggregates)
+    - 'skip': Never shown (parenthesized pure duplicates with same count as counterpart)
+    """
+    source_cur = source_conn.cursor()
+
+    # Get all polities
+    source_cur.execute("SELECT id, name, number_individuals FROM polities_cliopatria")
+    all_polities = {}
+    for row in source_cur:
+        all_polities[row['id']] = {'name': row['name'], 'count': row['number_individuals']}
+
+    # Find parenthesized/non-parenthesized pairs
+    source_cur.execute("""
+        SELECT p1.id as paren_id, p1.number_individuals as paren_count,
+               p2.id as non_paren_id, p2.number_individuals as non_paren_count
+        FROM polities_cliopatria p1
+        JOIN polities_cliopatria p2 ON p2.name = TRIM(p1.name, '()')
+        WHERE p1.name LIKE '(%'
+    """)
+    pairs = {row['paren_id']: dict(row) for row in source_cur}
+
+    # Classify parenthesized polities
+    skip_ids = set()
+    aggregate_ids = set()
+
+    for pid, info in all_polities.items():
+        if not info['name'].startswith('('):
+            continue
+        if pid in pairs:
+            if pairs[pid]['paren_count'] == pairs[pid]['non_paren_count']:
+                skip_ids.add(pid)
+            else:
+                aggregate_ids.add(pid)
+        else:
+            # No counterpart - grouping-only aggregate
+            aggregate_ids.add(pid)
+
+    # Get hierarchy from cliopatria.db to find children of aggregates
+    children_of_aggregates = set()
+    if clio_conn:
+        clio_cur = clio_conn.cursor()
+        clio_cur.execute("""
+            SELECT polity_id, level1_id
+            FROM polity_hierarchy_levels
+            WHERE depth > 0
+        """)
+        for row in clio_cur:
+            if row['level1_id'] in aggregate_ids:
+                children_of_aggregates.add(row['polity_id'])
+
+    # Build display_mode mapping
+    display_mode = {}
+    for pid in all_polities:
+        if pid in skip_ids:
+            display_mode[pid] = 'skip'
+        elif pid in aggregate_ids:
+            display_mode[pid] = 'aggregate'
+        elif pid in children_of_aggregates and pid not in aggregate_ids:
+            display_mode[pid] = 'leaf'
+        else:
+            display_mode[pid] = 'both'
+
+    # Log summary
+    modes = defaultdict(int)
+    for m in display_mode.values():
+        modes[m] += 1
+    print(f"  Display mode distribution: {dict(modes)}")
+
+    return display_mode
+
+
 def main():
     # Paths
     base_dir = Path(__file__).parent.parent.parent
     source_db = base_dir / "data" / "humans_clean.sqlite3"
+    clio_db = base_dir / "cliopatria_data" / "processing" / "data" / "cliopatria.db"
     target_db = base_dir / "visualizer" / "data" / "visualizer.sqlite3"
+    frontend_public = base_dir / "visualizer" / "frontend" / "public"
 
     print(f"Source database: {source_db}")
+    print(f"Cliopatria database: {clio_db}")
     print(f"Target database: {target_db}")
 
     # Ensure target directory exists
@@ -67,9 +153,16 @@ def main():
 
     # Connect to databases
     source_conn = sqlite3.connect(source_db)
-    # Handle invalid UTF-8 characters by replacing them
     source_conn.text_factory = lambda b: b.decode('utf-8', errors='replace')
     source_conn.row_factory = sqlite3.Row
+
+    clio_conn = None
+    if clio_db.exists():
+        clio_conn = sqlite3.connect(clio_db)
+        clio_conn.row_factory = sqlite3.Row
+    else:
+        print(f"WARNING: Cliopatria DB not found at {clio_db}, hierarchy will be limited")
+
     target_conn = sqlite3.connect(target_db)
 
     source_cur = source_conn.cursor()
@@ -80,7 +173,16 @@ def main():
     target_cur.execute("PRAGMA synchronous=NORMAL")
 
     # =========================================================================
-    # 1. Extract polities
+    # 0. Build hierarchy / display_mode mapping
+    # =========================================================================
+    print("\n0. Building hierarchy mapping...")
+    display_mode = build_display_mode_mapping(source_conn, clio_conn)
+
+    # Build set of skip IDs for filtering individuals
+    skip_ids = {pid for pid, mode in display_mode.items() if mode == 'skip'}
+
+    # =========================================================================
+    # 1. Extract polities with display_mode
     # =========================================================================
     print("\n1. Extracting polities...")
     target_cur.execute("""
@@ -90,7 +192,8 @@ def main():
             type TEXT,
             wikipedia_url TEXT,
             wikidata_id TEXT,
-            individuals_count INTEGER
+            individuals_count INTEGER,
+            display_mode TEXT DEFAULT 'both'
         )
     """)
 
@@ -98,10 +201,12 @@ def main():
     rows = source_cur.fetchall()
 
     for row in tqdm(rows, desc="Polities"):
+        pid = row['id']
+        mode = display_mode.get(pid, 'both')
         target_cur.execute(
-            "INSERT INTO polities VALUES (?, ?, ?, ?, ?, ?)",
-            (row['id'], row['name'], row['type'], row['wikipedia_url'],
-             row['wikidata_id'], row['individuals_count'])
+            "INSERT INTO polities VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (pid, row['name'], row['type'], row['wikipedia_url'],
+             row['wikidata_id'], row['number_individuals'], mode)
         )
 
     print(f"  Inserted {len(rows):,} polities")
@@ -194,7 +299,7 @@ def main():
     print(f"  Inserted {total_cities:,} cities")
 
     # =========================================================================
-    # 4. Extract individuals_light
+    # 4. Extract individuals_light (one row per individual-polity pair)
     # =========================================================================
     print("\n4. Extracting individuals_light...")
     target_cur.execute("""
@@ -211,7 +316,7 @@ def main():
         )
     """)
 
-    # Join individuals_cliopatria with individuals and individuals_keys
+    # Query individuals with their semicolon-separated polity_ids
     query = """
         SELECT
             ic.wikidata_id,
@@ -234,21 +339,42 @@ def main():
     source_cur.execute(query)
     batch = []
     inserted = 0
+    rows_generated = 0
 
     for row in tqdm(source_cur, total=total_individuals, desc="Individuals"):
-        # Floor impact_date to nearest 25-year bucket
         impact_date_rounded = floor_to_25(row['impact_date']) if row['impact_date'] else None
 
-        batch.append((
-            row['wikidata_id'],
-            row['name_en'],
-            row['occupations_en'],
-            row['sitelinks_count'],
-            impact_date_rounded,
-            row['polity_id'],
-            row['birthcity_id'],
-            row['deathcity_id']
-        ))
+        # Parse semicolon-separated polity_ids
+        polity_id_str = row['polity_id']
+        if polity_id_str is None:
+            continue
+
+        polity_ids_raw = str(polity_id_str).split(';')
+
+        for pid_str in polity_ids_raw:
+            pid_str = pid_str.strip()
+            if not pid_str:
+                continue
+            try:
+                pid = int(pid_str)
+            except ValueError:
+                continue
+
+            # Skip pure duplicate parenthesized polities
+            if pid in skip_ids:
+                continue
+
+            batch.append((
+                row['wikidata_id'],
+                row['name_en'],
+                row['occupations_en'],
+                row['sitelinks_count'],
+                impact_date_rounded,
+                pid,
+                row['birthcity_id'],
+                row['deathcity_id']
+            ))
+            rows_generated += 1
 
         if len(batch) >= 50000:
             target_cur.executemany(
@@ -271,7 +397,7 @@ def main():
 
     target_cur.execute("SELECT COUNT(*) FROM individuals_light")
     actual_count = target_cur.fetchone()[0]
-    print(f"  Inserted {actual_count:,} individuals")
+    print(f"  Generated {rows_generated:,} rows, inserted {actual_count:,} (after dedup)")
 
     target_conn.commit()
 
@@ -288,12 +414,11 @@ def main():
         )
     """)
 
-    # Get all polity IDs
+    # Get all polity IDs that have individuals
     target_cur.execute("SELECT DISTINCT polity_id FROM individuals_light ORDER BY polity_id")
     polity_ids = [row[0] for row in target_cur.fetchall()]
 
     for polity_id in tqdm(polity_ids, desc="Evolution cache"):
-        # Get counts per 25-year bucket for this polity
         target_cur.execute("""
             SELECT impact_date, COUNT(*) as cnt
             FROM individuals_light
@@ -336,7 +461,6 @@ def main():
     """)
 
     for polity_id in tqdm(polity_ids, desc="Top cities cache"):
-        # Count individuals per birth city for this polity
         target_cur.execute("""
             SELECT
                 il.birthcity_id,
@@ -363,16 +487,84 @@ def main():
     target_cur.execute("SELECT COUNT(*) FROM top_cities_cache")
     print(f"  Created {target_cur.fetchone()[0]:,} top cities cache entries")
 
+    target_conn.commit()
+
+    # =========================================================================
+    # 7. Generate evolution.json for frontend
+    # =========================================================================
+    print("\n7. Generating evolution.json...")
+    target_cur.execute("""
+        SELECT polity_id, year, count
+        FROM evolution_cache
+        ORDER BY polity_id, year
+    """)
+
+    evolution_data = defaultdict(list)
+    for row in target_cur:
+        evolution_data[str(row[0])].append({"year": row[1], "count": row[2]})
+
+    evolution_path = frontend_public / "evolution.json"
+    with open(evolution_path, 'w') as f:
+        json.dump(evolution_data, f, separators=(',', ':'))
+
+    print(f"  Generated {evolution_path} ({len(evolution_data)} polities)")
+
+    # =========================================================================
+    # 8. Generate occupations.json for frontend
+    # =========================================================================
+    print("\n8. Generating occupations.json...")
+    occupations_data = {}
+
+    for polity_id in tqdm(polity_ids, desc="Occupations"):
+        target_cur.execute("""
+            SELECT occupations_en
+            FROM individuals_light
+            WHERE polity_id = ? AND occupations_en IS NOT NULL
+        """, (polity_id,))
+
+        occ_counts = defaultdict(int)
+        for row in target_cur:
+            # Split semicolon-separated occupations and count each
+            for occ in row[0].split('; '):
+                occ = occ.strip()
+                if occ:
+                    occ_counts[occ] += 1
+
+        if occ_counts:
+            # Sort by count descending, take top 20
+            sorted_occs = sorted(occ_counts.items(), key=lambda x: x[1], reverse=True)[:20]
+            occupations_data[str(polity_id)] = [
+                {"name": name, "count": count} for name, count in sorted_occs
+            ]
+
+    occupations_path = frontend_public / "occupations.json"
+    with open(occupations_path, 'w') as f:
+        json.dump(occupations_data, f, separators=(',', ':'))
+
+    print(f"  Generated {occupations_path} ({len(occupations_data)} polities)")
+
+    # =========================================================================
+    # 9. Update individuals_count in polities based on actual data
+    # =========================================================================
+    print("\n9. Updating polity individual counts...")
+    target_cur.execute("""
+        UPDATE polities SET individuals_count = (
+            SELECT COUNT(*) FROM individuals_light WHERE individuals_light.polity_id = polities.id
+        )
+    """)
+    target_conn.commit()
+
     # =========================================================================
     # Final commit and optimization
     # =========================================================================
-    print("\n7. Optimizing database...")
-    target_conn.commit()
+    print("\n10. Optimizing database...")
     target_cur.execute("VACUUM")
     target_cur.execute("ANALYZE")
 
     # Close connections
     source_conn.close()
+    if clio_conn:
+        clio_conn.close()
     target_conn.close()
 
     # Report final size
