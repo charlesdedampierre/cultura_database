@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store';
@@ -44,6 +44,7 @@ export function WorldMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [isGlobe, setIsGlobe] = useState(false);
 
   const { selectedYear, selectedPolityId, setSelectedPolityId, hierarchyMode, setHierarchyMode } = useAppStore();
 
@@ -123,6 +124,18 @@ export function WorldMap() {
     };
   }, []);
 
+  // Toggle globe projection using setProjection API
+  const toggleGlobe = useCallback(() => {
+    if (!map.current) return;
+
+    const newIsGlobe = !isGlobe;
+    setIsGlobe(newIsGlobe);
+
+    // Use setProjection API directly - no style change needed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (map.current as any).setProjection(newIsGlobe ? { type: 'globe' } : { type: 'mercator' });
+  }, [isGlobe]);
+
   // Update polities data when year changes or selection changes
   useEffect(() => {
     if (!map.current || !mapReady || !politiesData) return;
@@ -152,6 +165,29 @@ export function WorldMap() {
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="absolute inset-0" />
+      {/* Globe toggle button */}
+      <button
+        onClick={toggleGlobe}
+        className={`absolute top-4 left-36 px-3 py-2 rounded-lg shadow-md text-sm transition-colors flex items-center gap-2 z-10 border ${
+          isGlobe
+            ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+        }`}
+        title={isGlobe ? 'Switch to flat map' : 'Switch to globe view'}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {isGlobe ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+            />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          )}
+        </svg>
+        {isGlobe ? 'Flat' : 'Globe'}
+      </button>
       {/* Hierarchy toggle button */}
       <button
         onClick={() => setHierarchyMode(hierarchyMode === 'leaf' ? 'aggregate' : 'leaf')}
@@ -173,12 +209,12 @@ export function WorldMap() {
         {hierarchyMode === 'leaf' ? 'Polities' : 'Empires'}
       </button>
       {isLoading && (
-        <div className="absolute top-4 left-32 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-600">
+        <div className="absolute top-4 left-56 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-600">
           Loading...
         </div>
       )}
       {error && (
-        <div className="absolute top-4 left-32 bg-red-50 text-red-700 px-3 py-2 rounded-lg shadow-md text-sm">
+        <div className="absolute top-4 left-56 bg-red-50 text-red-700 px-3 py-2 rounded-lg shadow-md text-sm">
           Error: {(error as Error).message}
         </div>
       )}
