@@ -46,6 +46,7 @@ export interface Individual {
   occupations_en: string | null;
   sitelinks_count: number | null;
   impact_date: number | null;
+  impact_date_raw: number | null;
 }
 
 export interface PaginatedIndividuals {

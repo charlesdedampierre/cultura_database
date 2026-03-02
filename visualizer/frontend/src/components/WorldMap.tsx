@@ -45,15 +45,15 @@ export function WorldMap() {
   const map = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
-  const { selectedYear, selectedPolityId, setSelectedPolityId } = useAppStore();
+  const { selectedYear, selectedPolityId, setSelectedPolityId, hierarchyMode, setHierarchyMode } = useAppStore();
 
   const setSelectedPolityIdRef = useRef(setSelectedPolityId);
   setSelectedPolityIdRef.current = setSelectedPolityId;
 
-  // Fetch active polities (always use 'leaf' level for now)
+  // Fetch active polities
   const { data: politiesData, isLoading, error } = useQuery({
-    queryKey: ['activePolities', selectedYear],
-    queryFn: () => getActivePolities(selectedYear, 'leaf'),
+    queryKey: ['activePolities', selectedYear, hierarchyMode],
+    queryFn: () => getActivePolities(selectedYear, hierarchyMode),
   });
 
   // Initialize map once
@@ -152,19 +152,39 @@ export function WorldMap() {
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="absolute inset-0" />
+      {/* Hierarchy toggle button */}
+      <button
+        onClick={() => setHierarchyMode(hierarchyMode === 'leaf' ? 'aggregate' : 'leaf')}
+        className={`absolute top-4 left-4 px-3 py-2 rounded-lg shadow-md text-sm transition-colors flex items-center gap-2 z-10 border ${
+          hierarchyMode === 'aggregate'
+            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+        }`}
+        title={hierarchyMode === 'leaf' ? 'Switch to larger polity groupings (empires)' : 'Switch to smaller polities'}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+            d={hierarchyMode === 'leaf'
+              ? "M4 6h16M4 12h16M4 18h16"
+              : "M3 4h18v6H3zM3 14h18v6H3z"
+            }
+          />
+        </svg>
+        {hierarchyMode === 'leaf' ? 'Polities' : 'Empires'}
+      </button>
       {isLoading && (
-        <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-600">
-          Loading polities...
+        <div className="absolute top-4 left-32 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-600">
+          Loading...
         </div>
       )}
       {error && (
-        <div className="absolute top-4 left-4 bg-red-50 text-red-700 px-3 py-2 rounded-lg shadow-md text-sm">
+        <div className="absolute top-4 left-32 bg-red-50 text-red-700 px-3 py-2 rounded-lg shadow-md text-sm">
           Error: {(error as Error).message}
         </div>
       )}
       {politiesData && (
         <div className="absolute bottom-4 left-4 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-600">
-          {politiesData.polities.length} polities active
+          {politiesData.polities.length} {hierarchyMode === 'leaf' ? 'polities' : 'empires'} active
         </div>
       )}
     </div>

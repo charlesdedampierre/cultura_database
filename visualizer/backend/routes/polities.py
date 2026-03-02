@@ -15,9 +15,9 @@ from ..models import (
 router = APIRouter(prefix="/polities", tags=["polities"])
 
 
-def round_to_50(year: int) -> int:
-    """Round year to nearest 50."""
-    return round(year / 50) * 50
+def round_to_25(year: int) -> int:
+    """Round year to nearest 25."""
+    return round(year / 25) * 25
 
 
 # Which display_mode values to show for each hierarchy level
@@ -29,14 +29,14 @@ HIERARCHY_FILTERS = {
 
 @router.get("/active", response_model=ActivePolitiesResponse)
 def get_active_polities(
-    year: int = Query(..., description="Year (will be rounded to nearest 50)"),
+    year: int = Query(..., description="Year (will be rounded to nearest 25)"),
     hierarchy: Literal["leaf", "aggregate"] = Query(
         "leaf", description="Hierarchy level: 'leaf' for smaller polities (default), 'aggregate' for larger groupings"
     ),
 ):
     """Get all polities active at a specific year with their geometries."""
-    # Round to nearest 50
-    rounded_year = round_to_50(year)
+    # Round to nearest 25
+    rounded_year = round_to_25(year)
     allowed_modes = HIERARCHY_FILTERS[hierarchy]
 
     with get_db() as conn:

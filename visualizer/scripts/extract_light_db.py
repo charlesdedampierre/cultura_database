@@ -309,6 +309,7 @@ def main():
             occupations_en TEXT,
             sitelinks_count INTEGER,
             impact_date INTEGER,
+            impact_date_raw INTEGER,
             polity_id INTEGER,
             birthcity_id TEXT,
             deathcity_id TEXT,
@@ -370,6 +371,7 @@ def main():
                 row['occupations_en'],
                 row['sitelinks_count'],
                 impact_date_rounded,
+                row['impact_date'],  # raw impact date
                 pid,
                 row['birthcity_id'],
                 row['deathcity_id']
@@ -378,7 +380,7 @@ def main():
 
         if len(batch) >= 50000:
             target_cur.executemany(
-                "INSERT OR IGNORE INTO individuals_light VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO individuals_light VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 batch
             )
             inserted += len(batch)
@@ -386,7 +388,7 @@ def main():
 
     if batch:
         target_cur.executemany(
-            "INSERT OR IGNORE INTO individuals_light VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO individuals_light VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             batch
         )
         inserted += len(batch)
