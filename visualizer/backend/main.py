@@ -2,9 +2,11 @@
 
 import logging
 import traceback
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .routes import polities, individuals, cities
 
@@ -20,7 +22,7 @@ app = FastAPI(
 # CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"],  # Vite dev server
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,16 +38,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(polities.router, prefix="/api")
 app.include_router(individuals.router, prefix="/api")
 app.include_router(cities.router, prefix="/api")
-
-
-@app.get("/")
-def root():
-    """Root endpoint."""
-    return {
-        "name": "Historical Polity Visualizer API",
-        "version": "1.0.0",
-        "docs": "/docs",
-    }
 
 
 @app.get("/api/health")
@@ -66,6 +58,32 @@ def health_check():
         "polities": polity_count,
         "individuals": individual_count,
     }
+
+
+# Serve the built frontend
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    # Serve static assets (JS, CSS, etc.)
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+    # Serve static files in dist root (evolution.json, occupations.json, vite.svg)
+    @app.get("/evolution.json")
+    def serve_evolution():
+        return FileResponse(FRONTEND_DIST / "evolution.json")
+
+    @app.get("/occupations.json")
+    def serve_occupations():
+        return FileResponse(FRONTEND_DIST / "occupations.json")
+
+    @app.get("/vite.svg")
+    def serve_vite_svg():
+        return FileResponse(FRONTEND_DIST / "vite.svg")
+
+    # Catch-all: serve index.html for any non-API route (SPA routing)
+    @app.get("/{full_path:path}")
+    def serve_spa(full_path: str):
+        return FileResponse(FRONTEND_DIST / "index.html")
 
 
 if __name__ == "__main__":

@@ -5,6 +5,10 @@ interface AppState {
   selectedYear: number;
   setSelectedYear: (year: number) => void;
 
+  // Hierarchy toggle
+  hierarchyMode: 'leaf' | 'aggregate';
+  setHierarchyMode: (mode: 'leaf' | 'aggregate') => void;
+
   // Selected polity
   selectedPolityId: number | null;
   setSelectedPolityId: (id: number | null) => void;
@@ -34,6 +38,16 @@ export const useAppStore = create<AppState>((set) => ({
   // Timeline - default to 1500 CE
   selectedYear: 1500,
   setSelectedYear: (year) => set({ selectedYear: roundTo50(year), currentPage: 1 }),
+
+  // Hierarchy toggle - default to leaf (smaller polities)
+  hierarchyMode: 'leaf',
+  setHierarchyMode: (mode) => set({
+    hierarchyMode: mode,
+    selectedPolityId: null,
+    currentPage: 1,
+    filterYear: null,
+    filterOccupation: null,
+  }),
 
   // Selected polity
   selectedPolityId: null,

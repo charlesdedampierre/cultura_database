@@ -2,6 +2,7 @@
 
 import json
 from fastapi import APIRouter, Query, HTTPException
+from typing import Literal
 from ..database import get_db, dicts_from_rows
 from ..models import (
     ActivePolitiesResponse,
@@ -19,18 +20,29 @@ def round_to_50(year: int) -> int:
     return round(year / 50) * 50
 
 
+# Which display_mode values to show for each hierarchy level
+HIERARCHY_FILTERS = {
+    "leaf": ("both", "leaf"),
+    "aggregate": ("both", "aggregate"),
+}
+
+
 @router.get("/active", response_model=ActivePolitiesResponse)
 def get_active_polities(
-    year: int = Query(..., description="Year (will be rounded to nearest 50)")
+    year: int = Query(..., description="Year (will be rounded to nearest 50)"),
+    hierarchy: Literal["leaf", "aggregate"] = Query(
+        "leaf", description="Hierarchy level: 'leaf' for smaller polities (default), 'aggregate' for larger groupings"
+    ),
 ):
     """Get all polities active at a specific year with their geometries."""
     # Round to nearest 50
     rounded_year = round_to_50(year)
+    allowed_modes = HIERARCHY_FILTERS[hierarchy]
 
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Get polities active at this year, excluding empty duplicates
+        # Get polities active at this year, filtered by hierarchy display_mode
         cursor.execute("""
             SELECT
                 p.id,
@@ -42,7 +54,8 @@ def get_active_polities(
             FROM polity_periods pp
             JOIN polities p ON pp.polity_id = p.id
             WHERE pp.from_year <= ? AND pp.to_year >= ?
-        """, (rounded_year, rounded_year))
+              AND p.display_mode IN (?, ?)
+        """, (rounded_year, rounded_year, allowed_modes[0], allowed_modes[1]))
 
         rows = cursor.fetchall()
 
