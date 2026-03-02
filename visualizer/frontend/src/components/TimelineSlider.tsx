@@ -70,7 +70,7 @@ export function TimelineSlider() {
             onValueChange={([value]) => setSelectedYear(value)}
             min={MIN_YEAR}
             max={MAX_YEAR}
-            step={STEP}
+            step={1}
           >
             <Slider.Track className="bg-gray-200 relative grow rounded-full h-2">
               <Slider.Range className="absolute bg-blue-500 rounded-full h-full" />
