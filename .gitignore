@@ -19,12 +19,14 @@ __pycache__/
 *.log
 *.png
 
+
 # Data directories
 data/
 data_limited/
 cliopatria_data/
 archive/
 paper/
+docs/
 
 # Claude AI workspace
 claude/
