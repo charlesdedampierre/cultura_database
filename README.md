@@ -61,6 +61,10 @@ conn.close()
 | `sitelinks` | 15.5M | Wikipedia pages (300+ languages) |
 | `identifiers` | 30.1M | External database links |
 
+## Database Schema
+
+![Database Schema](docs/schema.png)
+
 See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for full schema documentation.
 
 ## Usage Recommendations

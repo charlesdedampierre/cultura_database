@@ -1,0 +1,24 @@
+# Prompt Template
+
+Paste your exact prompt here. Use {placeholders} for variable inputs.
+
+Example:
+
+---
+
+You are classifying [task description].
+
+Given [input description], return [output description].
+
+Categories:
+- category_1: description
+- category_2: description
+- ...
+
+Rules:
+- Rule 1
+- Rule 2
+- If unclear, return "[default value]"
+
+Input: {input_variable}
+Output:
