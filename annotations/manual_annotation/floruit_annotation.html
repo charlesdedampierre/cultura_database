@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Floruit Rule Annotation</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; background: #fafafa; }
+  h1 { font-size: 1.5rem; }
+  .cat-section { margin-bottom: 2.5rem; }
+  .cat-header { padding: 0.6rem 1rem; color: #fff; border-radius: 6px 6px 0 0; }
+  .cat-rule { background: #f0f0f0; padding: 0.5rem 1rem; font-size: 0.9rem; border-bottom: 1px solid #ddd; }
+  .cat-count { font-weight: normal; font-size: 0.85rem; opacity: 0.85; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: #eee; text-align: left; padding: 6px 8px; position: sticky; top: 0; }
+  td { padding: 6px 8px; border-bottom: 1px solid #e0e0e0; }
+  tr:hover td { background: #ffffcc; }
+  .anno-cell { min-width: 180px; }
+  .anno-cell select { margin-right: 6px; }
+  .anno-cell input { width: 140px; }
+  a { color: #1a0dab; }
+  .summary { margin: 1.5rem 0; padding: 1rem; background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 1.5rem; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; }
+  .legend-swatch { width: 16px; height: 16px; border-radius: 3px; }
+  #export-btn { padding: 8px 20px; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
+</style>
+</head><body>
+<h1>Floruit Period Assignment - Annotation Page</h1>
+<p>Check whether each individual's floruit period was assigned correctly given the rule for its category.</p>
+<div class="legend">
+
+<div class="legend-item"><div class="legend-swatch" style="background:#e6194b"></div>Floruit date (66,633)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#3cb44b"></div>Birth (5,754,353)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#ffe119"></div>Birth / century death (8,701)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#4363d8"></div>Floruit interrupted by death (551,964)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#f58231"></div>Death (238,363)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#911eb4"></div>Death / century birth (25,250)</div>
+</div>
+<div class="cat-section">
+<div class="cat-header" style="background:#e6194b;color:#fff">Floruit date <span class="cat-count">(66,633 total)</span></div>
+<div class="cat-rule"><strong>Rule:</strong> Uses Wikidata floruit property (P1317). Floruit spans 25 years from that date, capped by death year.</div>
+<table><thead><tr>
+<th>#</th>
+<th>Wikidata ID</th>
+<th>Name</th>
+<th>Birth year</th>
+<th>Birth prec.</th>
+<th>Death year</th>
+<th>Death prec.</th>
+<th>Floruit (P1317)</th>
+<th>Floruit start</th>
+<th>Floruit end</th>
+<th class="anno-cell">Annotation</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><a href="https://www.wikidata.org/wiki/Q109938458" target="_blank">Q109938458</a></td>
+<td>Bartholomeus Stuyvenburgh</td>
+<td>1636</td>
+<td>month</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1700</td>
+<td>1700</td>
+<td>1725</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_1" data-cat="Floruit date" data-wikidata="Q109938458">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_1" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://www.wikidata.org/wiki/Q106613412" target="_blank">Q106613412</a></td>
+<td>Callistus</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>200</td>
+<td>224</td>
+<td>249</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_2" data-cat="Floruit date" data-wikidata="Q106613412">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_2" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://www.wikidata.org/wiki/Q15626785" target="_blank">Q15626785</a></td>
+<td>A. Carman</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1890</td>
+<td>1890</td>
+<td>1915</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_3" data-cat="Floruit date" data-wikidata="Q15626785">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_3" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://www.wikidata.org/wiki/Q133869666" target="_blank">Q133869666</a></td>
+<td>J. Willems</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1664</td>
+<td>1664</td>
+<td>1689</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_4" data-cat="Floruit date" data-wikidata="Q133869666">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_4" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://www.wikidata.org/wiki/Q131346853" target="_blank">Q131346853</a></td>
+<td>A. Linters</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1975</td>
+<td>1975</td>
+<td>2000</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_5" data-cat="Floruit date" data-wikidata="Q131346853">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_5" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://www.wikidata.org/wiki/Q113355229" target="_blank">Q113355229</a></td>
+<td>Elisabeth Brandt</td>
+<td>1853</td>
+<td>day</td>
+<td>1907</td>
+<td>day</td>
+<td>1897</td>
+<td>1897</td>
+<td>1907</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_6" data-cat="Floruit date" data-wikidata="Q113355229">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_6" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://www.wikidata.org/wiki/Q109633405" target="_blank">Q109633405</a></td>
+<td>R.G. Heijster</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1980</td>
+<td>1980</td>
+<td>2005</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_7" data-cat="Floruit date" data-wikidata="Q109633405">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_7" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://www.wikidata.org/wiki/Q109105164" target="_blank">Q109105164</a></td>
+<td>Okala (I am okala)</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>2015</td>
+<td>2015</td>
+<td>2040</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_8" data-cat="Floruit date" data-wikidata="Q109105164">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_8" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://www.wikidata.org/wiki/Q649082" target="_blank">Q649082</a></td>
+<td>Apsines</td>
+<td>190</td>
+<td>year</td>
+<td>250</td>
+<td>year</td>
+<td>300</td>
+<td>317</td>
+<td>342</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_9" data-cat="Floruit date" data-wikidata="Q649082">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_9" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://www.wikidata.org/wiki/Q106693198" target="_blank">Q106693198</a></td>
+<td>H.J. ter Gunne</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1879</td>
+<td>1879</td>
+<td>1904</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_date_10" data-cat="Floruit date" data-wikidata="Q106693198">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_date_10" placeholder="note..." />
+        </td>
+</tr>
+</tbody></table></div>
+<div class="cat-section">
+<div class="cat-header" style="background:#3cb44b;color:#fff">Birth <span class="cat-count">(5,754,353 total)</span></div>
+<div class="cat-rule"><strong>Rule:</strong> Year-precise birth, death either missing or past age 55. Floruit = birth+30 to birth+55.</div>
+<table><thead><tr>
+<th>#</th>
+<th>Wikidata ID</th>
+<th>Name</th>
+<th>Birth year</th>
+<th>Birth prec.</th>
+<th>Death year</th>
+<th>Death prec.</th>
+<th>Floruit (P1317)</th>
+<th>Floruit start</th>
+<th>Floruit end</th>
+<th class="anno-cell">Annotation</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><a href="https://www.wikidata.org/wiki/Q111659616" target="_blank">Q111659616</a></td>
+<td>Gustavus Frankenstein</td>
+<td>1828</td>
+<td>day</td>
+<td>1893</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1858</td>
+<td>1883</td>
+<td class="anno-cell">
+            <select id="sel_Birth_1" data-cat="Birth" data-wikidata="Q111659616">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_1" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://www.wikidata.org/wiki/Q16062969" target="_blank">Q16062969</a></td>
+<td>William Steele</td>
+<td>1819</td>
+<td>day</td>
+<td>1885</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1849</td>
+<td>1874</td>
+<td class="anno-cell">
+            <select id="sel_Birth_2" data-cat="Birth" data-wikidata="Q16062969">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_2" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://www.wikidata.org/wiki/Q65964174" target="_blank">Q65964174</a></td>
+<td>Noel Punton</td>
+<td>1931</td>
+<td>day</td>
+<td>2017</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1961</td>
+<td>1986</td>
+<td class="anno-cell">
+            <select id="sel_Birth_3" data-cat="Birth" data-wikidata="Q65964174">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_3" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://www.wikidata.org/wiki/Q75475163" target="_blank">Q75475163</a></td>
+<td>Arnold Borwick</td>
+<td>1908</td>
+<td>day</td>
+<td>1979</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1938</td>
+<td>1963</td>
+<td class="anno-cell">
+            <select id="sel_Birth_4" data-cat="Birth" data-wikidata="Q75475163">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_4" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://www.wikidata.org/wiki/Q30728884" target="_blank">Q30728884</a></td>
+<td>Ariane Gélinas</td>
+<td>1984</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>2014</td>
+<td>2039</td>
+<td class="anno-cell">
+            <select id="sel_Birth_5" data-cat="Birth" data-wikidata="Q30728884">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_5" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://www.wikidata.org/wiki/Q7032600" target="_blank">Q7032600</a></td>
+<td>Nigel Powell</td>
+<td>1971</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>2001</td>
+<td>2026</td>
+<td class="anno-cell">
+            <select id="sel_Birth_6" data-cat="Birth" data-wikidata="Q7032600">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_6" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://www.wikidata.org/wiki/Q110741448" target="_blank">Q110741448</a></td>
+<td>Gabriel Joret-Desclosieres</td>
+<td>1828</td>
+<td>day</td>
+<td>1913</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1858</td>
+<td>1883</td>
+<td class="anno-cell">
+            <select id="sel_Birth_7" data-cat="Birth" data-wikidata="Q110741448">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_7" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://www.wikidata.org/wiki/Q56703222" target="_blank">Q56703222</a></td>
+<td>Tim Brys</td>
+<td>1992</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>2022</td>
+<td>2047</td>
+<td class="anno-cell">
+            <select id="sel_Birth_8" data-cat="Birth" data-wikidata="Q56703222">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_8" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://www.wikidata.org/wiki/Q5814841" target="_blank">Q5814841</a></td>
+<td>Ducros de St. Germain</td>
+<td>1780</td>
+<td>year</td>
+<td>1860</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1810</td>
+<td>1835</td>
+<td class="anno-cell">
+            <select id="sel_Birth_9" data-cat="Birth" data-wikidata="Q5814841">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_9" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://www.wikidata.org/wiki/Q92917064" target="_blank">Q92917064</a></td>
+<td>Nicolas Vauchelet</td>
+<td>1978</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td><span style="color:#999">-</span></td>
+<td>2008</td>
+<td>2033</td>
+<td class="anno-cell">
+            <select id="sel_Birth_10" data-cat="Birth" data-wikidata="Q92917064">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth_10" placeholder="note..." />
+        </td>
+</tr>
+</tbody></table></div>
+<div class="cat-section">
+<div class="cat-header" style="background:#ffe119;color:#000">Birth / century death <span class="cat-count">(8,701 total)</span></div>
+<div class="cat-rule"><strong>Rule:</strong> Year-precise birth, death known only at century precision (ignored). Floruit = birth+30 to birth+55.</div>
+<table><thead><tr>
+<th>#</th>
+<th>Wikidata ID</th>
+<th>Name</th>
+<th>Birth year</th>
+<th>Birth prec.</th>
+<th>Death year</th>
+<th>Death prec.</th>
+<th>Floruit (P1317)</th>
+<th>Floruit start</th>
+<th>Floruit end</th>
+<th class="anno-cell">Annotation</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><a href="https://www.wikidata.org/wiki/Q57314250" target="_blank">Q57314250</a></td>
+<td>Mathilde de Craponne</td>
+<td>1871</td>
+<td>day</td>
+<td>1950</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1901</td>
+<td>1926</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_1" data-cat="Birth / century death" data-wikidata="Q57314250">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_1" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://www.wikidata.org/wiki/Q18620780" target="_blank">Q18620780</a></td>
+<td>Ella Lachmann</td>
+<td>1870</td>
+<td>year</td>
+<td>2000</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1900</td>
+<td>1925</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_2" data-cat="Birth / century death" data-wikidata="Q18620780">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_2" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://www.wikidata.org/wiki/Q63159788" target="_blank">Q63159788</a></td>
+<td>Miguel de Aguilar</td>
+<td>1612</td>
+<td>year</td>
+<td>1700</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1642</td>
+<td>1667</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_3" data-cat="Birth / century death" data-wikidata="Q63159788">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_3" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://www.wikidata.org/wiki/Q22226825" target="_blank">Q22226825</a></td>
+<td>Moritz Mansfeld</td>
+<td>1850</td>
+<td>year</td>
+<td>1900</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1880</td>
+<td>1905</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_4" data-cat="Birth / century death" data-wikidata="Q22226825">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_4" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://www.wikidata.org/wiki/Q104387609" target="_blank">Q104387609</a></td>
+<td>Henri Petit</td>
+<td>1802</td>
+<td>year</td>
+<td>1889</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1832</td>
+<td>1857</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_5" data-cat="Birth / century death" data-wikidata="Q104387609">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_5" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://www.wikidata.org/wiki/Q15822972" target="_blank">Q15822972</a></td>
+<td>Karl Lehr</td>
+<td>1881</td>
+<td>year</td>
+<td>2000</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1911</td>
+<td>1936</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_6" data-cat="Birth / century death" data-wikidata="Q15822972">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_6" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://www.wikidata.org/wiki/Q5850033" target="_blank">Q5850033</a></td>
+<td>Ramón Cáseda</td>
+<td>1753</td>
+<td>year</td>
+<td>1799</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1783</td>
+<td>1808</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_7" data-cat="Birth / century death" data-wikidata="Q5850033">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_7" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://www.wikidata.org/wiki/Q30173631" target="_blank">Q30173631</a></td>
+<td>Hermann Tillig</td>
+<td>1849</td>
+<td>day</td>
+<td>2000</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1879</td>
+<td>1904</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_8" data-cat="Birth / century death" data-wikidata="Q30173631">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_8" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://www.wikidata.org/wiki/Q2217853" target="_blank">Q2217853</a></td>
+<td>Jacobus Zeemans</td>
+<td>1665</td>
+<td>year</td>
+<td>1744</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1695</td>
+<td>1720</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_9" data-cat="Birth / century death" data-wikidata="Q2217853">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_9" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://www.wikidata.org/wiki/Q1579462" target="_blank">Q1579462</a></td>
+<td>Hans Fink</td>
+<td>1898</td>
+<td>day</td>
+<td>2000</td>
+<td>century</td>
+<td><span style="color:#999">-</span></td>
+<td>1928</td>
+<td>1953</td>
+<td class="anno-cell">
+            <select id="sel_Birth___century_death_10" data-cat="Birth / century death" data-wikidata="Q1579462">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Birth___century_death_10" placeholder="note..." />
+        </td>
+</tr>
+</tbody></table></div>
+<div class="cat-section">
+<div class="cat-header" style="background:#4363d8;color:#fff">Floruit interrupted by death <span class="cat-count">(551,964 total)</span></div>
+<div class="cat-rule"><strong>Rule:</strong> Year-precise birth and death, person died before age 55. Floruit = birth+30 to death_year (cut short).</div>
+<table><thead><tr>
+<th>#</th>
+<th>Wikidata ID</th>
+<th>Name</th>
+<th>Birth year</th>
+<th>Birth prec.</th>
+<th>Death year</th>
+<th>Death prec.</th>
+<th>Floruit (P1317)</th>
+<th>Floruit start</th>
+<th>Floruit end</th>
+<th class="anno-cell">Annotation</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><a href="https://www.wikidata.org/wiki/Q2060854" target="_blank">Q2060854</a></td>
+<td>Saint Mitre</td>
+<td>433</td>
+<td>year</td>
+<td>466</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>463</td>
+<td>466</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_1" data-cat="Floruit interrupted by death" data-wikidata="Q2060854">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_1" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://www.wikidata.org/wiki/Q55771142" target="_blank">Q55771142</a></td>
+<td>Fred Menkes</td>
+<td>1938</td>
+<td>year</td>
+<td>1971</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1968</td>
+<td>1971</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_2" data-cat="Floruit interrupted by death" data-wikidata="Q55771142">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_2" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://www.wikidata.org/wiki/Q117287888" target="_blank">Q117287888</a></td>
+<td>Sven Trier</td>
+<td>1877</td>
+<td>day</td>
+<td>1931</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1907</td>
+<td>1931</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_3" data-cat="Floruit interrupted by death" data-wikidata="Q117287888">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_3" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://www.wikidata.org/wiki/Q116040647" target="_blank">Q116040647</a></td>
+<td>Marie Joséphine Emilie Gosuin</td>
+<td>1796</td>
+<td>year</td>
+<td>1830</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1826</td>
+<td>1830</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_4" data-cat="Floruit interrupted by death" data-wikidata="Q116040647">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_4" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://www.wikidata.org/wiki/Q63959331" target="_blank">Q63959331</a></td>
+<td>Sir Alexander Palmer Bruce Chichester, 2nd Baronet</td>
+<td>1842</td>
+<td>day</td>
+<td>1881</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1872</td>
+<td>1881</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_5" data-cat="Floruit interrupted by death" data-wikidata="Q63959331">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_5" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://www.wikidata.org/wiki/Q11645574" target="_blank">Q11645574</a></td>
+<td>Nomura Risaburō</td>
+<td>1844</td>
+<td>year</td>
+<td>1869</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1869</td>
+<td>1869</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_6" data-cat="Floruit interrupted by death" data-wikidata="Q11645574">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_6" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://www.wikidata.org/wiki/Q5981648" target="_blank">Q5981648</a></td>
+<td>Ian Gillibrand</td>
+<td>1948</td>
+<td>day</td>
+<td>1989</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1978</td>
+<td>1989</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_7" data-cat="Floruit interrupted by death" data-wikidata="Q5981648">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_7" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://www.wikidata.org/wiki/Q55907064" target="_blank">Q55907064</a></td>
+<td>Katharina von Czettritz</td>
+<td>1577</td>
+<td>day</td>
+<td>1605</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1605</td>
+<td>1605</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_8" data-cat="Floruit interrupted by death" data-wikidata="Q55907064">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_8" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://www.wikidata.org/wiki/Q3188376" target="_blank">Q3188376</a></td>
+<td>Jules-Paul Tardivel</td>
+<td>1851</td>
+<td>day</td>
+<td>1905</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1881</td>
+<td>1905</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_9" data-cat="Floruit interrupted by death" data-wikidata="Q3188376">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_9" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://www.wikidata.org/wiki/Q109971574" target="_blank">Q109971574</a></td>
+<td>Celestino Martínez Vidal</td>
+<td>1858</td>
+<td>day</td>
+<td>1911</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1888</td>
+<td>1911</td>
+<td class="anno-cell">
+            <select id="sel_Floruit_interrupted_by_death_10" data-cat="Floruit interrupted by death" data-wikidata="Q109971574">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Floruit_interrupted_by_death_10" placeholder="note..." />
+        </td>
+</tr>
+</tbody></table></div>
+<div class="cat-section">
+<div class="cat-header" style="background:#f58231;color:#fff">Death <span class="cat-count">(238,363 total)</span></div>
+<div class="cat-rule"><strong>Rule:</strong> Year-precise death, no usable birth info. Floruit = death-25 to death.</div>
+<table><thead><tr>
+<th>#</th>
+<th>Wikidata ID</th>
+<th>Name</th>
+<th>Birth year</th>
+<th>Birth prec.</th>
+<th>Death year</th>
+<th>Death prec.</th>
+<th>Floruit (P1317)</th>
+<th>Floruit start</th>
+<th>Floruit end</th>
+<th class="anno-cell">Annotation</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><a href="https://www.wikidata.org/wiki/Q76032064" target="_blank">Q76032064</a></td>
+<td>Alice Caroline Hotham</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1944</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1919</td>
+<td>1944</td>
+<td class="anno-cell">
+            <select id="sel_Death_1" data-cat="Death" data-wikidata="Q76032064">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_1" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://www.wikidata.org/wiki/Q45662137" target="_blank">Q45662137</a></td>
+<td>Yao Hongliang</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>864</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>839</td>
+<td>864</td>
+<td class="anno-cell">
+            <select id="sel_Death_2" data-cat="Death" data-wikidata="Q45662137">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_2" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://www.wikidata.org/wiki/Q64765181" target="_blank">Q64765181</a></td>
+<td>Pierre Jerland</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1271</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1246</td>
+<td>1271</td>
+<td class="anno-cell">
+            <select id="sel_Death_3" data-cat="Death" data-wikidata="Q64765181">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_3" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://www.wikidata.org/wiki/Q113613679" target="_blank">Q113613679</a></td>
+<td>Ramón de Julián</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1948</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1923</td>
+<td>1948</td>
+<td class="anno-cell">
+            <select id="sel_Death_4" data-cat="Death" data-wikidata="Q113613679">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_4" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://www.wikidata.org/wiki/Q45443317" target="_blank">Q45443317</a></td>
+<td>Niu Shihan</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1895</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1870</td>
+<td>1895</td>
+<td class="anno-cell">
+            <select id="sel_Death_5" data-cat="Death" data-wikidata="Q45443317">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_5" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://www.wikidata.org/wiki/Q110385065" target="_blank">Q110385065</a></td>
+<td>Auguste Louis Joseph de Calonne, Marquis de Courtebonne</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1776</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1751</td>
+<td>1776</td>
+<td class="anno-cell">
+            <select id="sel_Death_6" data-cat="Death" data-wikidata="Q110385065">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_6" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://www.wikidata.org/wiki/Q68910928" target="_blank">Q68910928</a></td>
+<td>Antonio Simeoni</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1556</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1531</td>
+<td>1556</td>
+<td class="anno-cell">
+            <select id="sel_Death_7" data-cat="Death" data-wikidata="Q68910928">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_7" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://www.wikidata.org/wiki/Q18528268" target="_blank">Q18528268</a></td>
+<td>Henrietta Mosse</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1834</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1809</td>
+<td>1834</td>
+<td class="anno-cell">
+            <select id="sel_Death_8" data-cat="Death" data-wikidata="Q18528268">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_8" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://www.wikidata.org/wiki/Q9015998" target="_blank">Q9015998</a></td>
+<td>Juan Soreda</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1537</td>
+<td>month</td>
+<td><span style="color:#999">-</span></td>
+<td>1512</td>
+<td>1537</td>
+<td class="anno-cell">
+            <select id="sel_Death_9" data-cat="Death" data-wikidata="Q9015998">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_9" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://www.wikidata.org/wiki/Q75559332" target="_blank">Q75559332</a></td>
+<td>Cecil Maud Cayley</td>
+<td><span style="color:#999">-</span></td>
+<td>-</td>
+<td>1916</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1891</td>
+<td>1916</td>
+<td class="anno-cell">
+            <select id="sel_Death_10" data-cat="Death" data-wikidata="Q75559332">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death_10" placeholder="note..." />
+        </td>
+</tr>
+</tbody></table></div>
+<div class="cat-section">
+<div class="cat-header" style="background:#911eb4;color:#fff">Death / century birth <span class="cat-count">(25,250 total)</span></div>
+<div class="cat-rule"><strong>Rule:</strong> Year-precise death, birth known only at century precision (ignored). Floruit = death-25 to death.</div>
+<table><thead><tr>
+<th>#</th>
+<th>Wikidata ID</th>
+<th>Name</th>
+<th>Birth year</th>
+<th>Birth prec.</th>
+<th>Death year</th>
+<th>Death prec.</th>
+<th>Floruit (P1317)</th>
+<th>Floruit start</th>
+<th>Floruit end</th>
+<th class="anno-cell">Annotation</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><a href="https://www.wikidata.org/wiki/Q6253153" target="_blank">Q6253153</a></td>
+<td>John Poole</td>
+<td>1501</td>
+<td>century</td>
+<td>1601</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1576</td>
+<td>1601</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_1" data-cat="Death / century birth" data-wikidata="Q6253153">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_1" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://www.wikidata.org/wiki/Q2822165" target="_blank">Q2822165</a></td>
+<td>Abu Bakr Shah</td>
+<td>1350</td>
+<td>century</td>
+<td>1390</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1365</td>
+<td>1390</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_2" data-cat="Death / century birth" data-wikidata="Q2822165">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_2" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://www.wikidata.org/wiki/Q5895655" target="_blank">Q5895655</a></td>
+<td>Jöns Bengtsson</td>
+<td>1350</td>
+<td>century</td>
+<td>1400</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1375</td>
+<td>1400</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_3" data-cat="Death / century birth" data-wikidata="Q5895655">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_3" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://www.wikidata.org/wiki/Q1609899" target="_blank">Q1609899</a></td>
+<td>Heribert II</td>
+<td>1150</td>
+<td>century</td>
+<td>1225</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1200</td>
+<td>1225</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_4" data-cat="Death / century birth" data-wikidata="Q1609899">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_4" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://www.wikidata.org/wiki/Q7814919" target="_blank">Q7814919</a></td>
+<td>Tom Beckert</td>
+<td>1950</td>
+<td>century</td>
+<td>2017</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1992</td>
+<td>2017</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_5" data-cat="Death / century birth" data-wikidata="Q7814919">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_5" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://www.wikidata.org/wiki/Q11623315" target="_blank">Q11623315</a></td>
+<td>Fujiwara no Koreo</td>
+<td>750</td>
+<td>century</td>
+<td>831</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>806</td>
+<td>831</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_6" data-cat="Death / century birth" data-wikidata="Q11623315">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_6" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://www.wikidata.org/wiki/Q112561095" target="_blank">Q112561095</a></td>
+<td>Cristoforo Tomasini</td>
+<td>1590</td>
+<td>century</td>
+<td>1660</td>
+<td>decade</td>
+<td><span style="color:#999">-</span></td>
+<td>1635</td>
+<td>1660</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_7" data-cat="Death / century birth" data-wikidata="Q112561095">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_7" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://www.wikidata.org/wiki/Q7147408" target="_blank">Q7147408</a></td>
+<td>Patrick O'Neil</td>
+<td>1950</td>
+<td>century</td>
+<td>2019</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1994</td>
+<td>2019</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_8" data-cat="Death / century birth" data-wikidata="Q7147408">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_8" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://www.wikidata.org/wiki/Q1707357" target="_blank">Q1707357</a></td>
+<td>Joseph Junker</td>
+<td>1900</td>
+<td>century</td>
+<td>1946</td>
+<td>year</td>
+<td><span style="color:#999">-</span></td>
+<td>1921</td>
+<td>1946</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_9" data-cat="Death / century birth" data-wikidata="Q1707357">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_9" placeholder="note..." />
+        </td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://www.wikidata.org/wiki/Q20752107" target="_blank">Q20752107</a></td>
+<td>Bartholomäus Friedrich von Beichlingen</td>
+<td>1550</td>
+<td>century</td>
+<td>1567</td>
+<td>day</td>
+<td><span style="color:#999">-</span></td>
+<td>1542</td>
+<td>1567</td>
+<td class="anno-cell">
+            <select id="sel_Death___century_birth_10" data-cat="Death / century birth" data-wikidata="Q20752107">
+                <option value="">--</option>
+                <option value="correct">Correct</option>
+                <option value="wrong_category">Wrong category</option>
+                <option value="wrong_period">Wrong period</option>
+                <option value="unclear">Unclear</option>
+            </select>
+            <input id="note_Death___century_birth_10" placeholder="note..." />
+        </td>
+</tr>
+</tbody></table></div>
+
+<button id="export-btn" onclick="exportAnnotations()">Export annotations as JSON</button>
+<pre id="export-output" style="display:none; background:#fff; padding:1rem; border:1px solid #ccc; margin-top:1rem; max-height:400px; overflow:auto;"></pre>
+<script>
+function exportAnnotations() {
+    const selects = document.querySelectorAll('select[data-cat]');
+    const results = [];
+    selects.forEach(sel => {
+        const id = sel.id.replace('sel_', '');
+        const note = document.getElementById('note_' + id)?.value || '';
+        if (sel.value || note) {
+            results.push({
+                wikidata_id: sel.dataset.wikidata,
+                category: sel.dataset.cat,
+                verdict: sel.value,
+                note: note
+            });
+        }
+    });
+    const out = document.getElementById('export-output');
+    out.style.display = 'block';
+    out.textContent = JSON.stringify(results, null, 2);
+}
+</script>
+</body></html>

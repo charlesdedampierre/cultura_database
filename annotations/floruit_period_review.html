@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Floruit period review — 70 individuals</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='6' width='3' height='8' fill='%232b6cb0'/%3E%3Crect x='6' y='3' width='4' height='11' fill='%232b6cb0'/%3E%3Crect x='11' y='8' width='3' height='6' fill='%232b6cb0'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#fafafa; --card:#fff; --line:#e5e5e5; --ink:#1a1a1a; --muted:#666;
+    --ok:#0f9d58; --ok-bg:#e6f4ea;
+    --bad:#d93025; --bad-bg:#fce8e6;
+    --hl:#2b6cb0;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  header {
+    position:sticky; top:0; z-index:10;
+    background:#fff; border-bottom:1px solid var(--line);
+    padding:14px 22px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+  }
+  header h1 { margin:0; font-size:16px; font-weight:600; }
+  header .meta { color:var(--muted); font-size:12px; }
+  .counters { display:flex; gap:14px; font-size:12px; color:var(--muted); }
+  .counters b { color:var(--ink); }
+  .filters { display:flex; gap:6px; flex-wrap:wrap; font-size:12px; }
+  .filters label {
+    border:1px solid var(--line); padding:4px 8px; border-radius:14px;
+    cursor:pointer; user-select:none; background:#fff;
+  }
+  .filters input { display:none; }
+  .filters input:checked + span { color:var(--hl); font-weight:600; }
+  button {
+    font: inherit; cursor:pointer; border:1px solid var(--line); background:#fff;
+    padding:6px 12px; border-radius:6px;
+  }
+  button:hover { background:#f3f3f3; }
+  .primary { background:var(--hl); color:#fff; border-color:var(--hl); }
+  .primary:hover { filter:brightness(.95); background:var(--hl); }
+  main { padding:18px 22px 80px; max-width:1100px; margin:0 auto; }
+  .row {
+    background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:14px 16px; margin-bottom:10px;
+    display:grid; grid-template-columns: 42px 1fr 280px 220px; gap:14px; align-items:start;
+  }
+  .row.annotated.correct { border-color:#b6dfc1; background:#f7fcf9; }
+  .row.annotated.wrong   { border-color:#f3b7b0; background:#fdf6f5; }
+  .idx { color:var(--muted); font-variant-numeric: tabular-nums; padding-top:2px; }
+  .name { font-weight:600; }
+  .name a { color:var(--ink); text-decoration:none; }
+  .name a:hover { color:var(--hl); text-decoration:underline; }
+  .desc { color:var(--muted); font-size:12px; margin-top:2px; }
+  .tags { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+  .chip {
+    border:1px solid var(--line); border-radius:12px;
+    padding:2px 8px; font-size:11px; color:var(--muted);
+  }
+  .rule-chip {
+    display:inline-block; padding:3px 9px; font-size:11px; border-radius:12px;
+    font-weight:600;
+  }
+  .rule-floruit_p1317        { background:#fde2e7; color:#a01231; }
+  .rule-birth                { background:#e3f2dc; color:#256025; }
+  .rule-birth_century_single { background:#fff5cf; color:#7a5b00; }
+  .rule-birth_century_span   { background:#ffd966; color:#5e4400; }
+  .rule-birth_capped         { background:#dde6f8; color:#1d3a8a; }
+  .rule-death                { background:#fde0cf; color:#a04d11; }
+  .rule-death_century        { background:#ecdcf3; color:#4d1372; }
+  .dates {
+    display:grid; grid-template-columns:auto 1fr; column-gap:8px; row-gap:3px;
+    font-size:12.5px; line-height:1.4;
+  }
+  .dates .k { color:var(--muted); }
+  .dates .v { font-variant-numeric: tabular-nums; }
+  .period {
+    margin-top:8px; font-size:15px; font-weight:700;
+    color:var(--hl); font-variant-numeric: tabular-nums;
+    letter-spacing:0.2px;
+  }
+  .actions { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .actions .row-buttons { display:flex; gap:6px; }
+  .btn-yes, .btn-no {
+    width:46px; padding:6px 0; text-align:center; border-radius:6px;
+    border:1px solid var(--line);
+  }
+  .row.annotated.correct .btn-yes { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .row.annotated.wrong   .btn-no  { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .note { width:100%; min-height:34px; font: inherit; padding:6px 8px;
+           border:1px solid var(--line); border-radius:6px; resize:vertical; }
+  .links a { color:var(--hl); text-decoration:none; font-size:12px; margin-right:8px; }
+  .links a:hover { text-decoration:underline; }
+  footer {
+    position:fixed; left:0; right:0; bottom:0;
+    background:#fff; border-top:1px solid var(--line);
+    padding:10px 22px; display:flex; gap:14px; align-items:center; justify-content:space-between;
+    font-size:12px; color:var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Floruit period review</h1>
+  <span class="meta">70 rows · 6 rules · stratified random sample</span>
+  <div class="counters">
+    <span><b id="cnt-yes">0</b> correct</span>
+    <span><b id="cnt-no">0</b> wrong</span>
+    <span><b id="cnt-pending">70</b> pending</span>
+  </div>
+  <div class="filters" id="filters"></div>
+  <button id="export" class="primary">Download annotations</button>
+</header>
+
+<main id="rows"></main>
+
+<footer>
+  <span>Annotations are saved to your browser (localStorage). Click <b>Download annotations</b> to save them as JSON.</span>
+  <span><kbd>y</kbd>/<kbd>n</kbd> on the focused row</span>
+</footer>
+
+<script>
+const DATA = [{"wikidata_id": "Q2406123", "name": "Tesana Panvisvas", "description": "badminton player", "occupations": "badminton player; badminton coach; Olympic competitor", "nationalities": "Thailand", "birth_year": 1978, "birth_prec": "day", "birthdate": "1978-03-14", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "2008-2026", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q23620604", "name": "Raham Mihran", "description": "", "occupations": "military leader", "nationalities": "Sasanian Empire", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 401, "death_prec": "century", "deathdate": "0401-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "5th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q118368109", "name": "Sura Goldfajn", "description": "", "occupations": "", "nationalities": "Germany", "birth_year": 1912, "birth_prec": "day", "birthdate": "1912-11-19", "death_year": 1942, "death_prec": "month", "deathdate": "1942-07-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1942-1942", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q122397222", "name": "Miss Pernessin", "description": "", "occupations": "translator; teacher", "nationalities": "France", "birth_year": 1800, "birth_prec": "century", "birthdate": "1800-01-01", "death_year": 1900, "death_prec": "century", "deathdate": "1900-01-01", "floruit_year": 1896, "floruit_prec": "year", "floruit_period": "1896-1921", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q22342700", "name": "Vladimir Pašić", "description": "association football player", "occupations": "association football player", "nationalities": "Socialist Federal Republic of Yugoslavia", "birth_year": 1970, "birth_prec": "day", "birthdate": "1970-08-25", "death_year": 2004, "death_prec": "day", "deathdate": "2004-11-24", "floruit_year": null, "floruit_prec": "", "floruit_period": "2000-2004", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q18665912", "name": "The Wealdstone Raider", "description": "English builder and football fan who went viral online", "occupations": "YouTuber; television producer; maintenance worker", "nationalities": "United Kingdom", "birth_year": 2000, "birth_prec": "century", "birthdate": "2000-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q308121", "name": "Abdharetat", "description": "", "occupations": "", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 100, "death_prec": "century", "deathdate": "0100-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1st c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q10370180", "name": "Serafim José de Meneses", "description": "", "occupations": "", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1867, "death_prec": "day", "deathdate": "1867-02-22", "floruit_year": null, "floruit_prec": "", "floruit_period": "1842-1867", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q4739801", "name": "Amanda Zhao", "description": "Chinese murder victim", "occupations": "", "nationalities": "People's Republic of China", "birth_year": 1981, "birth_prec": "year", "birthdate": "1981-01-01", "death_year": 2002, "death_prec": "day", "deathdate": "2002-10-20", "floruit_year": null, "floruit_prec": "", "floruit_period": "2002-2002", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q3384122", "name": "Pierre Boulat", "description": "French photographer and reporter (1924-1998)", "occupations": "photographer; reporter", "nationalities": "France", "birth_year": 1924, "birth_prec": "day", "birthdate": "1924-06-03", "death_year": 1998, "death_prec": "day", "deathdate": "1998-01-11", "floruit_year": null, "floruit_prec": "", "floruit_period": "1954-1979", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q4383240", "name": "Publicia", "description": "Flaminica Martialis 71 BC", "occupations": "ancient Roman priestess", "nationalities": "Ancient Rome", "birth_year": null, "birth_prec": "year", "birthdate": "_:bn64536", "death_year": -100, "death_prec": "century", "deathdate": "-0100-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1st c. BC", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q113903588", "name": "Esperanza Abarca", "description": "", "occupations": "poet", "nationalities": "", "birth_year": 1501, "birth_prec": "century", "birthdate": "1501-01-01", "death_year": 1699, "death_prec": "century", "deathdate": "1699-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "16th-17th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q30115206", "name": "Mikhas Biely", "description": "Belarusian political activist", "occupations": "oppositionist", "nationalities": "Second Polish Republic; Byelorussian Soviet Socialist Republic", "birth_year": 1931, "birth_prec": "day", "birthdate": "1931-05-02", "death_year": 1970, "death_prec": "day", "deathdate": "1970-08-18", "floruit_year": null, "floruit_prec": "", "floruit_period": "1961-1970", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q18414221", "name": "Georges Truptil", "description": "French military personnel", "occupations": "military personnel", "nationalities": "France", "birth_year": 1850, "birth_prec": "century", "birthdate": "1850-01-01", "death_year": 2000, "death_prec": "century", "deathdate": "2000-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "19th-20th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q26435603", "name": "Johann Theophilus Walz", "description": "", "occupations": "mathematician; writer; geographer", "nationalities": "", "birth_year": 1714, "birth_prec": "year", "birthdate": "1714-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": 1758, "floruit_prec": "year", "floruit_period": "1758-1783", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q113388551", "name": "Jan Podlodowski", "description": "", "occupations": "", "nationalities": "Kingdom of Poland", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1510, "death_prec": "year", "deathdate": "1510-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1485-1510", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q27755955", "name": "Alyssa Coll", "description": "American rink hockey player", "occupations": "rink hockey player", "nationalities": "United States", "birth_year": 1953, "birth_prec": "century", "birthdate": "1953-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q51883165", "name": "Abundantius", "description": "", "occupations": "", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": 601, "floruit_prec": "century", "floruit_period": "7th c. AD", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q106947488", "name": "Domenico Confuorto", "description": "Italian historian, genealogist and lawyer", "occupations": "historian; lawyer; genealogist", "nationalities": "", "birth_year": 1650, "birth_prec": "century", "birthdate": "1650-01-01", "death_year": 1750, "death_prec": "century", "deathdate": "1750-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "17th-18th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q2826976", "name": "Agnès Chaumié", "description": "French singer", "occupations": "singer", "nationalities": "France", "birth_year": 1953, "birth_prec": "century", "birthdate": "1953-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q96323491", "name": "Johann Carl Seubert", "description": "", "occupations": "", "nationalities": "", "birth_year": 1760, "birth_prec": "day", "birthdate": "1760-08-06", "death_year": 1845, "death_prec": "day", "deathdate": "1845-01-13", "floruit_year": null, "floruit_prec": "", "floruit_period": "1790-1815", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q73406063", "name": "Peter Stephen Molkenboer", "description": "Dutch photographer (1943–2011)", "occupations": "photographer; photojournalist", "nationalities": "Kingdom of the Netherlands", "birth_year": 1943, "birth_prec": "day", "birthdate": "1943-05-27", "death_year": 2011, "death_prec": "day", "deathdate": "2011-10-11", "floruit_year": 1975, "floruit_prec": "year", "floruit_period": "1975-2000", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q5731969", "name": "Bonifacio Soto", "description": "Mexican military personnel", "occupations": "military personnel", "nationalities": "Mexico", "birth_year": 1900, "birth_prec": "century", "birthdate": "1900-01-01", "death_year": 2000, "death_prec": "century", "deathdate": "2000-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "19th-20th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q11416672", "name": "Lü Yi", "description": "Official of the state of Shu Han (died 251)", "occupations": "politician", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": "_:bn690567", "death_year": 251, "death_prec": "year", "deathdate": "0251-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "226-251", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q23498230", "name": "Étienne-François Corpet", "description": "French latinist (1804-1857)", "occupations": "latinist", "nationalities": "France", "birth_year": 1804, "birth_prec": "day", "birthdate": "1804-08-19", "death_year": 1857, "death_prec": "day", "deathdate": "1857-12-20", "floruit_year": null, "floruit_prec": "", "floruit_period": "1834-1857", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q6282123", "name": "Joseph Churba", "description": "United States Air Force Middle East intelligence expert, author, and political activist", "occupations": "writer", "nationalities": "United States", "birth_year": 1934, "birth_prec": "year", "birthdate": "1934-01-01", "death_year": 1996, "death_prec": "year", "deathdate": "1996-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1964-1989", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q108290914", "name": "Hans Cantzler", "description": "", "occupations": "war correspondent", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": 1944, "floruit_prec": "year", "floruit_period": "1944-1969", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q1581088", "name": "Willem van Steenwinckel", "description": "Danish architect", "occupations": "architect", "nationalities": "Kingdom of Denmark", "birth_year": 1590, "birth_prec": "year", "birthdate": "1590-01-01", "death_year": 1600, "death_prec": "century", "deathdate": "1600-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1620-1645", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q1969605", "name": "Jean de Marville", "description": "Belgian sculptor", "occupations": "sculptor", "nationalities": "France", "birth_year": 1350, "birth_prec": "century", "birthdate": "1350-01-01", "death_year": 1389, "death_prec": "month", "deathdate": "1389-07-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1364-1389", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q16730228", "name": "Thesara Jayawardane", "description": "Sri Lankan actress", "occupations": "actor", "nationalities": "", "birth_year": 2000, "birth_prec": "century", "birthdate": "2000-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q85133201", "name": "Paulina Kramarz", "description": "Polish ecologist", "occupations": "ecologist", "nationalities": "Poland", "birth_year": 1950, "birth_prec": "century", "birthdate": "1950-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q82339436", "name": "Martin Schmalz", "description": "German financial economist and university lecturer", "occupations": "economist", "nationalities": "", "birth_year": 1984, "birth_prec": "day", "birthdate": "1984-08-09", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "2014-2026", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q43397002", "name": "Keean Johnson", "description": "American actor", "occupations": "television actor; film actor; actor; dancer", "nationalities": "United States", "birth_year": 1996, "birth_prec": "day", "birthdate": "1996-10-25", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "2026-2026", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q9062792", "name": "Primitivo Iriberri", "description": "Spanish cyclist", "occupations": "sport cyclist", "nationalities": "Spain", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1999, "death_prec": "century", "deathdate": "1999-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q51803403", "name": "Herman Wiebe", "description": "", "occupations": "merchant", "nationalities": "Germany", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1704, "death_prec": "year", "deathdate": "1704-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1679-1704", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q23797831", "name": "Franklin Verduga", "description": "Ecuadorian politician", "occupations": "politician", "nationalities": "Ecuador", "birth_year": 1953, "birth_prec": "century", "birthdate": "1953-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q41148577", "name": "Gratien d'Amiens", "description": "", "occupations": "", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 303, "death_prec": "year", "deathdate": "0303-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "278-303", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q6148885", "name": "Jan Evertsen Cloppenburgh", "description": "Dutch publisher (1571–1648)", "occupations": "bookbinder; cartographer; printer; publisher; engraver; bookseller", "nationalities": "Netherlands", "birth_year": 1571, "birth_prec": "year", "birthdate": "1571-01-01", "death_year": 1648, "death_prec": "year", "deathdate": "1648-01-01", "floruit_year": 1590, "floruit_prec": "year", "floruit_period": "1590-1615", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q16145895", "name": "Asid ibn Zafir al-Sulami", "description": "", "occupations": "military leader", "nationalities": "Abbasid Caliphate", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 701, "death_prec": "century", "deathdate": "0701-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "8th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q135038906", "name": "George Dehane", "description": "printer and publisher (1808-1864)", "occupations": "printer; publisher", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1864, "death_prec": "day", "deathdate": "1864-12-23", "floruit_year": null, "floruit_prec": "", "floruit_period": "1839-1864", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q60829877", "name": "Karl Krushtein", "description": "(1887-1921)", "occupations": "", "nationalities": "", "birth_year": 1887, "birth_prec": "day", "birthdate": "1887-01-29", "death_year": 1921, "death_prec": "day", "deathdate": "1921-11-03", "floruit_year": null, "floruit_prec": "", "floruit_period": "1917-1921", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q6069131", "name": "Pedro Ignacio Urrejola", "description": "Argentinian politician", "occupations": "civil servant; politician", "nationalities": "Argentina; United Provinces of the Río de la Plata", "birth_year": 1701, "birth_prec": "century", "birthdate": "1701-01-01", "death_year": 1899, "death_prec": "century", "deathdate": "1899-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "18th-19th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q5260054", "name": "Deorwulf", "description": "bishop of London", "occupations": "Catholic priest; Catholic bishop", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 801, "death_prec": "century", "deathdate": "0801-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "9th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q1233397", "name": "Adolf Pesti", "description": "Hungarian Catholic priest", "occupations": "Catholic priest; secondary school teacher", "nationalities": "Hungary", "birth_year": 1701, "birth_prec": "century", "birthdate": "1701-01-01", "death_year": 1799, "death_prec": "millennium", "deathdate": "1799-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "18th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q85011013", "name": "Femi Olujobi", "description": "American basketball player", "occupations": "basketball player", "nationalities": "United States; Jamaica", "birth_year": 1996, "birth_prec": "day", "birthdate": "1996-03-05", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "2026-2026", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q20478238", "name": "István Madas", "description": "Hungarian actor", "occupations": "actor", "nationalities": "Romania; Hungary", "birth_year": 1878, "birth_prec": "day", "birthdate": "1878-04-12", "death_year": 1925, "death_prec": "day", "deathdate": "1925-10-26", "floruit_year": null, "floruit_prec": "", "floruit_period": "1908-1925", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q11468307", "name": "Tomiko Yamakawa", "description": "Japanese poet", "occupations": "waka poet", "nationalities": "Japan", "birth_year": 1879, "birth_prec": "day", "birthdate": "1879-07-19", "death_year": 1909, "death_prec": "day", "deathdate": "1909-04-15", "floruit_year": null, "floruit_prec": "", "floruit_period": "1909-1909", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q1082467", "name": "Christian von Apen", "description": "German painter", "occupations": "painter", "nationalities": "Germany", "birth_year": 1600, "birth_prec": "century", "birthdate": "1600-01-01", "death_year": 1700, "death_prec": "century", "deathdate": "1700-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "16th-17th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q130307991", "name": "Guilebertus Catalaunensis", "description": "", "occupations": "bishop", "nationalities": "France", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": 900, "floruit_prec": "century", "floruit_period": "9th c. AD", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q15814920", "name": "Heinz Block", "description": "German politician", "occupations": "politician", "nationalities": "German Democratic Republic; Germany", "birth_year": 1925, "birth_prec": "day", "birthdate": "1925-02-11", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "1955-1980", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q20887155", "name": "Richard of Verdun", "description": "", "occupations": "illuminator", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": 2000, "floruit_prec": "millennium", "floruit_period": "20th c. AD", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q12875225", "name": "Giannis Konstantopoulos", "description": "Greek politician", "occupations": "politician", "nationalities": "Greece", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 2021, "death_prec": "day", "deathdate": "2021-06-09", "floruit_year": null, "floruit_prec": "", "floruit_period": "1996-2021", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q126232807", "name": "H. S. David", "description": "Sri Lankan Tamil scholar, priest and linguist", "occupations": "scholar", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1981, "death_prec": "day", "deathdate": "1981-06-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1956-1981", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q104554677", "name": "Fabian Michel", "description": "", "occupations": "floorball player", "nationalities": "Switzerland", "birth_year": 1996, "birth_prec": "year", "birthdate": "1996-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "2026-2026", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q22911374", "name": "Piotr Pindelski", "description": "", "occupations": "engineer", "nationalities": "", "birth_year": 1900, "birth_prec": "century", "birthdate": "1900-01-01", "death_year": 2000, "death_prec": "century", "deathdate": "2000-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "19th-20th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q7329311", "name": "Richard Sutton", "description": "Canadian political figure in New Brunswick", "occupations": "politician", "nationalities": "Canada", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1870, "death_prec": "year", "deathdate": "1870-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "1845-1870", "rule_id": "death", "rule_label": "Floruit from death date"}, {"wikidata_id": "Q784108", "name": "Gaius Veturius Geminus Cicurinus", "description": "5th-century BC Roman politician and general", "occupations": "military personnel; politician", "nationalities": "Ancient Rome", "birth_year": -600, "birth_prec": "century", "birthdate": "-0600-01-01", "death_year": -500, "death_prec": "century", "deathdate": "-0500-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "6th-5th c. BC", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q1302810", "name": "Almut von Wetter", "description": "", "occupations": "nun", "nationalities": "", "birth_year": 1000, "birth_prec": "century", "birthdate": "1000-01-01", "death_year": 1100, "death_prec": "century", "deathdate": "1100-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "10th-11th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q7349061", "name": "Robert Puleston", "description": "Welsh rebel", "occupations": "", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1401, "death_prec": "century", "deathdate": "1401-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "15th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q19619042", "name": "Sahl Rabban", "description": "", "occupations": "astrologer; translator; physician", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 900, "death_prec": "century", "deathdate": "0900-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "9th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q185206", "name": "Priscian of Lydia", "description": "Neoplatonist philosopher (6th century AD)", "occupations": "philosopher", "nationalities": "Byzantine Empire", "birth_year": 500, "birth_prec": "millennium", "birthdate": "0500-01-01", "death_year": 600, "death_prec": "millennium", "deathdate": "0600-01-01", "floruit_year": 600, "floruit_prec": "century", "floruit_period": "6th c. AD", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q20480460", "name": "János Kolozsvári Czementes", "description": "Hungarian chemist and alchemist (16th century)", "occupations": "alchemist; chemist", "nationalities": "Hungary", "birth_year": 1550, "birth_prec": "century", "birthdate": "1550-01-01", "death_year": 1600, "death_prec": "millennium", "deathdate": "1600-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "16th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q65088234", "name": "Hannes Weingärtner", "description": "German navy officer and WWII submarine commander", "occupations": "Marineoffizier; submariner; soldier", "nationalities": "Nazi Germany", "birth_year": 1908, "birth_prec": "day", "birthdate": "1908-07-11", "death_year": 1944, "death_prec": "day", "deathdate": "1944-06-08", "floruit_year": null, "floruit_prec": "", "floruit_period": "1938-1944", "rule_id": "birth_capped", "rule_label": "Floruit from birth date, capped by death"}, {"wikidata_id": "Q11727954", "name": "John Nelson", "description": "American track cyclist (19th century)", "occupations": "track cyclist", "nationalities": "United States", "birth_year": null, "birth_prec": "", "birthdate": "_:bn1777597", "death_year": 2000, "death_prec": "century", "deathdate": "2000-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}, {"wikidata_id": "Q877166", "name": "Manfred Pernice", "description": "German artist (born 1963)", "occupations": "painter; sculptor; draftsperson; graphic artist; visual artist; artist", "nationalities": "Germany", "birth_year": 1963, "birth_prec": "year", "birthdate": "1963-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": 1998, "floruit_prec": "year", "floruit_period": "1998-2023", "rule_id": "floruit_p1317", "rule_label": "Floruit from Wikidata floruit (P1317)"}, {"wikidata_id": "Q17465784", "name": "Caryl Deyn Korma", "description": "film director", "occupations": "film director; film editor", "nationalities": "", "birth_year": 1901, "birth_prec": "century", "birthdate": "1901-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q6042413", "name": "Nicolás Olmos", "description": "Mexican military personnel", "occupations": "military personnel", "nationalities": "Mexico", "birth_year": 1900, "birth_prec": "century", "birthdate": "1900-01-01", "death_year": 2000, "death_prec": "century", "deathdate": "2000-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "19th-20th c. AD", "rule_id": "birth_century_span", "rule_label": "Birth century → next/later century (spans)"}, {"wikidata_id": "Q51990565", "name": "Tokunbo", "description": "German singer-songwriter", "occupations": "singer-songwriter", "nationalities": "Germany", "birth_year": 1950, "birth_prec": "century", "birthdate": "1950-01-01", "death_year": null, "death_prec": "", "deathdate": null, "floruit_year": null, "floruit_prec": "", "floruit_period": "20th c. AD", "rule_id": "birth_century_single", "rule_label": "Birth century only (single century)"}, {"wikidata_id": "Q4450620", "name": "Fyodor Talyzin", "description": "", "occupations": "military officer", "nationalities": "Russian Empire", "birth_year": 1773, "birth_prec": "year", "birthdate": "1773-01-01", "death_year": 1844, "death_prec": "day", "deathdate": "1844-02-03", "floruit_year": null, "floruit_prec": "", "floruit_period": "1803-1828", "rule_id": "birth", "rule_label": "Floruit from birth date"}, {"wikidata_id": "Q29568124", "name": "Detoš", "description": "14th century Serbian nobleman", "occupations": "", "nationalities": "", "birth_year": null, "birth_prec": "", "birthdate": null, "death_year": 1301, "death_prec": "century", "deathdate": "1301-01-01", "floruit_year": null, "floruit_prec": "", "floruit_period": "14th c. AD", "rule_id": "death_century", "rule_label": "Floruit from death date (century precision)"}];
+const STORAGE_KEY = 'floruit_period_review_v1';
+
+const RULE_IDS = [
+  ['floruit_p1317',         'Floruit from Wikidata floruit (P1317)'],
+  ['birth',                 'Floruit from birth date'],
+  ['birth_century_single',  'Birth century only (single)'],
+  ['birth_century_span',    'Birth century → next/later century (spans)'],
+  ['birth_capped',          'Floruit from birth date, capped by death'],
+  ['death',                 'Floruit from death date'],
+  ['death_century',         'Floruit from death date (century precision)'],
+];
+
+const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+const activeRules = new Set(RULE_IDS.map(r => r[0]));
+
+function fmt(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return String(v);
+}
+
+function render() {
+  const main = document.getElementById('rows');
+  main.innerHTML = '';
+  let yes = 0, no = 0, pending = 0;
+
+  DATA.forEach((d, i) => {
+    if (!activeRules.has(d.rule_id)) return;
+    const verdict = state[d.wikidata_id]?.verdict;
+    const note    = state[d.wikidata_id]?.note || '';
+    if (verdict === 'yes') yes++;
+    else if (verdict === 'no') no++;
+    else pending++;
+
+    const row = document.createElement('div');
+    row.className = 'row' + (verdict ? ' annotated ' + (verdict === 'yes' ? 'correct' : 'wrong') : '');
+    row.dataset.qid = d.wikidata_id;
+    row.tabIndex = 0;
+
+    const occ = d.occupations ? d.occupations.split(';').slice(0, 3).join(' · ') : '';
+    const nat = d.nationalities ? d.nationalities.split(';').slice(0, 3).join(' · ') : '';
+
+    row.innerHTML = `
+      <div class="idx">${i + 1}</div>
+      <div>
+        <div class="name">
+          <a href="https://www.wikidata.org/wiki/${d.wikidata_id}" target="_blank">${fmt(d.name)}</a>
+        </div>
+        ${d.description ? `<div class="desc">${d.description}</div>` : ''}
+        <div class="tags">
+          ${occ ? `<span class="chip">${occ}</span>` : ''}
+          ${nat ? `<span class="chip">${nat}</span>` : ''}
+          <span class="chip">${d.wikidata_id}</span>
+        </div>
+        <div class="links" style="margin-top:6px;">
+          <a href="https://www.wikidata.org/wiki/${d.wikidata_id}" target="_blank">Wikidata</a>
+          <a href="https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(d.name || d.wikidata_id)}" target="_blank">Wikipedia search</a>
+          <a href="https://www.google.com/search?q=${encodeURIComponent((d.name || '') + ' ' + (d.description || ''))}" target="_blank">Google</a>
+        </div>
+      </div>
+      <div>
+        <div class="dates">
+          <span class="k">Birth:</span>
+          <span class="v">${fmt(d.birth_year)} ${d.birth_prec ? '(' + d.birth_prec + ')' : ''}</span>
+          <span class="k">Death:</span>
+          <span class="v">${fmt(d.death_year)} ${d.death_prec ? '(' + d.death_prec + ')' : ''}</span>
+          ${d.floruit_year !== null ? `
+            <span class="k">P1317:</span>
+            <span class="v">${d.floruit_year} ${d.floruit_prec ? '(' + d.floruit_prec + ')' : ''}</span>` : ''}
+        </div>
+        <div class="period">Floruit: ${fmt(d.floruit_period)}</div>
+        <div style="margin-top:6px;">
+          <span class="rule-chip rule-${d.rule_id}">${d.rule_label}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="row-buttons">
+          <button class="btn-yes" data-verdict="yes" title="Correct (y)">Yes</button>
+          <button class="btn-no"  data-verdict="no"  title="Wrong (n)">No</button>
+        </div>
+        <textarea class="note" placeholder="Optional note">${note.replace(/</g, '&lt;')}</textarea>
+      </div>
+    `;
+
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => mark(d.wikidata_id, btn.dataset.verdict));
+    });
+    row.querySelector('.note').addEventListener('change', e => {
+      state[d.wikidata_id] = state[d.wikidata_id] || {};
+      state[d.wikidata_id].note = e.target.value;
+      persist();
+    });
+
+    main.appendChild(row);
+  });
+
+  document.getElementById('cnt-yes').textContent = yes;
+  document.getElementById('cnt-no').textContent = no;
+  document.getElementById('cnt-pending').textContent = pending;
+}
+
+function mark(qid, verdict) {
+  const cur = state[qid] || {};
+  if (cur.verdict === verdict) {
+    delete cur.verdict;
+  } else {
+    cur.verdict = verdict;
+  }
+  state[qid] = cur;
+  persist();
+  render();
+}
+
+function persist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function buildFilters() {
+  const cont = document.getElementById('filters');
+  RULE_IDS.forEach(([id, label]) => {
+    const lab = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.addEventListener('change', () => {
+      if (cb.checked) activeRules.add(id);
+      else activeRules.delete(id);
+      render();
+    });
+    const span = document.createElement('span');
+    span.textContent = label;
+    lab.appendChild(cb);
+    lab.appendChild(span);
+    cont.appendChild(lab);
+  });
+}
+
+document.getElementById('export').addEventListener('click', () => {
+  const out = DATA.map(d => ({
+    wikidata_id: d.wikidata_id,
+    name: d.name,
+    rule_id: d.rule_id,
+    rule_label: d.rule_label,
+    birth_year: d.birth_year,
+    death_year: d.death_year,
+    floruit_year: d.floruit_year,
+    floruit_period: d.floruit_period,
+    verdict: state[d.wikidata_id]?.verdict || null,
+    note:    state[d.wikidata_id]?.note    || '',
+  }));
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'floruit_period_annotations.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  const focused = document.activeElement;
+  if (!focused || !focused.classList.contains('row')) return;
+  const qid = focused.dataset.qid;
+  if (e.key === 'y') mark(qid, 'yes');
+  else if (e.key === 'n') mark(qid, 'no');
+});
+
+buildFilters();
+render();
+</script>
+</body>
+</html>

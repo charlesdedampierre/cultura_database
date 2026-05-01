@@ -1,0 +1,59 @@
+flowchart TB
+    individuals["<b>individuals</b><br/>13M rows<br/>─────────<br/>wikidata_id<br/>name_en<br/>birthdate<br/>deathdate<br/>nationalities_en<br/>birthcity_en<br/>deathcity_en<br/>occupations_en<br/>sitelinks_count<br/>gender"]
+
+    individuals_keys["<b>individuals_keys</b><br/>13M rows<br/>─────────<br/>wikidata_id<br/>birthcity_id<br/>deathcity_id<br/>nationalities_ids<br/>occupations_ids"]
+
+    individuals_countries["<b>individuals_countries</b><br/>6.4M rows<br/>─────────<br/>wikidata_id<br/>iso_country_name<br/>iso_a3_code<br/>origins"]
+
+    individuals_regions["<b>individuals_regions</b><br/>5.3M rows<br/>─────────<br/>wikidata_id<br/>region<br/>macro_region<br/>impact_year"]
+
+    individuals_impact_date["<b>individuals_impact_date</b><br/>7.7M rows<br/>─────────<br/>wikidata_id<br/>impact_date<br/>date_source"]
+
+    individuals_cliopatria["<b>individuals_cliopatria</b><br/>6.2M rows<br/>─────────<br/>wikidata_id<br/>polity_name<br/>polity_id<br/>impact_date"]
+
+    sitelinks["<b>sitelinks</b><br/>15.5M rows<br/>─────────<br/>wikidata_id<br/>site<br/>title<br/>url"]
+
+    identifiers["<b>identifiers</b><br/>30.1M rows<br/>─────────<br/>wikidata_id<br/>property_id<br/>identifier_name<br/>value"]
+
+    individual_writing_languages["<b>individual_writing_languages</b><br/>234K rows<br/>─────────<br/>wikidata_id<br/>language_id<br/>language_name"]
+
+    occupations["<b>occupations</b><br/>18K rows<br/>─────────<br/>id<br/>name_en<br/>meta_occupation"]
+
+    nationalities["<b>nationalities</b><br/>3.5K rows<br/>─────────<br/>wikidata_id<br/>name_en<br/>lat, lon<br/>iso_country_name"]
+
+    cities["<b>cities</b><br/>315K rows<br/>─────────<br/>id<br/>name_en<br/>lat, lon<br/>iso_country_name"]
+
+    modern_country["<b>modern_country</b><br/>271 rows<br/>─────────<br/>id<br/>name<br/>continent<br/>iso_a3_code"]
+
+    regions["<b>regions</b><br/>276 rows<br/>─────────<br/>macro_region<br/>region<br/>iso_country_name<br/>start_year, end_year"]
+
+    writing_languages["<b>writing_languages</b><br/>524 rows<br/>─────────<br/>id<br/>name"]
+
+    identifier_types["<b>identifier_types</b><br/>2.3K rows<br/>─────────<br/>property_id<br/>name_en<br/>issuer_name"]
+
+    polities_cliopatria["<b>polities_cliopatria</b><br/>1.6K rows<br/>─────────<br/>id<br/>name<br/>type"]
+
+    cliopatria_polity_periods["<b>cliopatria_polity_periods</b><br/>15.7K rows<br/>─────────<br/>polity_id<br/>from_year, to_year<br/>geometry"]
+
+    individuals --> individuals_keys
+    individuals --> individuals_countries
+    individuals --> individuals_regions
+    individuals --> individuals_impact_date
+    individuals --> individuals_cliopatria
+    individuals --> sitelinks
+    individuals --> identifiers
+    individuals --> individual_writing_languages
+
+    individuals_keys --> occupations
+    individuals_keys --> nationalities
+    individuals_keys --> cities
+
+    individuals_countries --> modern_country
+    individuals_regions --> regions
+    nationalities --> modern_country
+    cities --> modern_country
+
+    identifiers --> identifier_types
+    individual_writing_languages --> writing_languages
+    individuals_cliopatria --> polities_cliopatria
+    polities_cliopatria --> cliopatria_polity_periods

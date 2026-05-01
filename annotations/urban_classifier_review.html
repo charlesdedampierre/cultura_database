@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Urban classifier review — 50 cities</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='6' width='3' height='8' fill='%232b6cb0'/%3E%3Crect x='6' y='3' width='4' height='11' fill='%232b6cb0'/%3E%3Crect x='11' y='8' width='3' height='6' fill='%232b6cb0'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#fafafa; --card:#fff; --line:#e5e5e5; --ink:#1a1a1a; --muted:#666;
+    --ok:#0f9d58; --ok-bg:#e6f4ea;
+    --bad:#d93025; --bad-bg:#fce8e6;
+    --hl:#2b6cb0;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  header {
+    position:sticky; top:0; z-index:10;
+    background:#fff; border-bottom:1px solid var(--line);
+    padding:14px 22px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+  }
+  header h1 { margin:0; font-size:16px; font-weight:600; }
+  header .meta { color:var(--muted); font-size:12px; }
+  .counters { display:flex; gap:14px; font-size:12px; color:var(--muted); }
+  .counters b { color:var(--ink); }
+  button {
+    font: inherit; cursor:pointer; border:1px solid var(--line); background:#fff;
+    padding:6px 12px; border-radius:6px;
+  }
+  button:hover { background:#f3f3f3; }
+  .primary { background:var(--hl); color:#fff; border-color:var(--hl); }
+  .primary:hover { filter:brightness(.95); background:var(--hl); }
+  main { padding:18px 22px 80px; max-width:1000px; margin:0 auto; }
+  .row {
+    background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:14px 16px; margin-bottom:10px;
+    display:grid; grid-template-columns: 42px 1fr 220px; gap:12px; align-items:start;
+  }
+  .row.annotated.correct { border-color:#b6dfc1; background:#f7fcf9; }
+  .row.annotated.wrong   { border-color:#f3b7b0; background:#fdf6f5; }
+  .idx { color:var(--muted); font-variant-numeric: tabular-nums; }
+  .name { font-weight:600; }
+  .name a { color:var(--ink); text-decoration:none; }
+  .name a:hover { color:var(--hl); text-decoration:underline; }
+  .meta2 { color:var(--muted); font-size:12px; margin-top:2px; }
+  .types { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+  .chip {
+    background:#f1f1f1; border:1px solid var(--line); color:#333;
+    padding:1px 8px; border-radius:999px; font-size:11.5px;
+  }
+  .pred { display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+  .pred-label { font-size:12px; color:var(--muted); }
+  .pred-val {
+    font-weight:600; padding:3px 10px; border-radius:999px; font-size:12px;
+    border:1px solid var(--line);
+  }
+  .pred-val.yes { background:var(--ok-bg); color:var(--ok); border-color:#c6e7cf; }
+  .pred-val.no  { background:var(--bad-bg); color:var(--bad); border-color:#f4c7c0; }
+  .buttons { display:flex; gap:6px; }
+  .buttons button { padding:5px 10px; font-size:12px; }
+  .buttons .correct { border-color:#9cd5aa; color:var(--ok); }
+  .buttons .correct.active { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .buttons .wrong   { border-color:#ecb2ab; color:var(--bad); }
+  .buttons .wrong.active { background:var(--bad); color:#fff; border-color:var(--bad); }
+  footer {
+    position:fixed; bottom:0; left:0; right:0; background:#fff;
+    border-top:1px solid var(--line); padding:10px 22px;
+    display:flex; justify-content:space-between; gap:12px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Urban classifier review</h1>
+  <span class="meta">50 cities · generated 2026-04-23 13:49</span>
+  <div class="counters" id="counters">
+    <span>annotated <b id="cnt-done">0</b>/50</span>
+    <span>correct <b id="cnt-ok">0</b></span>
+    <span>wrong <b id="cnt-bad">0</b></span>
+  </div>
+</header>
+
+<main id="rows"></main>
+
+<footer>
+  <span class="meta">Click <b>Correct</b> if the prediction is right for your urbanisation study, <b>Wrong</b> if it should flip.</span>
+  <div>
+    <button id="clear">Clear all</button>
+    <button id="export" class="primary">Export JSON</button>
+  </div>
+</footer>
+
+<script>
+const DATA = [{"id": "Q704221", "name": "Arsans", "entity_type": "commune of France", "entity_type_ids": "Q484170", "iso_a3": "FRA", "country": "France", "prediction": true}, {"id": "Q26282257", "name": "Grimston Hall", "entity_type": "building", "entity_type_ids": "Q41176", "iso_a3": "GBR", "country": "United Kingdom", "prediction": false}, {"id": "Q613673", "name": "Anxi County", "entity_type": "county of China", "entity_type_ids": "Q1289426", "iso_a3": "CHN", "country": "People's Republic of China", "prediction": false}, {"id": "Q20463196", "name": "Hospital Tuanku Ampuan Najihah", "entity_type": "public hospital", "entity_type_ids": "Q7257872", "iso_a3": "MYS", "country": "Malaysia", "prediction": false}, {"id": "Q944037", "name": "Tsemes Bay", "entity_type": "bight|cove", "entity_type_ids": "Q17018380|Q31615", "iso_a3": "RUS", "country": "Russia", "prediction": false}, {"id": "Q4370626", "name": "Poloniste", "entity_type": "village of Ukraine", "entity_type_ids": "Q21672098", "iso_a3": "UKR", "country": "Ukraine", "prediction": true}, {"id": "Q27085353", "name": "The River House", "entity_type": "architectural structure", "entity_type_ids": "Q811979", "iso_a3": "GBR", "country": "United Kingdom", "prediction": false}, {"id": "Q18162737", "name": "Wilton Place", "entity_type": "road", "entity_type_ids": "Q34442", "iso_a3": "GBR", "country": "United Kingdom", "prediction": false}, {"id": "Q12297094", "name": "Stathis", "entity_type": "human settlement", "entity_type_ids": "Q486972", "iso_a3": "GRC", "country": "Greece", "prediction": true}, {"id": "Q4500138", "name": "Khoroshe Ozero", "entity_type": "village of Ukraine", "entity_type_ids": "Q21672098", "iso_a3": "UKR", "country": "Ukraine", "prediction": true}, {"id": "Q73049", "name": "Hindeloopen", "entity_type": "place with town rights and privileges|cadastral populated place in the Netherlands|town|Hanseatic city", "entity_type_ids": "Q13539802|Q1852859|Q3957|Q707813", "iso_a3": "NLD", "country": "Netherlands", "prediction": true}, {"id": "Q10260525", "name": "Corbeni", "entity_type": "commune of Romania", "entity_type_ids": "Q659103", "iso_a3": "ROU", "country": "Romania", "prediction": true}, {"id": "Q11088520", "name": "Central Military Hospital Prague", "entity_type": "Czech research institution|educational institution|military hospital|stroke unit|long-term acute care facility", "entity_type_ids": "Q108935461|Q2385804|Q2387974|Q60856723|Q6672116", "iso_a3": "CZE", "country": "Czech Republic", "prediction": false}, {"id": "Q8082321", "name": "Święck-Strumiany", "entity_type": "village of Poland", "entity_type_ids": "Q3558970", "iso_a3": "POL", "country": "Poland", "prediction": true}, {"id": "Q2781356", "name": "Kinta District", "entity_type": "district of Malaysia", "entity_type_ids": "Q1994931", "iso_a3": "MYS", "country": "Malaysia", "prediction": false}, {"id": "Q1062946", "name": "Characene", "entity_type": "vassal state|historical country|kingdom", "entity_type_ids": "Q1371288|Q3024240|Q417175", "iso_a3": "IRQ", "country": "", "prediction": false}, {"id": "Q513642", "name": "Georgenberg", "entity_type": "municipality without town privileges in Germany", "entity_type_ids": "Q116457956", "iso_a3": "DEU", "country": "Germany", "prediction": true}, {"id": "Q2513261", "name": "Dolenji Novaki", "entity_type": "human settlement", "entity_type_ids": "Q486972", "iso_a3": "SVN", "country": "Slovenia", "prediction": true}, {"id": "Q4392341", "name": "Rēzekne County", "entity_type": "county of Latvia", "entity_type_ids": "Q21772581", "iso_a3": "", "country": "Russian Republic", "prediction": false}, {"id": "Q4211310", "name": "Kamenolomni", "entity_type": "urban-type settlement in Russia", "entity_type_ids": "Q15078955", "iso_a3": "RUS", "country": "Russia", "prediction": true}, {"id": "Q2384", "name": "Bergedorf", "entity_type": "quarter of Hamburg", "entity_type_ids": "Q15830667", "iso_a3": "DEU", "country": "Germany", "prediction": true}, {"id": "Q600902", "name": "Arnsberg District", "entity_type": "district of Germany", "entity_type_ids": "Q106658", "iso_a3": "DEU", "country": "Germany", "prediction": false}, {"id": "Q1549711", "name": "Wind River Indian Reservation", "entity_type": "Indian reservation of the United States", "entity_type_ids": "Q5398059", "iso_a3": "USA", "country": "United States", "prediction": false}, {"id": "Q208766", "name": "Fukuoka Domain", "entity_type": "han", "entity_type_ids": "Q841985", "iso_a3": "JPN", "country": "Japan", "prediction": false}, {"id": "Q958049", "name": "Crete", "entity_type": "city in the United States", "entity_type_ids": "Q1093829", "iso_a3": "USA", "country": "United States", "prediction": true}, {"id": "Q3068077", "name": "Heslington", "entity_type": "civil parish|village", "entity_type_ids": "Q1115575|Q532", "iso_a3": "GBR", "country": "United Kingdom", "prediction": true}, {"id": "Q7681435", "name": "Tamilakkam", "entity_type": "cultural area", "entity_type_ids": "Q518261", "iso_a3": "", "country": "", "prediction": false}, {"id": "Q27228", "name": "Asmat", "entity_type": "regency of Indonesia", "entity_type_ids": "Q3191695", "iso_a3": "IDN", "country": "Indonesia", "prediction": false}, {"id": "Q24831", "name": "Momil", "entity_type": "municipality of Colombia", "entity_type_ids": "Q2555896", "iso_a3": "COL", "country": "Colombia", "prediction": true}, {"id": "Q20469710", "name": "Ist", "entity_type": "village in Belarus", "entity_type_ids": "Q65661087", "iso_a3": "BLR", "country": "Belarus", "prediction": true}, {"id": "Q1092770", "name": "Ilishevsky District", "entity_type": "municipal district", "entity_type_ids": "Q2198484", "iso_a3": "RUS", "country": "Russia", "prediction": false}, {"id": "Q4583789", "name": "Tønsbergfjorden", "entity_type": "fjord", "entity_type_ids": "Q45776", "iso_a3": "NOR", "country": "Norway", "prediction": false}, {"id": "Q658561", "name": "Lezennes", "entity_type": "commune of France", "entity_type_ids": "Q484170", "iso_a3": "FRA", "country": "France", "prediction": true}, {"id": "Q1073057", "name": "Chiltern", "entity_type": "non-metropolitan district", "entity_type_ids": "Q1187580", "iso_a3": "GBR", "country": "United Kingdom", "prediction": false}, {"id": "Q818864", "name": "Hausen", "entity_type": "municipality without town privileges in Germany|Ortsteil", "entity_type_ids": "Q116457956|Q253019", "iso_a3": "DEU", "country": "Germany", "prediction": true}, {"id": "Q104527953", "name": "Rainbow Valley", "entity_type": "geographic location|death zone", "entity_type_ids": "Q2221906|Q6171655", "iso_a3": "", "country": "", "prediction": false}, {"id": "Q7157991", "name": "Pearcedale", "entity_type": "town", "entity_type_ids": "Q3957", "iso_a3": "AUS", "country": "Australia", "prediction": true}, {"id": "Q6318329", "name": "Zavala District", "entity_type": "district of Mozambique", "entity_type_ids": "Q2068214", "iso_a3": "MOZ", "country": "Mozambique", "prediction": false}, {"id": "Q8055997", "name": "Yoshida", "entity_type": "dissolved municipality of Japan", "entity_type_ids": "Q18663566", "iso_a3": "JPN", "country": "Japan", "prediction": false}, {"id": "Q1727712", "name": "South Cibeunying", "entity_type": "kecamatan", "entity_type_ids": "Q3700011", "iso_a3": "IDN", "country": "Indonesia", "prediction": false}, {"id": "Q8040523", "name": "Wyskoć", "entity_type": "village of Poland", "entity_type_ids": "Q3558970", "iso_a3": "POL", "country": "Poland", "prediction": true}, {"id": "Q13131732", "name": "Talywain", "entity_type": "village", "entity_type_ids": "Q532", "iso_a3": "GBR", "country": "United Kingdom", "prediction": true}, {"id": "Q13548947", "name": "Lokea", "entity_type": "kelurahan", "entity_type_ids": "Q965568", "iso_a3": "IDN", "country": "Indonesia", "prediction": true}, {"id": "Q12477979", "name": "Bunuraya", "entity_type": "desa", "entity_type_ids": "Q26211545", "iso_a3": "IDN", "country": "Indonesia", "prediction": true}, {"id": "Q486011", "name": "Louisa County", "entity_type": "county of Iowa", "entity_type_ids": "Q11774149", "iso_a3": "USA", "country": "United States", "prediction": false}, {"id": "Q3345672", "name": "Atrai Upazila", "entity_type": "upazila of Bangladesh", "entity_type_ids": "Q620471", "iso_a3": "BGD", "country": "Bangladesh", "prediction": false}, {"id": "Q1880895", "name": "Thomonde", "entity_type": "commune of Haiti", "entity_type_ids": "Q3685462", "iso_a3": "HTI", "country": "Haiti", "prediction": true}, {"id": "Q1612187", "name": "Narborough", "entity_type": "civil parish|village", "entity_type_ids": "Q1115575|Q532", "iso_a3": "GBR", "country": "United Kingdom", "prediction": true}, {"id": "Q4586998", "name": "Ulefos Jernværk", "entity_type": "foundry", "entity_type_ids": "Q13883136", "iso_a3": "NOR", "country": "Norway", "prediction": false}, {"id": "Q260089", "name": "Enns", "entity_type": "place with town rights and privileges|municipality of Austria", "entity_type_ids": "Q13539802|Q667509", "iso_a3": "AUT", "country": "Austria", "prediction": true}];
+const STORAGE_KEY = "urban-annotations-v1";
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); }
+  catch { return {}; }
+}
+function save(ann) { localStorage.setItem(STORAGE_KEY, JSON.stringify(ann)); }
+
+const state = load();
+
+function render() {
+  const root = document.getElementById("rows");
+  root.innerHTML = "";
+  let done=0, ok=0, bad=0;
+  DATA.forEach((r, i) => {
+    const a = state[r.id];
+    if (a) { done++; if (a==="correct") ok++; else if (a==="wrong") bad++; }
+    const div = document.createElement("div");
+    div.className = "row" + (a ? " annotated " + a : "");
+    const predClass = r.prediction ? "yes" : "no";
+    const predText  = r.prediction ? "URBAN" : "NOT URBAN";
+    const chips = (r.entity_type||"").split("|").filter(Boolean)
+      .map(t => `<span class="chip">${t.replace(/</g,"&lt;")}</span>`).join("");
+    const loc = [r.country, r.iso_a3].filter(Boolean).join(" · ");
+    div.innerHTML = `
+      <div class="idx">#${i+1}</div>
+      <div>
+        <div class="name"><a href="https://www.wikidata.org/wiki/${r.id}" target="_blank" rel="noopener">${r.name}</a>
+          <span class="meta2">${r.id}${loc?" · "+loc:""}</span>
+        </div>
+        <div class="types">${chips}</div>
+      </div>
+      <div class="pred">
+        <span class="pred-label">classifier says</span>
+        <span class="pred-val ${predClass}">${predText}</span>
+        <div class="buttons" data-id="${r.id}">
+          <button class="correct ${a==="correct"?"active":""}" data-val="correct">✓ Correct</button>
+          <button class="wrong ${a==="wrong"?"active":""}" data-val="wrong">✗ Wrong</button>
+        </div>
+      </div>`;
+    root.appendChild(div);
+  });
+  document.getElementById("cnt-done").textContent = done;
+  document.getElementById("cnt-ok").textContent = ok;
+  document.getElementById("cnt-bad").textContent = bad;
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".buttons button");
+  if (!btn) return;
+  const id = btn.parentElement.dataset.id;
+  const val = btn.dataset.val;
+  if (state[id] === val) delete state[id]; else state[id] = val;
+  save(state);
+  render();
+});
+
+document.getElementById("clear").addEventListener("click", () => {
+  if (!confirm("Clear all your annotations?")) return;
+  for (const k of Object.keys(state)) delete state[k];
+  save(state);
+  render();
+});
+
+document.getElementById("export").addEventListener("click", () => {
+  const payload = {
+    generated_at: "2026-04-23 13:49",
+    total: DATA.length,
+    annotations: DATA.map(r => ({
+      id: r.id, name: r.name, prediction: r.prediction,
+      entity_type: r.entity_type, country: r.country,
+      annotation: state[r.id] || null,
+      flip: state[r.id] === "wrong" ? !r.prediction : (state[r.id] === "correct" ? r.prediction : null)
+    }))
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "urban_annotations.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+render();
+</script>
+</body>
+</html>
