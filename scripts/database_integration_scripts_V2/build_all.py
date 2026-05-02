@@ -1,18 +1,22 @@
 """Build a fresh `data/humans_v2.sqlite3` from the v2 Wikidata JSONs.
 
 Order matters because some scripts back-fill columns from earlier tables:
-    01 modern_country (writes country_name into cities)
-    02 cities          (referenced by 07.individuals.birthcity_en/deathcity_en)
-    03 nationalities   (referenced by 07.individuals.nationalities_en)
-    04 occupations     (referenced by 07.individuals.occupations_en)
+    02 places                   (looks up country names from
+                                 modern_countries.json directly — there
+                                 is no longer a `modern_country` table)
+    03 country_of_citizenship   (referenced by 07 for the human's
+                                 country_of_citizenship_en)
+    04 occupations              (referenced by 07.individuals.occupations_en)
     05 writing_languages
     06 identifier_types
-    07 individuals     (master row per Q5)
-    08 identifiers     (joins to identifier_types.formatter_url)
-    09 sitelinks
+    07 individuals              (master row per Q5; floruit_date /
+                                 floruit_precision / floruit_year live
+                                 here since 2026-05 — no separate
+                                 `individuals_floruit` table)
+    08 identifiers              (joins to identifier_types.formatter_url)
+    09 wikimedia_links          (formerly `sitelinks`)
     10 works
     11 individual_writing_languages
-    12 individuals_floruit
 
 The legacy `data/humans_clean.sqlite3` is never touched.
 
@@ -37,18 +41,16 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 ORDER = [
-    "01_create_modern_country",
-    "02_create_cities",
-    "03_create_nationalities",
+    "02_create_places",
+    "03_create_country_of_citizenship",
     "04_create_occupations",
     "05_create_writing_languages",
     "06_create_identifier_types",
     "07_create_individuals",
     "08_create_identifiers",
-    "09_create_sitelinks",
+    "09_create_wikimedia_links",
     "10_create_works",
     "11_create_individual_writing_languages",
-    "12_create_individuals_floruit",
 ]
 
 

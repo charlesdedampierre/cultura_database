@@ -26,7 +26,7 @@ print(f"Total: {len(individuals):,} individuals")
 french_writers = pl.read_database("""
     SELECT wikidata_id, name_en, birthdate, occupations_en
     FROM individuals
-    WHERE nationalities_en LIKE '%French%'
+    WHERE country_of_citizenship_en LIKE '%French%'
       AND occupations_en LIKE '%writer%'
       AND birthdate >= '1800'
     ORDER BY birthdate
@@ -43,9 +43,9 @@ conn.close()
 |--------|-------|
 | Individuals | 13,002,897 |
 | Occupations | 18,227 |
-| Nationalities | 3,544 |
+| Countries of citizenship | 3,544 |
 | Cities | 314,675 |
-| Wikipedia sitelinks | 15.5M |
+| Wikimedia links | 15.5M |
 | External identifiers | 30.1M |
 | Historical polities (Cliopatria) | 1,618 |
 
@@ -54,12 +54,18 @@ conn.close()
 | Table | Rows | Description |
 |-------|------|-------------|
 | `individuals` | 13M | Core biographical data |
-| `individuals_countries` | 6.4M | Individual → modern country |
-| `individuals_regions` | 5.3M | Individual → region/macro-region |
-| `individuals_cliopatria` | 6.2M | Individual → historical polity |
-| `individuals_impact_date` | 7.7M | Computed impact dates |
-| `sitelinks` | 15.5M | Wikipedia pages (300+ languages) |
+| `individuals_floruit_period` | 13M | Working period per Q5 (floruit / birth / death rules with century fallback) |
+| `individuals_cliopatria` | 6.2M | Individual → historical polity, year-aware (`floruit_year`) |
+| `country_of_citizenship` | 3.5K | Reference table for P27 values |
+| `wikimedia_links` | 15.5M | Wikimedia project pages (300+ languages) |
 | `identifiers` | 30.1M | External database links |
+
+The legacy `individuals_countries`, `individuals_regions`, `regions`,
+`modern_country` and `individuals_impact_date` tables were retired in
+2026-05; their rows are archived as CSV under
+`data/legacy_regions/`. `nationalities` was renamed to
+`country_of_citizenship`, `sitelinks` to `wikimedia_links`, and
+`cliopatria_polity_periods` to `polities_periods_cliopatria`.
 
 ## Database Schema
 
@@ -80,20 +86,12 @@ See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for full schema documentation.
 ```python
 # Scientists in the Ottoman Empire
 ottoman_scientists = pl.read_database("""
-    SELECT ic.name_en, ic.impact_date, ic.polity_name
+    SELECT ic.name_en, ic.floruit_year, ic.polity_name
     FROM individuals_cliopatria ic
     JOIN individuals i ON ic.wikidata_id = i.wikidata_id
     WHERE ic.polity_name = 'Ottoman Empire'
       AND i.occupations_en LIKE '%scientist%'
-    ORDER BY ic.impact_date
-""", conn)
-
-# Individuals by macro-region
-by_region = pl.read_database("""
-    SELECT macro_region, COUNT(*) as n
-    FROM individuals_regions
-    GROUP BY macro_region
-    ORDER BY n DESC
+    ORDER BY ic.floruit_year
 """, conn)
 
 # Most common occupations

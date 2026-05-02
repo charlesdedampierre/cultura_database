@@ -18,8 +18,8 @@ they:
 |---|---|---|---|
 | 01 | `01_individuals_floruit_period.py` | `individuals_floruit_period` (working period per Q5: floruit / birth / death rules with century fallback) | `individuals`, `individuals_floruit` |
 | 02 | `02_create_polities_cliopatria.py` | `polities_cliopatria` (polity reference table) | `cliopatria_data/processing/data/cliopatria.db` |
-| 03 | `03_copy_polity_periods.py` | `cliopatria_polity_periods` (per-period geometries) | same |
-| 04 | `04_individuals_cliopatria.py` | `individuals_cliopatria` (each Q5 → polity, polygon-first / URL-fallback, year-aware) | individuals, nationalities, cities, individuals_floruit_period, polities_cliopatria, cliopatria_polity_periods |
+| 03 | `03_copy_polity_periods.py` | `polities_periods_cliopatria` (per-period geometries) | same |
+| 04 | `04_individuals_cliopatria.py` | `individuals_cliopatria` (each Q5 → polity, polygon-first / URL-fallback, year-aware; uses `floruit_year` from `individuals_floruit_period`) | individuals, country_of_citizenship, cities, individuals_floruit_period, polities_cliopatria, polities_periods_cliopatria |
 
 ## Conceptual flow
 
@@ -27,8 +27,9 @@ they:
 floruit_period (01)
        │
        ▼
-individuals_location ◄── implicit: birth/death/nationality QIDs from individuals
-       │                  + lat/lon from cities + nationalities
+individuals_location ◄── implicit: birth/death/country-of-citizenship QIDs
+       │                  from individuals + lat/lon from cities and
+       │                  country_of_citizenship
        ▼
 link_to_cliopatria_polities (04)
        │       (uses polity reference 02 + period geometries 03)
@@ -39,8 +40,8 @@ individuals_cliopatria
 Script 04 fuses the "pick the right location for someone given their
 floruit period" step with the "match that location to the right
 Cliopatria polity at that year" step, because the priority order
-(nationality → birthplace → deathplace, polygon → URL) is unified across
-both stages.
+(country-of-citizenship → birthplace → deathplace, polygon → URL) is
+unified across both stages.
 
 ## Database
 

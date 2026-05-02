@@ -24,6 +24,9 @@ Run:
 """
 from __future__ import annotations
 
+import os
+import pathlib
+
 import argparse
 import json
 import sys
@@ -39,7 +42,7 @@ from wikidata import extract_qid, stream, wdqs_json  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
+OUT_DIR = pathlib.Path(os.environ["WIKIDATA_OUT_DIR"]) if os.environ.get("WIKIDATA_OUT_DIR") else ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
 PER_PROP_DIR = OUT_DIR / "identifiers_per_property"
 
 THREADS = 8
@@ -157,7 +160,7 @@ def main():
             {"property_id": "P227", "label": "GND ID", "formatter_url": ""},
             {"property_id": "P213", "label": "ISNI", "formatter_url": ""},
         ]
-        limit = 100
+        limit = int(os.environ.get("WIKIDATA_TEST_LIMIT", "100"))
     else:
         props = fetch_property_list()
         prop_file = OUT_DIR / "catalog_properties.json"

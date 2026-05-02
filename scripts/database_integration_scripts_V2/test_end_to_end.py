@@ -41,10 +41,12 @@ from common import (
 # JSON file overrides — point each build script at *.test.json.
 J = WIKIDATA_V2_DIR
 TEST_INPUTS = {
-    "01_create_modern_country": {"json_path": J / "modern_countries.test.json"},
-    "02_create_cities":         {"json_path": J / "place_metadata.test.json"},
-    "03_create_nationalities":  {"meta_path": J / "nationality_metadata.test.json",
-                                 "label_path": J / "nationality_labels.test.json"},
+    "02_create_places":         {"json_path": J / "place_metadata.test.json",
+                                 "countries_path": J / "modern_countries.test.json"},
+    "03_create_country_of_citizenship": {
+        "meta_path":  J / "nationality_metadata.test.json",
+        "label_path": J / "nationality_labels.test.json",
+    },
     "04_create_occupations":    {"label_path": J / "occupation_labels.test.json",
                                  "meta_path": J / "occupation_metadata.test.json"},
     "05_create_writing_languages": {"label_path": J / "writing_language_labels.test.json"},
@@ -63,43 +65,37 @@ TEST_INPUTS = {
         "writing_language_labels_path": J / "writing_language_labels.test.json",
     },
     "08_create_identifiers":   {"catalogs_path": J / "catalogs.test.json"},
-    "09_create_sitelinks":     {"json_path": J / "sitelinks.test.json"},
+    "09_create_wikimedia_links":  {"json_path": J / "sitelinks.test.json"},
     "10_create_works":         {"works_path": J / "works.test.json",
                                 "labels_path": J / "work_labels.test.json"},
     "11_create_individual_writing_languages": {"json_path": J / "writing_languages.test.json"},
-    "12_create_individuals_floruit": {"main_path": J / "main_info.test.json",
-                                      "prec_path": J / "date_precisions.test.json"},
 }
 
 ORDER = [
-    "01_create_modern_country",
-    "02_create_cities",
-    "03_create_nationalities",
+    "02_create_places",
+    "03_create_country_of_citizenship",
     "04_create_occupations",
     "05_create_writing_languages",
     "06_create_identifier_types",
     "07_create_individuals",
     "08_create_identifiers",
-    "09_create_sitelinks",
+    "09_create_wikimedia_links",
     "10_create_works",
     "11_create_individual_writing_languages",
-    "12_create_individuals_floruit",
 ]
 
 # Tables we expect to exist after the build, with a minimum row threshold.
 EXPECTED = {
-    "modern_country":                1,
-    "cities":                        1,
-    "nationalities":                 1,
+    "places":                        1,
+    "country_of_citizenship":        1,
     "occupations":                   1,
     "writing_languages":             1,
     "identifier_types":              1,
     "individuals":                   1,
     "identifiers":                   0,  # may be 0 if test data lacks IDs
-    "sitelinks":                     1,
+    "wikimedia_links":                1,
     "works":                         0,  # works.test.json: only P50 in test mode
     "individual_writing_languages":  0,
-    "individuals_floruit":           0,  # not all test humans have P1317
 }
 
 

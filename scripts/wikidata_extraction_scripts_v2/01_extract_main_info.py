@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pathlib
 import sys
 from pathlib import Path
 
@@ -34,7 +35,7 @@ from wikidata import clean_literal, extract_qid, stream  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
+OUT_DIR = pathlib.Path(os.environ["WIKIDATA_OUT_DIR"]) if os.environ.get("WIKIDATA_OUT_DIR") else ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
 
 # (key, sparql snippet, takes_label_filter)
 FIELDS = [
@@ -99,7 +100,7 @@ def main():
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    limit = 100 if args.test else None
+    limit = (int(os.environ.get("WIKIDATA_TEST_LIMIT", "100")) if args.test else None)
     endpoint = "wdqs" if args.test else "qlever"
     out_file = OUT_DIR / ("main_info.test.json" if args.test else "main_info.json")
 

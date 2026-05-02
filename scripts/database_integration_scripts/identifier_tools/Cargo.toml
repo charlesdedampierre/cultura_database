@@ -15,6 +15,14 @@ path = "src/bin/03_add_identifier_counts.rs"
 name = "05_enrich_identifiers"
 path = "src/bin/05_enrich_identifiers.rs"
 
+[[bin]]
+name = "06_fast_backfill_names"
+path = "src/bin/06_fast_backfill_names.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+
 [dependencies]
 rusqlite = { version = "0.31", features = ["bundled"] }
 indicatif = "0.17"

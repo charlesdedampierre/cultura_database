@@ -37,7 +37,9 @@ WIKIDATA_V2_DIR = ALL_HUMANS_DIR / "wikidata_extraction_scripts_v2"
 # `humans_v2.sqlite3`. This protects the user's existing DB from accidental
 # overwrites and lets the v2 build be re-run end-to-end at any time.
 LEGACY_DB_PATH = DATA_DIR / "humans_clean.sqlite3"
-DB_PATH = DATA_DIR / "humans_v2.sqlite3"
+DB_PATH = (Path(os.environ["CULTURA_DB_PATH"])
+           if os.environ.get("CULTURA_DB_PATH")
+           else DATA_DIR / "humans_v2.sqlite3")
 SAMPLE_DB_PATH = DATA_DIR / "humans_v2.sample.sqlite3"
 
 TASK_LOG = PROJECT_ROOT / "task.log"
