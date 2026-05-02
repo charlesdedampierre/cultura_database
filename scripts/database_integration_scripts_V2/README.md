@@ -12,18 +12,27 @@ or `data/humans_v2.sample.sqlite3` for the end-to-end test).
 
 | # | Script | Output table | Inputs (under `data/all_humans/wikidata_extraction_scripts_v2/`) |
 |---|---|---|---|
-| 01 | `01_create_modern_country.py` | `modern_country` | `modern_countries.json` |
-| 02 | `02_create_cities.py` | `cities` | `place_metadata.json` |
-| 03 | `03_create_nationalities.py` | `nationalities` | `nationality_metadata.json`, `nationality_labels.json` |
+| 02 | `02_create_cities.py` | `cities` | `place_metadata.json`, `modern_countries.json` (lookup-only — no `modern_country` table any more; the raw country list lives in `data/legacy_regions/modern_country.csv`) |
+| 03 | `03_create_country_of_citizenship.py` | `country_of_citizenship` | `nationality_metadata.json`, `nationality_labels.json` |
 | 04 | `04_create_occupations.py` | `occupations` | `occupation_labels.json`, `occupation_metadata.json` |
 | 05 | `05_create_writing_languages.py` | `writing_languages` | `writing_language_labels.json` |
 | 06 | `06_create_identifier_types.py` | `identifier_types` | `catalog_properties.json`, `catalog_metadata.json` |
 | 07 | `07_create_individuals.py` | `individuals` | `main_info.json`, `places.json`, `date_precisions.json`, `occupations.json`, `nationalities.json`, `sitelinks.json`, `catalogs.json`, `works.json`, `writing_languages.json`, `writing_language_labels.json` |
 | 08 | `08_create_identifiers.py` | `identifiers` | `catalogs.json` |
-| 09 | `09_create_sitelinks.py` | `sitelinks` | `sitelinks.json` |
+| 09 | `09_create_wikimedia_links.py` | `wikimedia_links` | `sitelinks.json` |
 | 10 | `10_create_works.py` | `works` | `works.json`, `work_labels.json` |
 | 11 | `11_create_individual_writing_languages.py` | `individual_writing_languages` | `writing_languages.json` |
 | 12 | `12_create_individuals_floruit.py` | `individuals_floruit` | `main_info.json`, `date_precisions.json` |
+
+The 2026-05 schema cleanup retired five tables:
+`modern_country`, `regions`, `individuals_regions`, `individuals_countries`,
+`individuals_impact_date`. Their data is preserved as CSV under
+`data/legacy_regions/`. Three tables were renamed in the same change:
+`sitelinks → wikimedia_links`, `nationalities → country_of_citizenship`,
+`cliopatria_polity_periods → polities_periods_cliopatria`. The
+extraction-pass JSON filenames (`sitelinks.json`, `nationalities.json`,
+`modern_countries.json`) are kept as-is so we don't have to re-run the
+multi-hour Wikidata pull.
 
 The shared module `common.py` exposes:
 

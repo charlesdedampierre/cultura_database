@@ -1,15 +1,20 @@
-"""09 — Create the `sitelinks` long table from v2 sitelinks.
+"""09 — Create the `wikimedia_links` long table from v2 sitelinks.
+
+(Was `sitelinks` before the 2026-05 schema change. The extraction-pass
+JSON file is still called `sitelinks.json` because re-running the
+multi-hour Wikidata pull just to rename the file would be wasteful;
+only the database table name changed.)
 
 Inputs : data/all_humans/wikidata_extraction_scripts_v2/sitelinks.json
          {human_qid: ["https://en.wikipedia.org/wiki/...", ...]}
-Output : sitelinks (id PK, wikidata_id, individual_name, site, title, url)
+Output : wikimedia_links (id PK, wikidata_id, individual_name, site, title, url)
          - site  = host (e.g. "en.wikipedia.org")
          - title = last URL path segment, decoded
 
 Usage
 -----
-    python3 09_create_sitelinks.py
-    python3 09_create_sitelinks.py --full
+    python3 09_create_wikimedia_links.py
+    python3 09_create_wikimedia_links.py --full
 """
 from __future__ import annotations
 
@@ -37,17 +42,21 @@ def _parse(url: str) -> tuple[str | None, str | None]:
 
 
 def run(conn: sqlite3.Connection, json_path: Path = JSON_PATH) -> int:
-    log("[DB] 09: Creating sitelinks table...")
+    log("[DB] 09: Creating wikimedia_links table...")
     data = load_json(json_path)
 
     name_lookup = {}
-    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals'").fetchone():
-        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals"))
+    if conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals'"
+    ).fetchone():
+        name_lookup = dict(
+            conn.execute("SELECT wikidata_id, name_en FROM individuals")
+        )
 
-    conn.execute("DROP TABLE IF EXISTS sitelinks")
+    conn.execute("DROP TABLE IF EXISTS wikimedia_links")
     conn.execute(
         """
-        CREATE TABLE sitelinks (
+        CREATE TABLE wikimedia_links (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             wikidata_id TEXT NOT NULL,
             individual_name TEXT,
@@ -66,13 +75,16 @@ def run(conn: sqlite3.Connection, json_path: Path = JSON_PATH) -> int:
             rows.append((qid, person, site, title, url))
 
     conn.executemany(
-        "INSERT INTO sitelinks (wikidata_id, individual_name, site, title, url) "
+        "INSERT INTO wikimedia_links (wikidata_id, individual_name, site, title, url) "
         "VALUES (?, ?, ?, ?, ?)",
         rows,
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_sitelinks_wikidata ON sitelinks(wikidata_id)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_wikimedia_links_wikidata "
+        "ON wikimedia_links(wikidata_id)"
+    )
     conn.commit()
-    log(f"[DB] 09: Inserted {len(rows)} sitelinks.")
+    log(f"[DB] 09: Inserted {len(rows)} wikimedia_links.")
     return len(rows)
 
 
@@ -86,16 +98,21 @@ def _sample_main() -> None:
         "Q42": ["https://en.wikipedia.org/wiki/Douglas_Adams"],
     }
     with tempfile.TemporaryDirectory() as tmp:
-        p = Path(tmp) / "sitelinks.json"; p.write_text(_json.dumps(fake))
+        p = Path(tmp) / "sitelinks.json"
+        p.write_text(_json.dumps(fake))
         with open_db(Path(tmp) / "sample.sqlite3") as conn:
             conn.executescript(
                 "CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT);"
-                "INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams');"
+                "INSERT INTO individuals VALUES "
+                "('Q937','Albert Einstein'),('Q42','Douglas Adams');"
             )
             n = run(conn, json_path=p)
-            for r in conn.execute("SELECT wikidata_id, individual_name, site, title FROM sitelinks ORDER BY id"):
-                log(f"  sitelinks: {r}")
-        log(f"[sample] inserted {n} sitelinks")
+            for r in conn.execute(
+                "SELECT wikidata_id, individual_name, site, title "
+                "FROM wikimedia_links ORDER BY id"
+            ):
+                log(f"  wikimedia_links: {r}")
+        log(f"[sample] inserted {n} wikimedia_links")
 
 
 if __name__ == "__main__":

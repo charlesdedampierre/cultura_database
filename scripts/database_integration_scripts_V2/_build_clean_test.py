@@ -20,10 +20,12 @@ OUT_DB = DATA_DIR / "humans_clean_test.sqlite3"
 J = WIKIDATA_V2_DIR
 
 INPUTS = {
-    "01_create_modern_country": {"json_path": J / "modern_countries.test.json"},
-    "02_create_cities":          {"json_path": J / "place_metadata.test.json"},
-    "03_create_nationalities":   {"meta_path": J / "nationality_metadata.test.json",
-                                  "label_path": J / "nationality_labels.test.json"},
+    "02_create_places":          {"json_path": J / "place_metadata.test.json",
+                                  "countries_path": J / "modern_countries.test.json"},
+    "03_create_country_of_citizenship": {
+        "meta_path":  J / "nationality_metadata.test.json",
+        "label_path": J / "nationality_labels.test.json",
+    },
     "04_create_occupations":     {"label_path": J / "occupation_labels.test.json",
                                   "meta_path": J / "occupation_metadata.test.json"},
     "05_create_writing_languages": {"label_path": J / "writing_language_labels.test.json"},
@@ -42,12 +44,10 @@ INPUTS = {
         "writing_language_labels_path": J / "writing_language_labels.test.json",
     },
     "08_create_identifiers":   {"catalogs_path": J / "catalogs.test.json"},
-    "09_create_sitelinks":     {"json_path": J / "sitelinks.test.json"},
+    "09_create_wikimedia_links":  {"json_path": J / "sitelinks.test.json"},
     "10_create_works":         {"works_path": J / "works.test.json",
                                 "labels_path": J / "work_labels.test.json"},
     "11_create_individual_writing_languages": {"json_path": J / "writing_languages.test.json"},
-    "12_create_individuals_floruit": {"main_path": J / "main_info.test.json",
-                                      "prec_path": J / "date_precisions.test.json"},
 }
 
 ORDER = list(INPUTS.keys())

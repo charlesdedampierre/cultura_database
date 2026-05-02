@@ -33,6 +33,9 @@ Run:
 """
 from __future__ import annotations
 
+import os
+import pathlib
+
 import argparse
 import json
 import re
@@ -46,7 +49,7 @@ from wikidata import clean_literal, extract_qid, stream  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
+OUT_DIR = pathlib.Path(os.environ["WIKIDATA_OUT_DIR"]) if os.environ.get("WIKIDATA_OUT_DIR") else ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
 
 # Places used as birth or death places of humans. Two queries (one per
 # property), then unioned by QID.
@@ -153,7 +156,7 @@ def main():
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    limit = 100 if args.test else None
+    limit = (int(os.environ.get("WIKIDATA_TEST_LIMIT", "100")) if args.test else None)
     endpoint = "wdqs" if args.test else "qlever"
     out_file = OUT_DIR / ("place_metadata.test.json" if args.test
                           else "place_metadata.json")

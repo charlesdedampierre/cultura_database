@@ -2,7 +2,8 @@
 
 Mirrors `enhance_db/src/bin/60_create_individuals_floruit_period.rs`.
 
-Joins `individuals` with `individuals_floruit` (P1317) and derives a
+Reads floruit (P1317) directly from `individuals` (since 2026-05; the
+former standalone `individuals_floruit` table was retired) and derives a
 floruit_period using the rules from the paper. Each row is tagged with
 `method` in {floruit, birth, death, birth_century, death_century}.
 
@@ -66,6 +67,32 @@ def century_period_label(start: int, end: int) -> str:
     return f"{cs} - {ce}"
 
 
+def century_bounds(year: int) -> tuple[int, int]:
+    """Return the inclusive (first_year, last_year) of the century that
+    contains `year`. 11th c. AD -> (1001, 1100); 1st c. BC -> (-100, -1)."""
+    if year > 0:
+        n = (year + 99) // 100
+        return ((n - 1) * 100 + 1, n * 100)
+    if year < 0:
+        n = (-year + 99) // 100
+        return (-(n * 100), -((n - 1) * 100 + 1))
+    return (1, 100)
+
+
+def two_century_window(year_a: int, year_b: int) -> tuple[int, int]:
+    """Apply the new two-century rule: the second half of the first
+    century + the first half of the last century. Works regardless of
+    whether the two centuries are adjacent or further apart."""
+    sa, ea = century_bounds(year_a)
+    sb, eb = century_bounds(year_b)
+    if sa > sb:
+        sa, ea, sb, eb = sb, eb, sa, ea
+    # Second half of first century -> mid_a..ea ; first half of last -> sb..mid_b
+    mid_a = sa + 50
+    mid_b = sb + 49
+    return (mid_a, mid_b)
+
+
 def _decade_precise(p):
     return p is not None and p >= 8
 
@@ -115,27 +142,44 @@ def compute_floruit(birth_year, birth_prec, death_year, death_prec,
         end = min(d, CURRENT_YEAR)
         return (end - DEATH_ONLY_LOOKBACK, end, "death")
 
+    # Century-precision rules (2026-05): a single century -> the entire
+    # 100-year span of that century; two centuries -> second half of the
+    # first + first half of the last (see two_century_window()).
     if floruit_year is not None and _century_precise(floruit_prec):
-        return (floruit_year, floruit_year, "floruit")
+        s, e = century_bounds(floruit_year)
+        return (s, e, "floruit")
 
-    if birth_year is not None and _century_precise(birth_prec):
-        end = birth_year
-        if death_year is not None and _century_precise(death_prec) and death_year >= birth_year:
-            end = death_year
-        return (birth_year, end, "birth_century")
+    bc = birth_year is not None and _century_precise(birth_prec)
+    dc = death_year is not None and _century_precise(death_prec)
 
-    if death_year is not None and _century_precise(death_prec):
-        return (death_year, death_year, "death_century")
+    if bc and dc:
+        s_b, e_b = century_bounds(birth_year)
+        s_d, e_d = century_bounds(death_year)
+        if (s_b, e_b) == (s_d, e_d):
+            return (s_b, e_b, "birth_century")
+        s, e = two_century_window(birth_year, death_year)
+        return (s, e, "birth_century")
+
+    if bc:
+        s, e = century_bounds(birth_year)
+        return (s, e, "birth_century")
+
+    if dc:
+        s, e = century_bounds(death_year)
+        return (s, e, "death_century")
 
     return (None, None, "")
 
 
 def run(conn: sqlite3.Connection) -> int:
     log("[DB] 60: Build individuals_floruit_period...")
+    # Floruit lives on the `individuals` table since 2026-05 (no separate
+    # individuals_floruit table any more).
     floruit_map: dict[str, tuple] = {}
     for qid, fd, fp, fy in conn.execute(
         "SELECT wikidata_id, floruit_date, floruit_precision, floruit_year "
-        "FROM individuals_floruit"
+        "FROM individuals WHERE floruit_year IS NOT NULL "
+        "   OR floruit_date IS NOT NULL"
     ):
         floruit_map[qid] = (fd, fp, fy)
 
@@ -155,6 +199,8 @@ def run(conn: sqlite3.Connection) -> int:
             floruit_precision INTEGER,
             floruit_year INTEGER,
             floruit_period TEXT,
+            floruit_period_start INTEGER,
+            floruit_period_end INTEGER,
             method TEXT
         )
         """
@@ -198,12 +244,13 @@ def run(conn: sqlite3.Connection) -> int:
             "INSERT INTO individuals_floruit_period "
             "(wikidata_id, name_en, birthdate, birthdate_precision, birth_year, "
             "deathdate, deathdate_precision, death_year, floruit_date, "
-            "floruit_precision, floruit_year, floruit_period, method) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "floruit_precision, floruit_year, floruit_period, "
+            "floruit_period_start, floruit_period_end, method) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (qid, name, birthdate, bprec, birth_year,
              deathdate, dprec, death_year,
              fdate, fprec, fyear,
-             period, method or None),
+             period, start, end, method or None),
         )
         n += 1
         if n % 50_000 == 0:
@@ -216,6 +263,8 @@ def run(conn: sqlite3.Connection) -> int:
         "CREATE INDEX IF NOT EXISTS idx_fp_method ON individuals_floruit_period(method)",
         "CREATE INDEX IF NOT EXISTS idx_fp_birth_year ON individuals_floruit_period(birth_year)",
         "CREATE INDEX IF NOT EXISTS idx_fp_death_year ON individuals_floruit_period(death_year)",
+        "CREATE INDEX IF NOT EXISTS idx_fp_start ON individuals_floruit_period(floruit_period_start)",
+        "CREATE INDEX IF NOT EXISTS idx_fp_end ON individuals_floruit_period(floruit_period_end)",
     ):
         conn.execute(sql)
     conn.commit()
@@ -229,29 +278,30 @@ def _sample_main() -> None:
             seed.execute(
                 "CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, "
                 "name_en TEXT, birthdate TEXT, birthdate_precision INTEGER, "
-                "deathdate TEXT, deathdate_precision INTEGER)"
-            )
-            insert_rows(seed, "individuals", [
-                {"wikidata_id": "Q1", "name_en": "Born1880", "birthdate": "+1880-01-01",
-                 "birthdate_precision": 9, "deathdate": "+1955-06-30",
-                 "deathdate_precision": 9},
-                {"wikidata_id": "Q2", "name_en": "AncientRome",
-                 "birthdate": "-0050-01-01", "birthdate_precision": 9,
-                 "deathdate": None, "deathdate_precision": None},
-                {"wikidata_id": "Q3", "name_en": "MedievalCent",
-                 "birthdate": "+1100-01-01", "birthdate_precision": 7,
-                 "deathdate": None, "deathdate_precision": None},
-                {"wikidata_id": "Q4", "name_en": "TooYoung",
-                 "birthdate": "+2010-01-01", "birthdate_precision": 9,
-                 "deathdate": None, "deathdate_precision": None},
-            ])
-            seed.execute(
-                "CREATE TABLE individuals_floruit (wikidata_id TEXT PRIMARY KEY, "
+                "deathdate TEXT, deathdate_precision INTEGER, "
                 "floruit_date TEXT, floruit_precision INTEGER, floruit_year INTEGER)"
             )
-            insert_rows(seed, "individuals_floruit", [
-                {"wikidata_id": "Q1", "floruit_date": "+1910-01-01",
-                 "floruit_precision": 9, "floruit_year": 1910},
+            insert_rows(seed, "individuals", [
+                {"wikidata_id": "Q1", "name_en": "Born1880",
+                 "birthdate": "+1880-01-01", "birthdate_precision": 9,
+                 "deathdate": "+1955-06-30", "deathdate_precision": 9,
+                 "floruit_date": "+1910-01-01", "floruit_precision": 9,
+                 "floruit_year": 1910},
+                {"wikidata_id": "Q2", "name_en": "AncientRome",
+                 "birthdate": "-0050-01-01", "birthdate_precision": 9,
+                 "deathdate": None, "deathdate_precision": None,
+                 "floruit_date": None, "floruit_precision": None,
+                 "floruit_year": None},
+                {"wikidata_id": "Q3", "name_en": "MedievalCent",
+                 "birthdate": "+1100-01-01", "birthdate_precision": 7,
+                 "deathdate": None, "deathdate_precision": None,
+                 "floruit_date": None, "floruit_precision": None,
+                 "floruit_year": None},
+                {"wikidata_id": "Q4", "name_en": "TooYoung",
+                 "birthdate": "+2010-01-01", "birthdate_precision": 9,
+                 "deathdate": None, "deathdate_precision": None,
+                 "floruit_date": None, "floruit_precision": None,
+                 "floruit_year": None},
             ])
         with open_db(db) as conn:
             run(conn)

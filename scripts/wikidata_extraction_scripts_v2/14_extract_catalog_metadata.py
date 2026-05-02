@@ -39,6 +39,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import pathlib
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -51,7 +53,7 @@ from wikidata import wdqs_json  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
+OUT_DIR = pathlib.Path(os.environ["WIKIDATA_OUT_DIR"]) if os.environ.get("WIKIDATA_OUT_DIR") else ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
 
 # WDQS handles batch property metadata queries fine; QLever has historically
 # been less reliable for property-as-subject queries. We always use WDQS here.

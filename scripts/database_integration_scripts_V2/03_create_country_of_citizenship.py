@@ -1,14 +1,19 @@
-"""03 — Create the `nationalities` reference table from v2 metadata.
+"""03 — Create the `country_of_citizenship` reference table from v2 metadata.
+
+(Was `nationalities` before the 2026-05 schema change. The table holds
+one row per Wikidata QID that any Q5 human declares as a P27
+"country of citizenship" value.)
 
 Inputs : data/all_humans/wikidata_extraction_scripts_v2/nationality_metadata.json
          data/all_humans/wikidata_extraction_scripts_v2/nationality_labels.json
-Output : nationalities (wikidata_id PK, name_en, description_en, instance_of,
-                        country_id, replaced_by, lat, lon, en_wikipedia_url)
+Output : country_of_citizenship (wikidata_id PK, name_en, description_en,
+                                 instance_of, country_id, replaced_by,
+                                 lat, lon, en_wikipedia_url)
 
 Usage
 -----
-    python3 03_create_nationalities.py
-    python3 03_create_nationalities.py --full
+    python3 03_create_country_of_citizenship.py
+    python3 03_create_country_of_citizenship.py --full
 """
 from __future__ import annotations
 
@@ -32,15 +37,15 @@ LABEL_PATH = WIKIDATA_V2_DIR / "nationality_labels.json"
 def run(conn: sqlite3.Connection,
         meta_path: Path = META_PATH,
         label_path: Path = LABEL_PATH) -> int:
-    log("[DB] 03: Creating nationalities table...")
+    log("[DB] 03: Creating country_of_citizenship table...")
 
     meta = load_json(meta_path)
     labels = load_json(label_path) if label_path.exists() else {}
 
-    conn.execute("DROP TABLE IF EXISTS nationalities")
+    conn.execute("DROP TABLE IF EXISTS country_of_citizenship")
     conn.execute(
         """
-        CREATE TABLE nationalities (
+        CREATE TABLE country_of_citizenship (
             wikidata_id TEXT PRIMARY KEY,
             name_en TEXT,
             description_en TEXT,
@@ -71,17 +76,20 @@ def run(conn: sqlite3.Connection,
         ))
 
     conn.executemany(
-        "INSERT OR IGNORE INTO nationalities "
+        "INSERT OR IGNORE INTO country_of_citizenship "
         "(wikidata_id, name_en, description_en, instance_of, country_id, "
         " replaced_by, lat, lon, en_wikipedia_url) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
     conn.commit()
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_nat_name ON nationalities(name_en)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_coc_name "
+        "ON country_of_citizenship(name_en)"
+    )
     conn.commit()
 
-    log(f"[DB] 03: Inserted {len(rows)} nationalities.")
+    log(f"[DB] 03: Inserted {len(rows)} country_of_citizenship rows.")
     return len(rows)
 
 
@@ -104,9 +112,11 @@ def _sample_main() -> None:
         sample_db = Path(tmp) / "sample.sqlite3"
         with open_db(sample_db) as conn:
             n = run(conn, meta_path=meta, label_path=labs)
-            for r in conn.execute("SELECT * FROM nationalities ORDER BY wikidata_id"):
-                log(f"  nationalities: {r}")
-        log(f"[sample] inserted {n} nationalities")
+            for r in conn.execute(
+                "SELECT * FROM country_of_citizenship ORDER BY wikidata_id"
+            ):
+                log(f"  country_of_citizenship: {r}")
+        log(f"[sample] inserted {n} rows")
 
 
 if __name__ == "__main__":

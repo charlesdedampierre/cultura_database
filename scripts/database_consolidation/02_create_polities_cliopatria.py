@@ -1,65 +1,92 @@
-"""37 - Drop count column on individuals_regions_cliopatria, then create
-polities_cliopatria with all polities and individuals_count.
+"""02 — Create the `polities_cliopatria` reference table from the V3 GeoJSON.
 
-Mirrors `enhance_db/src/bin/37_create_polities_cliopatria.rs`.
+(Was sourced from cliopatria_data/processing/data/cliopatria.db; switched
+to cliopatria_data/cliopatria_V2/cliopatria_polities_only_v3.geojson in
+2026-05.)
 
-  Inputs : individuals_regions_cliopatria, cliopatria.db / polities
-  Output : polities_cliopatria (id PK, name, type, wikipedia_url,
-           wikidata_id, individuals_count)
+Inputs : cliopatria_data/cliopatria_V2/cliopatria_polities_only_v3.geojson
+         FeatureCollection of polity-periods. Properties used:
+           Name, FromYear, ToYear, Type, Wikipedia, Wikidata
+Output : polities_cliopatria
+           id INTEGER PRIMARY KEY (assigned sequentially per distinct
+                                  (Name, Wikidata) pair)
+           name TEXT
+           type TEXT
+           wikipedia_url TEXT       ("https://en.wikipedia.org/wiki/<Wikipedia>"
+                                     when Wikipedia is non-empty)
+           wikidata_id TEXT
+           number_individuals INTEGER DEFAULT 0
+                                    (filled later by 04_individuals_cliopatria)
 
 Usage
 -----
-    python3 37_create_polities_cliopatria.py            # synthetic
-    python3 37_create_polities_cliopatria.py --full     # real DB
+    python3 02_create_polities_cliopatria.py            # synthetic
+    python3 02_create_polities_cliopatria.py --full     # real DB
 """
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
 
-from common import (
-    PROJECT_ROOT,
-    column_exists,
-    insert_rows,
-    log,
-    open_db,
-    parse_run_mode,
+from common import PROJECT_ROOT, log, open_db, parse_run_mode
+
+GEOJSON_PATH = (
+    PROJECT_ROOT / "cliopatria_data" / "cliopatria_V2"
+    / "cliopatria_polities_only_v3.geojson"
 )
 
-CLIO_DB_PATH = PROJECT_ROOT / "cliopatria_data" / "processing" / "data" / "cliopatria.db"
+
+def _wikipedia_url(title: str | None) -> str | None:
+    if not title:
+        return None
+    return f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'))}"
 
 
 def _strip_parens(name: str) -> str:
-    s = name.strip()
+    s = (name or "").strip()
     if s.startswith("(") and s.endswith(")"):
         return s[1:-1]
     return s
 
 
-def run(conn: sqlite3.Connection, clio_db_path: Path | str = CLIO_DB_PATH) -> int:
-    log("[DB] 37: Creating polities_cliopatria...")
+def collect_polities(geojson_path: Path | str) -> list[tuple]:
+    """Return [(id, name, type, wikipedia_url, wikidata_id)] from the GeoJSON.
 
-    if column_exists(conn, "individuals_regions_cliopatria", "count"):
-        conn.execute("ALTER TABLE individuals_regions_cliopatria DROP COLUMN count")
-        log("[37] dropped count column")
-
+    Distinct polities are keyed on (Name, Wikidata) — Wikidata may be
+    empty, in which case Name alone keys it. IDs are assigned in the
+    order distinct keys are first seen.
+    """
+    with open(geojson_path, "r", encoding="utf-8") as fh:
+        gj = json.load(fh)
+    seen: dict[tuple[str, str], int] = {}
     polities: list[tuple] = []
-    with sqlite3.connect(str(clio_db_path)) as clio:
-        for pid, name, ptype, url, qid in clio.execute(
-            "SELECT id, name, type, wikipedia_url, wikidata_id FROM polities"
-        ):
-            polities.append((pid, _strip_parens(name), ptype, url, qid))
-    log(f"[37] polities loaded: {len(polities)}")
+    for feat in gj.get("features") or []:
+        props = feat.get("properties") or {}
+        name = _strip_parens(props.get("Name") or "")
+        if not name:
+            continue
+        wikidata = (props.get("Wikidata") or "").strip()
+        ptype = (props.get("Type") or "").strip() or None
+        wiki_title = (props.get("Wikipedia") or "").strip()
+        wikipedia_url = _wikipedia_url(wiki_title)
+        key = (name, wikidata)
+        if key in seen:
+            continue
+        seen[key] = len(seen) + 1
+        polities.append(
+            (seen[key], name, ptype, wikipedia_url, wikidata or None)
+        )
+    return polities
 
-    polity_counts: dict[str, int] = {}
-    for p, c in conn.execute(
-        "SELECT polity_cliopatria, COUNT(*) FROM individuals_regions_cliopatria "
-        "WHERE polity_cliopatria IS NOT NULL GROUP BY polity_cliopatria"
-    ):
-        polity_counts[p] = c
-    log(f"[37] polities with individuals: {len(polity_counts)}")
+
+def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> int:
+    log("[DB] 02: Creating polities_cliopatria from V3 GeoJSON...")
+    polities = collect_polities(geojson_path)
+    log(f"[02] distinct polities: {len(polities)}")
 
     conn.execute("DROP TABLE IF EXISTS polities_cliopatria")
     conn.execute(
@@ -70,53 +97,45 @@ def run(conn: sqlite3.Connection, clio_db_path: Path | str = CLIO_DB_PATH) -> in
             type TEXT,
             wikipedia_url TEXT,
             wikidata_id TEXT,
-            individuals_count INTEGER DEFAULT 0
+            number_individuals INTEGER DEFAULT 0
         )
         """
     )
-    rows = [(pid, name, ptype, url, qid, polity_counts.get(name, 0))
-            for pid, name, ptype, url, qid in polities]
     conn.executemany(
-        "INSERT INTO polities_cliopatria (id, name, type, wikipedia_url, wikidata_id, individuals_count) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        rows,
+        "INSERT INTO polities_cliopatria "
+        "(id, name, type, wikipedia_url, wikidata_id, number_individuals) "
+        "VALUES (?, ?, ?, ?, ?, 0)",
+        polities,
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_pc_name ON polities_cliopatria(name)")
     conn.commit()
-    log(f"[37] inserted {len(rows)} polities")
-    return len(rows)
+    log(f"[02] inserted {len(polities)} polities")
+    return len(polities)
 
 
 def _sample_main() -> None:
+    fake = {
+        "type": "FeatureCollection",
+        "features": [
+            {"properties": {"Name": "France", "Type": "kingdom",
+                            "Wikipedia": "France", "Wikidata": "Q142",
+                            "FromYear": 1000, "ToYear": 1500}},
+            {"properties": {"Name": "France", "Type": "kingdom",
+                            "Wikipedia": "France", "Wikidata": "Q142",
+                            "FromYear": 1500, "ToYear": 1789}},
+            {"properties": {"Name": "(British Empire)", "Type": "empire",
+                            "Wikipedia": "British_Empire", "Wikidata": "Q8680",
+                            "FromYear": 1700, "ToYear": 1947}},
+        ],
+    }
     with tempfile.TemporaryDirectory() as tmp:
-        clio = Path(tmp) / "clio.db"
-        db = Path(tmp) / "sample.sqlite3"
-        with sqlite3.connect(clio) as c:
-            c.execute(
-                "CREATE TABLE polities (id INTEGER, name TEXT, type TEXT, "
-                "wikipedia_url TEXT, wikidata_id TEXT)"
-            )
-            insert_rows(c, "polities", [
-                {"id": 1, "name": "France", "type": "kingdom",
-                 "wikipedia_url": "https://en.wikipedia.org/wiki/France", "wikidata_id": "Q142"},
-                {"id": 2, "name": "(British Empire)", "type": "empire",
-                 "wikipedia_url": "https://en.wikipedia.org/wiki/British_Empire", "wikidata_id": "Q8680"},
-            ])
-        with sqlite3.connect(db) as seed:
-            seed.execute(
-                "CREATE TABLE individuals_regions_cliopatria (wikidata_id TEXT PRIMARY KEY, "
-                "name_en TEXT, url TEXT, origin TEXT, polity_cliopatria TEXT, count INTEGER)"
-            )
-            insert_rows(seed, "individuals_regions_cliopatria", [
-                {"wikidata_id": "Q1", "name_en": "A", "url": None, "origin": "nationality",
-                 "polity_cliopatria": "France", "count": 1},
-                {"wikidata_id": "Q2", "name_en": "B", "url": None, "origin": "nationality",
-                 "polity_cliopatria": "France", "count": 1},
-            ])
-        with open_db(db) as conn:
-            n = run(conn, clio_db_path=clio)
-            rows = conn.execute("SELECT * FROM polities_cliopatria").fetchall()
-        log(f"[sample] {n} polities: {rows}")
+        path = Path(tmp) / "fake.geojson"
+        path.write_text(json.dumps(fake))
+        with open_db(Path(tmp) / "sample.sqlite3") as conn:
+            n = run(conn, geojson_path=path)
+            for r in conn.execute("SELECT * FROM polities_cliopatria"):
+                log(f"  {r}")
+        log(f"[sample] {n} polities")
 
 
 if __name__ == "__main__":

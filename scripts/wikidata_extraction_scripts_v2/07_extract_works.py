@@ -16,6 +16,9 @@ Run:
 """
 from __future__ import annotations
 
+import os
+import pathlib
+
 import argparse
 import json
 import sys
@@ -30,7 +33,7 @@ from wikidata import clean_literal, extract_qid, stream  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
+OUT_DIR = pathlib.Path(os.environ["WIKIDATA_OUT_DIR"]) if os.environ.get("WIKIDATA_OUT_DIR") else ROOT / "data" / "all_humans" / "wikidata_extraction_scripts_v2"
 
 PROPS = ["P50", "P170", "P86", "P57", "P162", "P98", "P175", "P110", "P58"]
 
@@ -95,7 +98,7 @@ def main():
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    limit = 100 if args.test else None
+    limit = (int(os.environ.get("WIKIDATA_TEST_LIMIT", "100")) if args.test else None)
     endpoint = "wdqs" if args.test else "qlever"
     suffix = ".test" if args.test else ""
     props = ["P50"] if args.test else PROPS

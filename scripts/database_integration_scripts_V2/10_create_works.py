@@ -6,8 +6,10 @@ Inputs : data/all_humans/wikidata_extraction_scripts_v2/works.json
          {work_qid: "English label"}
 Output : works (id PK auto, individual_id, individual_name,
                 work_id, work_name, relationship)
-         - relationship = the property (P50, P170, ...) that linked
-           the human to the work.
+         - relationship = a human-readable role name ("author",
+           "director", "composer", ...). The original Wikidata P-id
+           for each role is recorded in
+           `wikidata_properties_definition`.
 
 Usage
 -----
@@ -25,6 +27,27 @@ from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
 
 WORKS_PATH = WIKIDATA_V2_DIR / "works.json"
 LABELS_PATH = WIKIDATA_V2_DIR / "work_labels.json"
+
+# Wikidata "creator-role" property -> human-readable role stored in
+# `works.relationship`. The P-id is preserved in
+# `wikidata_properties_definition`.
+RELATIONSHIP_BY_PID = {
+    "P50":  "author",
+    "P57":  "director",
+    "P58":  "screenwriter",
+    "P86":  "composer",
+    "P98":  "editor",
+    "P110": "illustrator",
+    "P162": "producer",
+    "P170": "creator",
+    "P175": "performer",
+}
+
+
+def relationship_name(prop: str | None) -> str | None:
+    if not prop:
+        return None
+    return RELATIONSHIP_BY_PID.get(prop, prop)
 
 
 def run(
@@ -61,7 +84,8 @@ def run(
             wid = item.get("work")
             if not wid:
                 continue
-            rows.append((qid, person, wid, labels.get(wid), item.get("prop")))
+            rows.append((qid, person, wid, labels.get(wid),
+                         relationship_name(item.get("prop"))))
 
     conn.executemany(
         "INSERT INTO works (individual_id, individual_name, work_id, work_name, relationship) "
@@ -70,6 +94,7 @@ def run(
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_works_individual ON works(individual_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_works_work ON works(work_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_works_rel ON works(relationship)")
     conn.commit()
 
     log(f"[DB] 10: Inserted {len(rows)} works.")
