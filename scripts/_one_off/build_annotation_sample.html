@@ -1,0 +1,136 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cliopatria — Annotation Sample (n=100)</title>
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232b3a55'/><text x='8' y='12' font-family='monospace' font-size='10' fill='white' text-anchor='middle'>C</text></svg>">
+<style>
+  body { font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         margin: 0; background: #f6f7f9; color: #1d2330; }
+  header { position: sticky; top: 0; background: #2b3a55; color: white;
+           padding: 12px 24px; display: flex; align-items: center; gap: 16px;
+           box-shadow: 0 2px 4px rgba(0,0,0,.15); z-index: 10; }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  header .progress { font-variant-numeric: tabular-nums; opacity: .85; }
+  header button { margin-left: auto; padding: 6px 14px; border: 0; border-radius: 4px;
+                  background: #f1c40f; color: #1d2330; font-weight: 600; cursor: pointer; }
+  main { max-width: 880px; margin: 16px auto; padding: 0 16px 80px; }
+  .card { background: white; border-radius: 8px; padding: 16px 20px; margin-bottom: 14px;
+          border: 1px solid #e1e4ea; }
+  .card.done-yes { border-left: 4px solid #27ae60; }
+  .card.done-no  { border-left: 4px solid #c0392b; }
+  .card-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .num { color: #888; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .name { font-weight: 600; font-size: 16px; color: #2b3a55; text-decoration: none; }
+  .name:hover { text-decoration: underline; }
+  .lang { font-size: 10px; background: #eef0f4; color: #555; padding: 1px 6px; border-radius: 3px; }
+  .stratum { font-size: 10px; background: #2b3a55; color: white; padding: 1px 6px; border-radius: 3px; }
+  .qid  { margin-left: auto; font-size: 11px; color: #888; text-decoration: none; }
+  .qid:hover { color: #2b3a55; }
+  .descr { color: #555; font-style: italic; margin-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px;
+          font-size: 13px; padding: 8px 0 12px; border-top: 1px dashed #e1e4ea; border-bottom: 1px dashed #e1e4ea; }
+  .grid .full { grid-column: 1 / -1; }
+  .muted { color: #888; }
+  .answer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 10px; }
+  .opt { cursor: pointer; user-select: none; }
+  .reason { padding: 5px 8px; border: 1px solid #ccd0d8; border-radius: 4px; font: inherit; max-width: 360px; }
+  .reason:disabled { opacity: .5; }
+  .note   { padding: 5px 8px; border: 1px solid #ccd0d8; border-radius: 4px; font: inherit; flex: 1; min-width: 200px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cliopatria — Annotation sample</h1>
+  <span class="progress" id="progress">0 / 100 annotated</span>
+  <button id="export">⇩  Download annotations.json</button>
+</header>
+<main>
+
+<div class="card" id="card-100" data-wid="Q681811" data-idx="100" data-stratum="Late Antiquity (0–500)">
+  <div class="card-head">
+    <span class="num">100 / 100</span>
+    <a class="name" href="https://es.wikipedia.org/wiki/Quinto_Cecina_Primo" target="_blank" rel="noopener">Quintus Caecina Primus</a>
+    <span class="lang">ES</span>
+    <span class="stratum">Late Antiquity (0–500)</span>
+    <a class="qid" href="https://www.wikidata.org/wiki/Q681811" target="_blank" rel="noopener">Q681811</a>
+  </div>
+  <div class="descr">politician</div>
+  <div class="grid">
+    <div><b>Assigned polity:</b> Roman Empire</div>
+    <div><b>Floruit (computed):</b> 1 … 100</div>
+    <div><b>Polity (matched via):</b> Ancient Rome</div>
+    <div><b>Method:</b> merge_with_polygon <span class="muted">(country_of_citizenship)</span></div>
+    <div class="full"><b>Wikidata dates:</b> b. 0050-01-01 · d. 0100-01-01 · fl. 0100-01-01T00:00:00Z</div>
+    <div><b>Citizenship:</b> Ancient Rome</div>
+    <div><b>Birth / Death city:</b>  / </div>
+    <div class="full"><b>Occupations:</b> politician</div>
+  </div>
+  <div class="answer">
+    <label class="opt"><input type="radio" name="ok-100" value="yes"> ✓ Correct</label>
+    <label class="opt"><input type="radio" name="ok-100" value="no">  ✗ Incorrect</label>
+    <select class="reason" name="reason-100" disabled>
+      <option value="">— if Incorrect, pick the main reason —</option>
+      <option value="wikidata">1. Reliability of Wikidata information</option>
+      <option value="cliopatria">2. Reliability of Cliopatria boundaries</option>
+      <option value="polity_rules">3. Robustness of the rules to assign a polity</option>
+      <option value="floruit_rules">4. Robustness of the rules to assign a floruit period</option>
+      <option value="matching">5. Reliability of the matching procedure</option>
+    </select>
+    <input type="text" class="note" name="note-100" placeholder="optional note">
+  </div>
+</div>
+</main>
+<script>
+const N = document.querySelectorAll('.card').length;
+const progressEl = document.getElementById('progress');
+
+function refresh() {
+  let done = 0;
+  document.querySelectorAll('.card').forEach(card => {
+    const idx = card.dataset.idx;
+    const ok = card.querySelector(`input[name="ok-${idx}"]:checked`);
+    const reason = card.querySelector(`select[name="reason-${idx}"]`);
+    card.classList.remove('done-yes', 'done-no');
+    if (ok) {
+      card.classList.add(ok.value === 'yes' ? 'done-yes' : 'done-no');
+      reason.disabled = (ok.value !== 'no');
+      if (ok.value === 'yes') reason.value = '';
+      done += 1;
+    } else {
+      reason.disabled = true;
+    }
+  });
+  progressEl.textContent = `${done} / ${N} annotated`;
+}
+
+document.querySelectorAll('input[type="radio"]').forEach(r => r.addEventListener('change', refresh));
+
+document.getElementById('export').addEventListener('click', () => {
+  const out = [];
+  document.querySelectorAll('.card').forEach(card => {
+    const idx = card.dataset.idx;
+    const ok = card.querySelector(`input[name="ok-${idx}"]:checked`);
+    const reason = card.querySelector(`select[name="reason-${idx}"]`).value;
+    const note = card.querySelector(`input[name="note-${idx}"]`).value;
+    out.push({
+      idx: parseInt(idx, 10),
+      wikidata_id: card.dataset.wid,
+      stratum: card.dataset.stratum,
+      verdict: ok ? ok.value : null,
+      reason: reason || null,
+      note: note || null
+    });
+  });
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cliopatria_annotations.json';
+  a.click();
+});
+
+refresh();
+</script>
+</body>
+</html>

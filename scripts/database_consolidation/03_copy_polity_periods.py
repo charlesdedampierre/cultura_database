@@ -27,7 +27,9 @@ from pathlib import Path
 from common import PROJECT_ROOT, log, open_db, parse_run_mode
 
 GEOJSON_PATH = (
-    PROJECT_ROOT / "cliopatria_data" / "cliopatria_V2"
+    PROJECT_ROOT
+    / "cliopatria_data"
+    / "cliopatria_V2"
     / "cliopatria_polities_only_v3.geojson"
 )
 
@@ -62,8 +64,7 @@ def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> in
         gj = json.load(fh)
 
     conn.execute("DROP TABLE IF EXISTS polities_periods_cliopatria")
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE polities_periods_cliopatria (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             polity_id INTEGER NOT NULL,
@@ -73,8 +74,7 @@ def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> in
             area REAL,
             geometry TEXT
         )
-        """
-    )
+        """)
 
     rows: list[tuple] = []
     skipped = 0
@@ -126,17 +126,25 @@ def _sample_main() -> None:
         "features": [
             {
                 "properties": {
-                    "Name": "France", "Wikidata": "Q142", "Type": "kingdom",
+                    "Name": "France",
+                    "Wikidata": "Q142",
+                    "Type": "kingdom",
                     "Wikipedia": "France",
-                    "FromYear": 1500, "ToYear": 1789, "Area": 500000.0,
+                    "FromYear": 1500,
+                    "ToYear": 1789,
+                    "Area": 500000.0,
                 },
                 "geometry": {"type": "Polygon", "coordinates": []},
             },
             {
                 "properties": {
-                    "Name": "British Empire", "Wikidata": "Q8680",
-                    "Type": "empire", "Wikipedia": "British_Empire",
-                    "FromYear": 1700, "ToYear": 1947, "Area": 35000000.0,
+                    "Name": "British Empire",
+                    "Wikidata": "Q8680",
+                    "Type": "empire",
+                    "Wikipedia": "British_Empire",
+                    "FromYear": 1700,
+                    "ToYear": 1947,
+                    "Area": 35000000.0,
                 },
                 "geometry": {"type": "Polygon", "coordinates": []},
             },
@@ -156,10 +164,22 @@ def _sample_main() -> None:
             conn.executemany(
                 "INSERT INTO polities_cliopatria "
                 "(id, name, type, wikipedia_url, wikidata_id) VALUES (?,?,?,?,?)",
-                [(1, "France", "kingdom",
-                  "https://en.wikipedia.org/wiki/France", "Q142"),
-                 (2, "British Empire", "empire",
-                  "https://en.wikipedia.org/wiki/British_Empire", "Q8680")],
+                [
+                    (
+                        1,
+                        "France",
+                        "kingdom",
+                        "https://en.wikipedia.org/wiki/France",
+                        "Q142",
+                    ),
+                    (
+                        2,
+                        "British Empire",
+                        "empire",
+                        "https://en.wikipedia.org/wiki/British_Empire",
+                        "Q8680",
+                    ),
+                ],
             )
             n = run(conn, geojson_path=path)
             for r in conn.execute(

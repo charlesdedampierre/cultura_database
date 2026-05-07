@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Date Extraction — Annotation</title>
+<link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="%231f2937"/><text x="8" y="12" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="white">D</text></svg>'>
+<style>
+  :root {
+    --fg: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --bg: #fafaf9;
+    --pill: #f3f4f6;
+    --good: #16a34a;
+    --bad:  #dc2626;
+    --partial: #d97706;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    margin: 0; padding: 0;
+  }
+  header {
+    position: sticky; top: 0;
+    background: white; border-bottom: 1px solid var(--line);
+    padding: 14px 24px;
+    display: flex; align-items: center; gap: 16px;
+    z-index: 10;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .progress { color: var(--muted); font-variant-numeric: tabular-nums; }
+  header .actions { margin-left: auto; display: flex; gap: 8px; }
+  header button {
+    font: inherit; padding: 6px 12px; border-radius: 6px;
+    border: 1px solid var(--line); background: white; cursor: pointer;
+  }
+  header button:hover { background: var(--pill); }
+  main { max-width: 980px; margin: 0 auto; padding: 16px 24px 80px; }
+  .row {
+    background: white; border: 1px solid var(--line);
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  .row.done { opacity: 0.55; }
+  .row .meta {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    color: var(--muted); font-size: 12px; margin-bottom: 6px;
+  }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--pill); color: var(--fg);
+    font-size: 11px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .pill.kind     { background: #ecfeff; color: #0e7490; }
+  .pill.era      { background: #fef3c7; color: #92400e; }
+  .pill.id       { background: #f3f4f6; color: #374151; font-family: ui-monospace, monospace; }
+  .desc { font-size: 14px; }
+  .name { font-weight: 600; margin-right: 6px; }
+  .extracted {
+    margin-top: 8px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    color: #1e293b;
+    background: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+  }
+  .extracted .label { color: var(--muted); margin-right: 6px; }
+  .controls { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .controls button {
+    font: inherit; padding: 4px 12px; border-radius: 6px;
+    border: 1px solid var(--line); background: white; cursor: pointer;
+    font-size: 13px;
+  }
+  .controls button:hover { background: var(--pill); }
+  .controls button.active.correct { background: var(--good); color: white; border-color: var(--good); }
+  .controls button.active.wrong   { background: var(--bad);  color: white; border-color: var(--bad); }
+  .controls button.active.partial { background: var(--partial); color: white; border-color: var(--partial); }
+  .controls .note {
+    flex: 1 1 220px; font: inherit; padding: 4px 8px;
+    border: 1px solid var(--line); border-radius: 6px; background: white;
+    font-size: 13px; min-width: 200px;
+  }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .summary {
+    margin-top: 24px; padding: 12px 16px;
+    background: white; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13px; color: var(--muted);
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .summary span { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot.correct { background: var(--good); }
+  .dot.wrong   { background: var(--bad); }
+  .dot.partial { background: var(--partial); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Date extraction — quick annotation</h1>
+  <span class="progress" id="progress">0 / 0</span>
+  <div class="actions">
+    <button id="export">Download JSON</button>
+    <button id="reset">Reset</button>
+  </div>
+</header>
+<main>
+  <div id="rows"></div>
+  <div class="summary">
+    <span><span class="dot correct"></span><span id="ct-correct">0</span> correct</span>
+    <span><span class="dot partial"></span><span id="ct-partial">0</span> partial</span>
+    <span><span class="dot wrong"></span><span id="ct-wrong">0</span> wrong</span>
+    <span style="color: var(--muted)" id="ct-pending"></span>
+  </div>
+</main>
+<script>
+const ROWS = [{"wikidata_id": "Q6189240", "name": "Jettha Tissa I of Anuradhapura", "description": "Sri Lankan King of Anuradhapura from 267 to 277", "extracted": "267-277", "kind": "range", "era": "ancient"}, {"wikidata_id": "Q134029186", "name": "Gaius Allius Fuscus", "description": "Roman suffect consul between 180 and 192", "extracted": "180-192", "kind": "range", "era": "ancient"}, {"wikidata_id": "Q16309563", "name": "Siri Naga I of Anuradhapura", "description": "King of Anuradhapura from 196 to 215", "extracted": "196-215", "kind": "range", "era": "ancient"}, {"wikidata_id": "Q48726681", "name": "Rudrasimha II", "description": "Indian ruler of the Western Satraps from 304 to 348", "extracted": "304-348", "kind": "range", "era": "ancient"}, {"wikidata_id": "Q116006311", "name": "Viktor Trautson auf Matrei, Raspenbühel und Reifeneck", "description": "Est 1380 - 1452", "extracted": "1380-1452", "kind": "range", "era": "medieval"}, {"wikidata_id": "Q19569528", "name": "Leonardo di Ser Giovanni", "description": "florentine goldsmith (fl. 1358–1371)", "extracted": "1358-1371", "kind": "range", "era": "medieval"}, {"wikidata_id": "Q6754451", "name": "Mar Yohannan", "description": "Bishop of India (c. 1490-1503)", "extracted": "1490-1503", "kind": "range", "era": "medieval"}, {"wikidata_id": "Q131106214", "name": "Jean de Gascogne", "description": "Gascogne, Jean de, approximately 1420-approximately 1500", "extracted": "1420-1500", "kind": "range", "era": "medieval"}, {"wikidata_id": "Q103784278", "name": "ridder Jens Eskilsden af Velinge", "description": "Bef 1350 - Abt 1400", "extracted": "1350-1400", "kind": "range", "era": "medieval"}, {"wikidata_id": "Q136305068", "name": "Isaure Marie Gabrielle de Gomer", "description": "3 May 1805 Pont-de-Metz - 14 Jun 1888 La Vespière", "extracted": "1805-1888", "kind": "range", "era": "early_modern"}, {"wikidata_id": "Q136027355", "name": "Tammo Valck, Heer van Mariënwehr", "description": "1563 - Aft 1615", "extracted": "1563-1615", "kind": "range", "era": "early_modern"}, {"wikidata_id": "Q105303391", "name": "R.L. Pyne", "description": "American artist, active 1856-1860", "extracted": "1856-1860", "kind": "range", "era": "early_modern"}, {"wikidata_id": "Q126906993", "name": "Georg Ludwig Sartorius", "description": "1720-1793", "extracted": "1720-1793", "kind": "range", "era": "early_modern"}, {"wikidata_id": "Q124000592", "name": "Eli Alexander Gage", "description": "11 Jan 1807 - 3 Mar 1879", "extracted": "1807-1879", "kind": "range", "era": "early_modern"}, {"wikidata_id": "Q131370004", "name": "Jane Helen Biggar", "description": "19 Jun 1847 - 22 Mar 1908", "extracted": "1847-1908", "kind": "range", "era": "early_modern"}, {"wikidata_id": "Q110613657", "name": "Felix von Erffa", "description": "Bef 1550 - 1590", "extracted": "1550-1590", "kind": "range", "era": "early_modern"}, {"wikidata_id": "Q100779752", "name": "Mike Dietz", "description": "college basketball player (1980–1983) Western Michigan", "extracted": "1980-1983", "kind": "range", "era": "modern"}, {"wikidata_id": "Q119569956", "name": "Elodie Furey", "description": "college basketball player (2017–2020) Cornell", "extracted": "2017-2020", "kind": "range", "era": "modern"}, {"wikidata_id": "Q100848479", "name": "Otis Johnson", "description": "college basketball player (1975–1975) Stetson", "extracted": "1975-1975", "kind": "range", "era": "modern"}, {"wikidata_id": "Q100901799", "name": "Al Pollard", "description": "college basketball player (1995–1995) Drake", "extracted": "1995-1995", "kind": "range", "era": "modern"}, {"wikidata_id": "Q100943933", "name": "George Walker", "description": "college basketball player (1976–1979) Houston", "extracted": "1976-1979", "kind": "range", "era": "modern"}, {"wikidata_id": "Q19661445", "name": "Óengus Osrithe", "description": "(est. 200 - )", "extracted": "b 200", "kind": "b", "era": "ancient"}, {"wikidata_id": "Q123408066", "name": "Daniel Mahaffy", "description": "English footballer (born 200?)", "extracted": "b 200", "kind": "b", "era": "ancient"}, {"wikidata_id": "Q136525932", "name": "Reece Wilkes", "description": "English footballer (born 200?)", "extracted": "b 200", "kind": "b", "era": "ancient"}, {"wikidata_id": "Q130538215", "name": "Raff Cirino", "description": "English footballer (born 200?)", "extracted": "b 200", "kind": "b", "era": "ancient"}, {"wikidata_id": "Q102831913", "name": "Agnès de Cardaillac", "description": "1395 -", "extracted": "b 1395", "kind": "b", "era": "medieval"}, {"wikidata_id": "Q100437846", "name": "Conti Conti", "description": "1195 -", "extracted": "b 1195", "kind": "b", "era": "medieval"}, {"wikidata_id": "Q104012208", "name": "Sir Alan de Charlton, of Apley", "description": "Abt 1318/1319 - 3 May 1349", "extracted": "b 1318|1319-1349", "kind": "b", "era": "medieval"}, {"wikidata_id": "Q110315534", "name": "Robert|William Hingeston (Hyndeston), of Wonwell, Devon", "description": "Abt 1452/1453 - 28 Jan 1488", "extracted": "b 1452|1453-1488", "kind": "b", "era": "medieval"}, {"wikidata_id": "Q109835606", "name": "Jorgen Larsen", "description": "Abt 1638 Skodborg, Sonderjylland, Denmark - 1716", "extracted": "b 1638", "kind": "b", "era": "early_modern"}, {"wikidata_id": "Q128251110", "name": "Erast Meister", "description": "1893-", "extracted": "b 1893", "kind": "b", "era": "early_modern"}, {"wikidata_id": "Q128237815", "name": "Alexander Skorupski", "description": "1808-", "extracted": "b 1808", "kind": "b", "era": "early_modern"}, {"wikidata_id": "Q128239828", "name": "Friedrich Hoffmann", "description": "1836-", "extracted": "b 1836", "kind": "b", "era": "early_modern"}, {"wikidata_id": "Q128069512", "name": "Johann Gottlieb Wiegand", "description": "1799-", "extracted": "b 1799", "kind": "b", "era": "early_modern"}, {"wikidata_id": "Q76250509", "name": "Araminta Florence Tiger Murray Wells", "description": "(born 2004)", "extracted": "b 2004", "kind": "b", "era": "modern"}, {"wikidata_id": "Q135359964", "name": "Tematuanui Fauura", "description": "Tahitian basketball player (born 2003)", "extracted": "b 2003", "kind": "b", "era": "modern"}, {"wikidata_id": "Q135366402", "name": "Jack Milo Welstead", "description": "Scottish basketball player (born 1998)", "extracted": "b 1998", "kind": "b", "era": "modern"}, {"wikidata_id": "Q76272379", "name": "Emmaline Phelan", "description": "(born 2012)", "extracted": "b 2012", "kind": "b", "era": "modern"}, {"wikidata_id": "Q127610663", "name": "Valerius Petronianus", "description": "ancient Roman lawyer (d. 315-320 AD)", "extracted": "d 315|320 AD", "kind": "d", "era": "ancient"}, {"wikidata_id": "Q131732242", "name": "Kuras of Parsumas", "description": "- Aft 115 AUC", "extracted": "d 115", "kind": "d", "era": "ancient"}, {"wikidata_id": "Q131725779", "name": "noble Lovisa Ottiliana of Klöfverskjöld", "description": "8 Jan 1772 Hjorted, co.Kalmar - 11 Jan 185 Aranäs, Grenna", "extracted": "d 185", "kind": "d", "era": "ancient"}, {"wikidata_id": "Q29094828", "name": "Castus", "description": "saint in Eastern Orthodox and Roman Catholic Church (d. 250)", "extracted": "d 250", "kind": "d", "era": "ancient"}, {"wikidata_id": "Q101248699", "name": "Heyne van Vitzen", "description": "- Aft 1399", "extracted": "d 1399", "kind": "d", "era": "medieval"}, {"wikidata_id": "Q110394232", "name": "Rasso XIII van Herzeele, Heer van Nieuwkerke", "description": "- 10 Sep 1494/1 May 1495", "extracted": "d 1494", "kind": "d", "era": "medieval"}, {"wikidata_id": "Q110556993", "name": "Irmgard Quad", "description": "- 21 Oct 1473", "extracted": "d 1473", "kind": "d", "era": "medieval"}, {"wikidata_id": "Q104773015", "name": "Johann von Wartenberg, Burggraf von Glatz", "description": "- Bef 1405", "extracted": "d 1405", "kind": "d", "era": "medieval"}, {"wikidata_id": "Q128045475", "name": "Petrus Arvidi Guthemius", "description": "-1644", "extracted": "d 1644", "kind": "d", "era": "early_modern"}, {"wikidata_id": "Q122362096", "name": "Tyman ten Oldenhuis", "description": "in Zwinderen - Abt 1662/1665", "extracted": "d 1662", "kind": "d", "era": "early_modern"}, {"wikidata_id": "Q110939465", "name": "Raimond Labroue", "description": "- 12 Jun 1606/9 Sep 1610", "extracted": "d 1606", "kind": "d", "era": "early_modern"}, {"wikidata_id": "Q111505530", "name": "Augustine Massingberd", "description": "- 10 Feb 1549 (dvp)", "extracted": "d 1549", "kind": "d", "era": "early_modern"}, {"wikidata_id": "Q99210345", "name": "Dorothea", "description": "- Aft 1519", "extracted": "d 1519", "kind": "d", "era": "early_modern"}, {"wikidata_id": "Q116184135", "name": "Charlotte Susanna Croft", "description": "2 Dec 1844 Greenham Lodge, Berkshire - 22 Apr 1901 München", "extracted": "d 1901", "kind": "d", "era": "modern"}, {"wikidata_id": "Q103165467", "name": "Ben Fulcher", "description": "D.Phil. University of Oxford 2012", "extracted": "d 2012", "kind": "d", "era": "modern"}, {"wikidata_id": "Q102392151", "name": "Emil Bahary", "description": "D. Eng. Sci. Columbia University 1969", "extracted": "d 1969", "kind": "d", "era": "modern"}, {"wikidata_id": "Q102112061", "name": "Bernadette Jana Stolz", "description": "D.Phil. University of Oxford 2020", "extracted": "d 2020", "kind": "d", "era": "modern"}, {"wikidata_id": "Q120730008", "name": "Andreas, brother of Magnus", "description": "Greek chronicler and writer of an Easter cycle, active circa 350", "extracted": "fl 350", "kind": "fl", "era": "ancient"}, {"wikidata_id": "Q107444383", "name": "Hilaria", "description": "religious martyr fl. 304", "extracted": "fl 304", "kind": "fl", "era": "ancient"}, {"wikidata_id": "Q98833791", "name": "Master of San Mateo", "description": "Spanish painter, active 1377", "extracted": "fl 1377", "kind": "fl", "era": "medieval"}, {"wikidata_id": "Q124566947", "name": "Yūsuf ibn Aḥmad Sijistānī", "description": "Active 1240. Author of Cambridge, MA, Houghton Library, MS Arab 355.", "extracted": "fl 1240", "kind": "fl", "era": "medieval"}, {"wikidata_id": "Q120691952", "name": "Johannis de Monterchio", "description": "(active 1436)", "extracted": "fl 1436", "kind": "fl", "era": "medieval"}, {"wikidata_id": "Q53224232", "name": "John Dunhead", "description": "of Huntingdon (fl. 1394-97)", "extracted": "fl 1394", "kind": "fl", "era": "medieval"}, {"wikidata_id": "Q98111212", "name": "Prosper Sevestre", "description": "French draftsman, active 1845", "extracted": "fl 1845", "kind": "fl", "era": "early_modern"}, {"wikidata_id": "Q24773404", "name": "W. Eldrige", "description": "British printmaker and painter; fl. 1820-5", "extracted": "fl 1820", "kind": "fl", "era": "early_modern"}, {"wikidata_id": "Q22087704", "name": "Simeon Griswold", "description": "painter fl. 1857", "extracted": "fl 1857", "kind": "fl", "era": "early_modern"}, {"wikidata_id": "Q134471254", "name": "", "description": "colonial Rhode Island letter writer fl. 1675", "extracted": "fl 1675", "kind": "fl", "era": "early_modern"}, {"wikidata_id": "Q134173178", "name": "František Nohava", "description": "Czech train driver and union leader (fl. 1927)", "extracted": "fl 1927", "kind": "fl", "era": "modern"}, {"wikidata_id": "Q107998263", "name": "Susie White", "description": "archaeologist, fl 2021", "extracted": "fl 2021", "kind": "fl", "era": "modern"}, {"wikidata_id": "Q51041508", "name": "August Bachmann", "description": "German military personnel (fl. 1910s)", "extracted": "fl 1910", "kind": "fl", "era": "modern"}, {"wikidata_id": "Q27968252", "name": "Aleksander Reinberg", "description": "photographer resided in Estonia (fl. 1928)", "extracted": "fl 1928", "kind": "fl", "era": "modern"}, {"wikidata_id": "Q110813198", "name": "Dillon Helbig", "description": "author (fl 2021-)", "extracted": "fl 2021", "kind": "fl", "era": "modern"}, {"wikidata_id": "Q6736971", "name": "Maisades", "description": "5th-century BC ruler of the Odrysian kingdom", "extracted": "c5 BC", "kind": "century", "era": "ancient"}, {"wikidata_id": "Q1175915", "name": "Menestrates", "description": "3rd-century Greek writer mentioned in the Suda", "extracted": "c3", "kind": "century", "era": "ancient"}, {"wikidata_id": "Q110228048", "name": "Quintus Turranius Suavis", "description": "1st-century Roman toreut", "extracted": "c1", "kind": "century", "era": "ancient"}, {"wikidata_id": "Q130286695", "name": "Sosipatra", "description": "elite member of society at Dura-Europos, daughter of Apollonios and Sosipatra, attested in 1st century CE inscription", "extracted": "c1", "kind": "century", "era": "ancient"}, {"wikidata_id": "Q20101648", "name": "Ramon I", "description": "12th century priest", "extracted": "c12", "kind": "century", "era": "medieval"}, {"wikidata_id": "Q88194790", "name": "Michele da Genova", "description": "Italian, 15th century, male. Active in Parma. Miniaturist. Michele da Genova was influenced by Mantegna.", "extracted": "c15", "kind": "century", "era": "medieval"}, {"wikidata_id": "Q110635548", "name": "Royal Consort Wonsun Suk-Bi", "description": "11th-century Korean consort", "extracted": "c11", "kind": "century", "era": "medieval"}, {"wikidata_id": "Q104868332", "name": "Magister Franciscus", "description": "14th-century medieval French composer", "extracted": "c14", "kind": "century", "era": "medieval"}, {"wikidata_id": "Q72502724", "name": "John de Cresswell", "description": "14th century English nobleman", "extracted": "c14", "kind": "century", "era": "medieval"}, {"wikidata_id": "Q124786268", "name": "Ulysse Danjou", "description": "French official (19th century)", "extracted": "c19", "kind": "century", "era": "early_modern"}, {"wikidata_id": "Q111995759", "name": "Noura bint Abdullah bin Ali bin Rashid", "description": "19th-century Saudi woman", "extracted": "c19", "kind": "century", "era": "early_modern"}, {"wikidata_id": "Q105529473", "name": "Giovanni Micheli", "description": "Italian artist, active 19th century", "extracted": "c19", "kind": "century", "era": "early_modern"}, {"wikidata_id": "Q97571606", "name": "Master of Volterra", "description": "Italian artist, 16th century", "extracted": "c16", "kind": "century", "era": "early_modern"}, {"wikidata_id": "Q55174388", "name": "M. Sapountzi", "description": "Greek architect, active late 20th century", "extracted": "c20", "kind": "century", "era": "modern"}, {"wikidata_id": "Q101423553", "name": "Mahmoud Shaker", "description": "Egyptian notable of the first half of the 20th century", "extracted": "c20", "kind": "century", "era": "modern"}, {"wikidata_id": "Q116030342", "name": "Bruno Haas", "description": "Austrian architect, active late 20th century", "extracted": "c20", "kind": "century", "era": "modern"}, {"wikidata_id": "Q104431149", "name": "C. Vásquez", "description": "Mexican artist (active 20th century)", "extracted": "c20", "kind": "century", "era": "modern"}, {"wikidata_id": "Q115686594", "name": "Gaius Curiatius Trigeminus", "description": "Roman moneyer in 142 BC", "extracted": "142 BC", "kind": "marker", "era": "ancient"}, {"wikidata_id": "Q15939420", "name": "Marquess of Shen", "description": "monarch of Xi Shen state in the era of King Xiao of Zhou (r. 891 BCE-886 BCE)", "extracted": "891 BCE|886 BCE", "kind": "marker", "era": "ancient"}, {"wikidata_id": "Q3622578", "name": "Titus Quinctius Capitolinus Barbatus", "description": "consular tribune 405 BC", "extracted": "405 BC", "kind": "marker", "era": "ancient"}, {"wikidata_id": "Q20002333", "name": "Gaius Titius", "description": "lead a mutiny against Cato Salonianus in 89 BC", "extracted": "89 BC", "kind": "marker", "era": "ancient"}, {"wikidata_id": "Q27957714", "name": "Kirtti-varman I", "description": "Indian ruler c.1060-1100 CE", "extracted": "1100 CE", "kind": "marker", "era": "medieval"}, {"wikidata_id": "Q16603507", "name": "Princess Ling Xian", "description": "daughter of Emperor Daizong of Tang, who ruled during the Tang Dynasty in China from 762 to 779 AD", "extracted": "779 AD", "kind": "marker", "era": "medieval"}, {"wikidata_id": "Q27957815", "name": "Paramardi", "description": "Chandela king of central India (r. 1165–1203 CE)", "extracted": "1203 CE", "kind": "marker", "era": "medieval"}, {"wikidata_id": "Q5673500", "name": "Beshr ibn Hasan", "description": "Son of Hasan ibn Ali (died 680 AD)", "extracted": "680 AD", "kind": "marker", "era": "medieval"}, {"wikidata_id": "Q102447343", "name": "Ogbebo", "description": "Oba of Benin (1816 AD)", "extracted": "1816 AD", "kind": "marker", "era": "early_modern"}, {"wikidata_id": "Q94291293", "name": "Richard Gerveys", "description": "Sheriff of London from 1546—1547 CE. Member of the Mercers’ Company.", "extracted": "1547 CE", "kind": "marker", "era": "early_modern"}, {"wikidata_id": "Q136744257", "name": "", "description": "Buddhist monk from Chiang Mai who lived around 1492–1500 CE", "extracted": "1500 CE", "kind": "marker", "era": "early_modern"}, {"wikidata_id": "Q30682693", "name": "Kasim Khan Zainuddin", "description": "31st Dai of the Dawoodi Bohras (died 1646 CE)", "extracted": "1646 CE", "kind": "marker", "era": "early_modern"}, {"wikidata_id": "Q20650643", "name": "Seedfeeder", "description": "User who contributed illustrations of sex acts to Wikipedia from C.E.2008 to 2012.", "extracted": "2008 CE", "kind": "marker", "era": "modern"}];
+const STORE_KEY = "date_annotation_v1";
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); }
+  catch (e) { return {}; }
+}
+function save(state) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+const state = load();
+
+function render() {
+  const root = document.getElementById("rows");
+  root.innerHTML = "";
+  ROWS.forEach((r, idx) => {
+    const a = state[r.wikidata_id] || {};
+    const div = document.createElement("div");
+    div.className = "row" + (a.verdict ? " done" : "");
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = `
+      <span class="pill id">${idx + 1} / ${ROWS.length}</span>
+      <span class="pill kind">${r.kind}</span>
+      <span class="pill era">${r.era}</span>
+      <a href="https://www.wikidata.org/wiki/${r.wikidata_id}" target="_blank" rel="noopener">${r.wikidata_id}</a>
+    `;
+    div.appendChild(meta);
+
+    const desc = document.createElement("div");
+    desc.className = "desc";
+    desc.innerHTML = `<span class="name">${escapeHtml(r.name)}</span><span>${escapeHtml(r.description)}</span>`;
+    div.appendChild(desc);
+
+    const ex = document.createElement("div");
+    ex.className = "extracted";
+    ex.innerHTML = `<span class="label">extracted →</span>${escapeHtml(r.extracted)}`;
+    div.appendChild(ex);
+
+    const ctrls = document.createElement("div");
+    ctrls.className = "controls";
+    for (const v of ["correct", "partial", "wrong"]) {
+      const btn = document.createElement("button");
+      btn.textContent = v.charAt(0).toUpperCase() + v.slice(1);
+      btn.className = (a.verdict === v) ? `active ${v}` : "";
+      btn.onclick = () => {
+        state[r.wikidata_id] = { ...(state[r.wikidata_id] || {}), verdict: v, ...r };
+        save(state);
+        render();
+      };
+      ctrls.appendChild(btn);
+    }
+    const note = document.createElement("input");
+    note.className = "note";
+    note.placeholder = "Optional note…";
+    note.value = a.note || "";
+    note.oninput = () => {
+      state[r.wikidata_id] = { ...(state[r.wikidata_id] || {}), note: note.value, ...r };
+      save(state);
+      updateProgress();
+    };
+    ctrls.appendChild(note);
+    div.appendChild(ctrls);
+
+    root.appendChild(div);
+  });
+  updateProgress();
+}
+
+function updateProgress() {
+  const decided = ROWS.filter(r => state[r.wikidata_id] && state[r.wikidata_id].verdict).length;
+  document.getElementById("progress").textContent = `${decided} / ${ROWS.length}`;
+  const counts = { correct: 0, partial: 0, wrong: 0 };
+  for (const r of ROWS) {
+    const v = state[r.wikidata_id]?.verdict;
+    if (v && counts[v] !== undefined) counts[v]++;
+  }
+  document.getElementById("ct-correct").textContent = counts.correct;
+  document.getElementById("ct-partial").textContent = counts.partial;
+  document.getElementById("ct-wrong").textContent = counts.wrong;
+  const pending = ROWS.length - decided;
+  document.getElementById("ct-pending").textContent = pending ? `${pending} pending` : "all done ✓";
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+  })[c]);
+}
+
+document.getElementById("export").onclick = () => {
+  const out = ROWS.map((r, idx) => {
+    const a = state[r.wikidata_id] || {};
+    return {
+      idx, wikidata_id: r.wikidata_id, name: r.name,
+      description: r.description, extracted: r.extracted,
+      kind: r.kind, era: r.era,
+      verdict: a.verdict || null, note: a.note || ""
+    };
+  });
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "date_annotation.json"; a.click();
+  URL.revokeObjectURL(url);
+};
+
+document.getElementById("reset").onclick = () => {
+  if (!confirm("Clear all annotations on this page?")) return;
+  localStorage.removeItem(STORE_KEY);
+  for (const k of Object.keys(state)) delete state[k];
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
