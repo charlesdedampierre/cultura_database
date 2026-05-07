@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Estimated dates review &mdash; 72 individuals</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%232b6cb0' stroke-width='1.5'/%3E%3Cpath d='M8 4v4l2.5 2.5' stroke='%232b6cb0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#fafafa; --card:#fff; --line:#e5e5e5; --ink:#1a1a1a; --muted:#666;
+    --ok:#0f9d58; --bad:#d93025; --hl:#2b6cb0; --warn:#b76e00;
+    --est-bg:#fff8e6; --est-line:#f1d68a;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  header {
+    position:sticky; top:0; z-index:10;
+    background:#fff; border-bottom:1px solid var(--line);
+    padding:14px 22px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  }
+  header h1 { margin:0; font-size:16px; font-weight:600; }
+  header .meta { color:var(--muted); font-size:12px; }
+  .counters { display:flex; gap:14px; font-size:12px; color:var(--muted); }
+  .counters b { color:var(--ink); }
+  .filters { display:flex; gap:6px; flex-wrap:wrap; font-size:12px; }
+  .filters label {
+    border:1px solid var(--line); padding:4px 9px; border-radius:14px;
+    cursor:pointer; user-select:none; background:#fff;
+  }
+  .filters input { display:none; }
+  .filters input:checked + span { color:var(--hl); font-weight:600; }
+  button {
+    font: inherit; cursor:pointer; border:1px solid var(--line); background:#fff;
+    padding:6px 12px; border-radius:6px;
+  }
+  button:hover { background:#f3f3f3; }
+  .primary { background:var(--hl); color:#fff; border-color:var(--hl); }
+  .primary:hover { filter:brightness(.95); background:var(--hl); }
+  main { padding:18px 22px 90px; max-width:1180px; margin:0 auto; }
+  .row {
+    background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:14px 16px; margin-bottom:10px;
+    display:grid; grid-template-columns: 42px 1fr 320px 220px; gap:14px; align-items:start;
+  }
+  .row.annotated.correct { border-color:#b6dfc1; background:#f7fcf9; }
+  .row.annotated.wrong   { border-color:#f3b7b0; background:#fdf6f5; }
+  .row.annotated.unsure  { border-color:#e2cea2; background:#fdf9ef; }
+  .idx { color:var(--muted); font-variant-numeric: tabular-nums; padding-top:2px; }
+  .name { font-weight:600; }
+  .name a { color:var(--ink); text-decoration:none; }
+  .name a:hover { color:var(--hl); text-decoration:underline; }
+  .desc { color:var(--muted); font-size:12px; margin-top:2px; }
+  .tags { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+  .chip {
+    border:1px solid var(--line); border-radius:12px;
+    padding:2px 8px; font-size:11px; color:var(--muted);
+  }
+  .bucket-chip {
+    display:inline-block; padding:3px 9px; font-size:11px; border-radius:12px;
+    font-weight:600;
+  }
+  .bucket-Culture            { background:#fde2e7; color:#a01231; }
+  .bucket-Sports\/Games      { background:#e3f2dc; color:#256025; }
+  .bucket-Leadership         { background:#dde6f8; color:#1d3a8a; }
+  .bucket-Discovery\/Science { background:#fff5cf; color:#7a5b00; }
+  .bucket-Other              { background:#ecdcf3; color:#4d1372; }
+  .bucket-not_in_cv          { background:#eee; color:#444; border:1px dashed #bbb; }
+  .dates {
+    display:grid; grid-template-columns:auto 1fr; column-gap:10px; row-gap:4px;
+    font-size:12.8px; line-height:1.4;
+  }
+  .dates .k { color:var(--muted); }
+  .dates .v { font-variant-numeric: tabular-nums; }
+  .est-row {
+    background:var(--est-bg); border:1px solid var(--est-line);
+    border-radius:6px; padding:4px 8px; margin-top:6px;
+    display:flex; align-items:baseline; gap:8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .est-row .lbl { color:var(--warn); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; }
+  .est-row .val { font-size:14px; font-weight:700; color:var(--warn); }
+  .longevity { margin-top:6px; font-size:12px; color:var(--muted); }
+  .longevity b { color:var(--ink); font-variant-numeric: tabular-nums; }
+  .actions { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .actions .row-buttons { display:flex; gap:6px; }
+  .btn-yes, .btn-no, .btn-unsure {
+    width:54px; padding:6px 0; text-align:center; border-radius:6px;
+    border:1px solid var(--line);
+  }
+  .row.annotated.correct .btn-yes    { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .row.annotated.wrong   .btn-no     { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .row.annotated.unsure  .btn-unsure { background:var(--warn); color:#fff; border-color:var(--warn); }
+  .note { width:100%; min-height:34px; font: inherit; padding:6px 8px;
+           border:1px solid var(--line); border-radius:6px; resize:vertical; }
+  .links a { color:var(--hl); text-decoration:none; font-size:12px; margin-right:8px; }
+  .links a:hover { text-decoration:underline; }
+  footer {
+    position:fixed; left:0; right:0; bottom:0;
+    background:#fff; border-top:1px solid var(--line);
+    padding:10px 22px; display:flex; gap:14px; align-items:center; justify-content:space-between;
+    font-size:12px; color:var(--muted);
+  }
+  kbd {
+    border:1px solid var(--line); border-bottom-width:2px; border-radius:4px;
+    padding:1px 5px; font-size:11px; background:#fafafa; font-family: ui-monospace, monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Estimated dates review</h1>
+  <span class="meta">72 rows &middot; 6 buckets (5 CV categories + not-in-CV) &middot; stratified random sample</span>
+  <div class="counters">
+    <span><b id="cnt-yes">0</b> plausible</span>
+    <span><b id="cnt-no">0</b> wrong</span>
+    <span><b id="cnt-unsure">0</b> unsure</span>
+    <span><b id="cnt-pending">72</b> pending</span>
+  </div>
+  <div class="filters" id="filters"></div>
+  <button id="export" class="primary">Download annotations</button>
+</header>
+
+<main id="rows"></main>
+
+<footer>
+  <span>Annotations are saved to your browser (localStorage). Click <b>Download annotations</b> to save them as JSON.</span>
+  <span><kbd>y</kbd> plausible &middot; <kbd>n</kbd> wrong &middot; <kbd>u</kbd> unsure</span>
+</footer>
+
+<script>
+const DATA = [{"wikidata_id": "Q23759017", "name": "Tomasa Vélez Sarsfield", "description": "", "occupations": "", "nationality": "Argentina", "gender": "female", "real_birth": null, "real_birth_prec": "", "real_death": "1876-01-01", "real_death_prec": "year", "est_birth": "1810-01-01", "est_death": null, "est_kind": "birth", "longevity": 66, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q6207201", "name": "Jocelyne Roupioz", "description": "French canoeist", "occupations": "kayaker", "nationality": "France", "gender": "female", "real_birth": "1955-11-20", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2023-01-01", "est_kind": "death", "longevity": 68, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q6169752", "name": "Jean-Paul Béraudo", "description": "French judge", "occupations": "judge", "nationality": "France", "gender": "male", "real_birth": "1946-09-12", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2015-01-01", "est_kind": "death", "longevity": 69, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q57594282", "name": "Peter C. Hägele", "description": "", "occupations": "physicist", "nationality": "", "gender": "male", "real_birth": "1941-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2010-01-01", "est_kind": "death", "longevity": 69, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q22677212", "name": "Étienne Krähenbühl", "description": "Swiss sculptor and printmaker", "occupations": "printmaker; sculptor", "nationality": "Switzerland", "gender": "male", "real_birth": "1953-10-22", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2020-01-01", "est_kind": "death", "longevity": 67, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q9201667", "name": "Danuta Jędrejek", "description": "Polish sprinter", "occupations": "sprinter", "nationality": "Poland", "gender": "female", "real_birth": "1947-01-17", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2014-01-01", "est_kind": "death", "longevity": 67, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q5525873", "name": "Gary Sain", "description": "former NASCAR driver", "occupations": "racing driver", "nationality": "United States", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1980-01-15", "real_death_prec": "day", "est_birth": "1904-01-01", "est_death": null, "est_kind": "birth", "longevity": 76, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q5300525", "name": "Doug Griffiths", "description": "Canadian politician", "occupations": "politician", "nationality": "Canada", "gender": "male", "real_birth": "1972-10-26", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2021-01-01", "est_kind": "death", "longevity": 49, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q6245635", "name": "John Lyon", "description": "farmer and benefactor who endowed Harrow School", "occupations": "farmer", "nationality": "", "gender": "male", "real_birth": "1510-01-01", "real_birth_prec": "decade", "real_death": "1592-10-03", "real_death_prec": "day", "est_birth": "1540-01-01", "est_death": null, "est_kind": "birth", "longevity": 82, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q5979126", "name": "Llorenç Saragossa", "description": "Gòtic painter (1363-1406)", "occupations": "painter", "nationality": "Kingdom of Aragon", "gender": "male", "real_birth": "1350-01-01", "real_birth_prec": "century", "real_death": "1406-01-01", "real_death_prec": "year", "est_birth": "1346-01-01", "est_death": null, "est_kind": "birth", "longevity": 56, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q6095639", "name": "R. P. Poitrasson", "description": "botanist", "occupations": "botanist", "nationality": "France", "gender": "male", "real_birth": "1801-01-01", "real_birth_prec": "century", "real_death": "1878-01-01", "real_death_prec": "year", "est_birth": "1810-01-01", "est_death": null, "est_kind": "birth", "longevity": 77, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q5959428", "name": "Khoon Meng Wong", "description": "Malaysian botanist", "occupations": "botanist", "nationality": "Malaysia", "gender": "male", "real_birth": "1954-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2023-01-01", "est_kind": "death", "longevity": 69, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q20090610", "name": "Donald du Toit", "description": "South African surgeon", "occupations": "surgeon", "nationality": "South Africa", "gender": "male", "real_birth": "1946-11-01", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2016-01-01", "est_kind": "death", "longevity": 70, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q645798", "name": "Volkwin", "description": "Master (Herrmeister) of the Livonian Brothers of the Sword from 1209 to 1236", "occupations": "lay brother", "nationality": "Germany", "gender": "", "real_birth": "1200-01-01", "real_birth_prec": "century", "real_death": "1236-09-22", "real_death_prec": "day", "est_birth": "1182-01-01", "est_death": null, "est_kind": "birth", "longevity": 36, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q6014049", "name": "Hans Nord", "description": "Swedish handball player", "occupations": "handball player", "nationality": "Sweden", "gender": "male", "real_birth": "2000-01-01", "real_birth_prec": "century", "real_death": "2018-02-25", "real_death_prec": "day", "est_birth": "1939-01-01", "est_death": null, "est_kind": "birth", "longevity": 18, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q54800099", "name": "Martin Norsell", "description": "", "occupations": "", "nationality": "Sweden", "gender": "male", "real_birth": "1971-02-18", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2008-01-01", "est_kind": "death", "longevity": 37, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q3903934", "name": "Pietro Giovanni Aliotti", "description": "16th-century Italian Catholic cleric", "occupations": "Catholic priest; Catholic bishop", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1563-01-01", "real_death_prec": "year", "est_birth": "1504-01-01", "est_death": null, "est_kind": "birth", "longevity": 59, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q8247742", "name": "Zhongyun Zi", "description": "China translator", "occupations": "political scientist; university teacher; historian; translator", "nationality": "People's Republic of China", "gender": "female", "real_birth": "1930-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2010-01-01", "est_kind": "death", "longevity": 80, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q97759986", "name": "Milot Abena Pokuaa", "description": "Ghanaian association football player", "occupations": "association football player", "nationality": "Ghana", "gender": "female", "real_birth": "2001-10-10", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2021-01-01", "est_kind": "death", "longevity": 20, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q97340231", "name": "Giovanni Battista Cambi", "description": "Italian medallist active 1540-1575", "occupations": "medalist", "nationality": "", "gender": "", "real_birth": null, "real_birth_prec": "", "real_death": "1582-01-01", "real_death_prec": "year", "est_birth": "1523-01-01", "est_death": null, "est_kind": "birth", "longevity": 59, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q4915589", "name": "Biram Dev Songara", "description": "Son of the ruler of Jalore", "occupations": "", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1311-01-01", "real_death_prec": "year", "est_birth": "1268-01-01", "est_death": null, "est_kind": "birth", "longevity": 43, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q61488745", "name": "Niranjan Pradhan", "description": "politician from Odisha, India", "occupations": "politician", "nationality": "India", "gender": "male", "real_birth": "1959-01-01", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2026-01-01", "est_kind": "death", "longevity": 67, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q5415134", "name": "Eva Lokko", "description": "Ghanaian engineer and television executive", "occupations": "engineer; politician", "nationality": "Ghana", "gender": "female", "real_birth": null, "real_birth_prec": "", "real_death": "2016-10-06", "real_death_prec": "day", "est_birth": "1933-01-01", "est_death": null, "est_kind": "birth", "longevity": 83, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q3627423", "name": "Helmut Cox", "description": "German political scientist and economist", "occupations": "political scientist; university teacher; economist", "nationality": "Germany", "gender": "male", "real_birth": "1938-01-01", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2021-01-01", "est_kind": "death", "longevity": 83, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q437192", "name": "Martina Zellner", "description": "German biathlete", "occupations": "biathlete", "nationality": "Germany", "gender": "female", "real_birth": "1974-02-26", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2020-01-01", "est_kind": "death", "longevity": 46, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q23061001", "name": "Jan Hartwig", "description": "German chef", "occupations": "cook", "nationality": "Germany", "gender": "male", "real_birth": "1982-09-29", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2006-01-01", "est_kind": "death", "longevity": 24, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q2324914", "name": "Bodhiruci", "description": "Indian Buddhist monk", "occupations": "translator; philosopher; Buddhist monk", "nationality": "Northern Wei", "gender": "male", "real_birth": "0450-01-01", "real_birth_prec": "century", "real_death": "0535-01-01", "real_death_prec": "year", "est_birth": "0475-01-01", "est_death": null, "est_kind": "birth", "longevity": 85, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q9059648", "name": "Pilar Urbano", "description": "Spanish journalist", "occupations": "journalist; writer", "nationality": "Spain", "gender": "female", "real_birth": "1940-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2006-01-01", "est_kind": "death", "longevity": 66, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q2365215", "name": "Martin Baltus", "description": "Dutch rower", "occupations": "rower", "nationality": "Kingdom of the Netherlands", "gender": "male", "real_birth": "1953-10-18", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2021-01-01", "est_kind": "death", "longevity": 68, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q60606514", "name": "Dale Emery", "description": "drag racer (d. 2018)", "occupations": "", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "2018-01-01", "real_death_prec": "year", "est_birth": "1937-01-01", "est_death": null, "est_kind": "birth", "longevity": 81, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q5580035", "name": "Bo Stensson", "description": "Swedish politician", "occupations": "politician", "nationality": "Sweden", "gender": "male", "real_birth": "1350-01-01", "real_birth_prec": "century", "real_death": "1469-01-01", "real_death_prec": "year", "est_birth": "1422-01-01", "est_death": null, "est_kind": "birth", "longevity": 119, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q6016334", "name": "Milena Campos Vila", "description": "Cuban chess player", "occupations": "chess player", "nationality": "Cuba", "gender": "female", "real_birth": "1974-08-26", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2020-01-01", "est_kind": "death", "longevity": 46, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q4496406", "name": "Hasan Beg Khan", "description": "", "occupations": "", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1369-01-01", "real_death_prec": "year", "est_birth": "1313-01-01", "est_death": null, "est_kind": "birth", "longevity": 56, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q6257148", "name": "John Scrymgeour, 1st Viscount Dudhope", "description": "Scottish Royalist politician", "occupations": "politician", "nationality": "Kingdom of Scotland", "gender": "male", "real_birth": "1570-01-01", "real_birth_prec": "decade", "real_death": "1643-03-07", "real_death_prec": "day", "est_birth": "1583-01-01", "est_death": null, "est_kind": "birth", "longevity": 73, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q61883190", "name": "Max Gray", "description": "Australian rugby league footballer", "occupations": "rugby league player", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1989-03-01", "real_death_prec": "day", "est_birth": "1911-01-01", "est_death": null, "est_kind": "birth", "longevity": 78, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q6124593", "name": "Jake Burbage", "description": "American actor", "occupations": "television actor; actor", "nationality": "United States", "gender": "male", "real_birth": "1992-09-27", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2022-01-01", "est_kind": "death", "longevity": 30, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q5935152", "name": "Jorge Garcés Fernández", "description": "Chilean civil engineer", "occupations": "civil engineer; businessperson", "nationality": "Chile", "gender": "male", "real_birth": "1901-01-01", "real_birth_prec": "century", "real_death": "2010-01-22", "real_death_prec": "day", "est_birth": "1926-01-01", "est_death": null, "est_kind": "birth", "longevity": 109, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q4713932", "name": "Aldo Zilli", "description": "Italian chef", "occupations": "chef", "nationality": "Italy", "gender": "male", "real_birth": "1956-01-26", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2014-01-01", "est_kind": "death", "longevity": 58, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q5212277", "name": "Damian Keyes", "description": "British musician", "occupations": "music educator", "nationality": "United Kingdom", "gender": "male", "real_birth": "1976-08-05", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2024-01-01", "est_kind": "death", "longevity": 48, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q889638", "name": "Humban-Haltash I", "description": "Elamite king", "occupations": "monarch", "nationality": "", "gender": "", "real_birth": "-0700-01-01", "real_birth_prec": "millennium", "real_death": "-0680-01-01", "real_death_prec": "year", "est_birth": "-0750-01-01", "est_death": null, "est_kind": "birth", "longevity": 20, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q5237824", "name": "David Murphy", "description": "Australian rules footballer", "occupations": "Australian rules football player", "nationality": "", "gender": "male", "real_birth": "1962-08-23", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2008-01-01", "est_kind": "death", "longevity": 46, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q5339954", "name": "Edmund de la Pole", "description": "High Sheriff and Member of the Parliament of England", "occupations": "politician", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1419-01-01", "real_death_prec": "year", "est_birth": "1363-01-01", "est_death": null, "est_kind": "birth", "longevity": 56, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q5944764", "name": "José Pérez Olivares", "description": "Cuban painter", "occupations": "painter; poet", "nationality": "Cuba", "gender": "male", "real_birth": "1949-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2015-01-01", "est_kind": "death", "longevity": 66, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q6128343", "name": "James Abree", "description": "English printer", "occupations": "publisher", "nationality": "", "gender": "male", "real_birth": "1690-01-01", "real_birth_prec": "decade", "real_death": "1768-01-01", "real_death_prec": "year", "est_birth": "1703-01-01", "est_death": null, "est_kind": "birth", "longevity": 78, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q63396130", "name": "Saana Sumén", "description": "", "occupations": "pesäpallo player", "nationality": "Finland", "gender": "female", "real_birth": "1995-01-19", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2023-01-01", "est_kind": "death", "longevity": 28, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q21207567", "name": "Giovanni Battista Chiodini", "description": "Italian Franciscan and theorist (fl. 1610, d. 1652)", "occupations": "music theorist; composer", "nationality": "", "gender": "male", "real_birth": "1550-01-01", "real_birth_prec": "century", "real_death": "1652-01-01", "real_death_prec": "year", "est_birth": "1588-01-01", "est_death": null, "est_kind": "birth", "longevity": 102, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q12148779", "name": "Zoryslava Romovska", "description": "Ukrainian lawyer and politician (born 1940)", "occupations": "politician", "nationality": "", "gender": "female", "real_birth": "1940-09-18", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2008-01-01", "est_kind": "death", "longevity": 68, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q6144983", "name": "James Waldegrave, 13th Earl Waldegrave", "description": "British peer (born 1940)", "occupations": "farmer; land owner; aristocrat; politician", "nationality": "United Kingdom", "gender": "male", "real_birth": "1940-12-08", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "1999-01-01", "est_kind": "death", "longevity": 59, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q9061705", "name": "Ponç de Gualba", "description": "Roman Catholic bishop", "occupations": "Catholic priest; Catholic bishop", "nationality": "", "gender": "", "real_birth": "1300-01-01", "real_birth_prec": "century", "real_death": "1334-07-25", "real_death_prec": "day", "est_birth": "1282-01-01", "est_death": null, "est_kind": "birth", "longevity": 34, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q599123", "name": "Alfonso Rus Terol", "description": "Spanish politician", "occupations": "businessperson; politician", "nationality": "Spain", "gender": "male", "real_birth": "1950-10-13", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2019-01-01", "est_kind": "death", "longevity": 69, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q9087553", "name": "Tie Min Ai", "description": "Chinese botanist (1946- )", "occupations": "botanist", "nationality": "People's Republic of China", "gender": "", "real_birth": "1946-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2015-01-01", "est_kind": "death", "longevity": 69, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q43280868", "name": "Naomi D. Rothwell", "description": "American statistician and halfway house director", "occupations": "statistician", "nationality": "", "gender": "female", "real_birth": "2000-01-01", "real_birth_prec": "century", "real_death": "2000-07-12", "real_death_prec": "day", "est_birth": "1916-01-01", "est_death": null, "est_kind": "birth", "longevity": 0, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q51081501", "name": "Ivan Marusic", "description": "Australian engineer and physicist", "occupations": "physicist; engineer", "nationality": "", "gender": "male", "real_birth": "1965-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2015-01-01", "est_kind": "death", "longevity": 50, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q6161949", "name": "Vila Oma", "description": "", "occupations": "", "nationality": "Inca Empire", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1540-01-01", "real_death_prec": "year", "est_birth": "1479-01-01", "est_death": null, "est_kind": "birth", "longevity": 61, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q45200569", "name": "Laura Jeruma", "description": "Latvian stage actress", "occupations": "stage actor", "nationality": "Latvia", "gender": "female", "real_birth": "1986-10-10", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2015-01-01", "est_kind": "death", "longevity": 29, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q123149240", "name": "Emil Holc", "description": "", "occupations": "", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1888-01-01", "real_death_prec": "year", "est_birth": "1821-01-01", "est_death": null, "est_kind": "birth", "longevity": 67, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q809513", "name": "Bartolomeo da Varignana", "description": "", "occupations": "anatomist; physician", "nationality": "", "gender": "", "real_birth": "1300-01-01", "real_birth_prec": "century", "real_death": "1321-01-01", "real_death_prec": "year", "est_birth": "1257-01-01", "est_death": null, "est_kind": "birth", "longevity": 21, "bucket": "Discovery/Science", "bucket_label": "Discovery/Science", "in_cv": 1}, {"wikidata_id": "Q9013289", "name": "Josep Oliu i Creus", "description": "Spanish businessperson and economist", "occupations": "economist; businessperson; banker", "nationality": "Spain", "gender": "", "real_birth": "1949-04-25", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2017-01-01", "est_kind": "death", "longevity": 68, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q21340293", "name": "Giovanni Pilato", "description": "Italian biologist", "occupations": "biologist", "nationality": "Italy", "gender": "male", "real_birth": "1940-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2007-01-01", "est_kind": "death", "longevity": 67, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q23063339", "name": "Peter", "description": "patriarch of the Greek Orthodox Church of Antioch", "occupations": "Eastern Orthodox priest", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1054-01-01", "real_death_prec": "year", "est_birth": "0997-01-01", "est_death": null, "est_kind": "birth", "longevity": 57, "bucket": "not_in_cv", "bucket_label": "Not in CV (period/global cascade)", "in_cv": 0}, {"wikidata_id": "Q41567869", "name": "Jacques Bougier", "description": "French architect", "occupations": "architect", "nationality": "France", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1632-01-01", "real_death_prec": "year", "est_birth": "1573-01-01", "est_death": null, "est_kind": "birth", "longevity": 59, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q21032012", "name": "Wilhelm Hollmann", "description": "German singer (18__-1879)", "occupations": "singer", "nationality": "Germany", "gender": "male", "real_birth": "1900-01-01", "real_birth_prec": "century", "real_death": "1879-04-01", "real_death_prec": "month", "est_birth": "1815-01-01", "est_death": null, "est_kind": "birth", "longevity": -21, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q87366", "name": "Johann Albrecht Siegwitz", "description": "German sculptor", "occupations": "sculptor", "nationality": "Germany", "gender": "", "real_birth": "1800-01-01", "real_birth_prec": "century", "real_death": "1756-01-01", "real_death_prec": "year", "est_birth": "1690-01-01", "est_death": null, "est_kind": "birth", "longevity": -44, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q6258352", "name": "John Smith", "description": "murderer convicted of killing his first wife", "occupations": "serial killer", "nationality": "United States", "gender": "male", "real_birth": "1951-01-01", "real_birth_prec": "year", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2009-01-01", "est_kind": "death", "longevity": 58, "bucket": "Other", "bucket_label": "Other", "in_cv": 1}, {"wikidata_id": "Q41772255", "name": "Fridolin Luchsinger", "description": "Swiss journalist", "occupations": "journalist", "nationality": "Switzerland", "gender": "male", "real_birth": "1939-03-06", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2019-01-01", "est_kind": "death", "longevity": 80, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q2172918", "name": "Rudolf Hencl", "description": "Austrian association football player", "occupations": "association football player", "nationality": "Austria", "gender": "male", "real_birth": "1900-01-01", "real_birth_prec": "millennium", "real_death": "1969-05-03", "real_death_prec": "day", "est_birth": "1898-01-01", "est_death": null, "est_kind": "birth", "longevity": 69, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q4908699", "name": "Bill Davidson", "description": "New Zealand rugby league footballer and administrator", "occupations": "rugby league player; dogsled musher", "nationality": "New Zealand", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1962-10-26", "real_death_prec": "day", "est_birth": "1891-01-01", "est_death": null, "est_kind": "birth", "longevity": 71, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}, {"wikidata_id": "Q6135636", "name": "James Harrison", "description": "British priest", "occupations": "politician", "nationality": "", "gender": "male", "real_birth": null, "real_birth_prec": "", "real_death": "1602-01-01", "real_death_prec": "year", "est_birth": "1541-01-01", "est_death": null, "est_kind": "birth", "longevity": 61, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q20725303", "name": "Joseph Vincent Brennan", "description": "American bishop of the Roman Catholic Church", "occupations": "Catholic priest; Catholic bishop", "nationality": "United States", "gender": "male", "real_birth": "1954-03-20", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2022-01-01", "est_kind": "death", "longevity": 68, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q43667129", "name": "Tabetha Kanengoni Malinga", "description": "Zimbabwean politician and businesswoman", "occupations": "politician; minister", "nationality": "Zimbabwe", "gender": "female", "real_birth": "1982-08-23", "real_birth_prec": "day", "real_death": null, "real_death_prec": "", "est_birth": null, "est_death": "2010-01-01", "est_kind": "death", "longevity": 28, "bucket": "Leadership", "bucket_label": "Leadership", "in_cv": 1}, {"wikidata_id": "Q5338569", "name": "Edith Hodgetts", "description": "author", "occupations": "collector of fairy tales; writer; children's writer", "nationality": "", "gender": "female", "real_birth": null, "real_birth_prec": "", "real_death": "1902-01-01", "real_death_prec": "year", "est_birth": "1835-01-01", "est_death": null, "est_kind": "birth", "longevity": 67, "bucket": "Culture", "bucket_label": "Culture", "in_cv": 1}, {"wikidata_id": "Q8019295", "name": "William Thomas", "description": "Welsh rugby union and rugby league footballer (1907-72)", "occupations": "rugby league player", "nationality": "United Kingdom", "gender": "", "real_birth": null, "real_birth_prec": "", "real_death": "1972-01-01", "real_death_prec": "year", "est_birth": "1900-01-01", "est_death": null, "est_kind": "birth", "longevity": 72, "bucket": "Sports/Games", "bucket_label": "Sports/Games", "in_cv": 1}];
+const STORAGE_KEY = 'estimated_dates_review_v1';
+
+const BUCKET_IDS = [["Culture", "Culture"], ["Sports/Games", "Sports/Games"], ["Leadership", "Leadership"], ["Discovery/Science", "Discovery/Science"], ["Other", "Other"], ["not_in_cv", "Not in CV (period/global cascade)"]];
+
+const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+const activeBuckets = new Set(BUCKET_IDS.map(b => b[0]));
+
+function fmt(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return String(v);
+}
+
+function bucketCssClass(id) {
+  return 'bucket-' + id.replace(/\//g, '\\/');
+}
+
+function render() {
+  const main = document.getElementById('rows');
+  main.innerHTML = '';
+  let yes = 0, no = 0, unsure = 0, pending = 0;
+
+  DATA.forEach((d, i) => {
+    if (!activeBuckets.has(d.bucket)) return;
+    const verdict = state[d.wikidata_id]?.verdict;
+    const note    = state[d.wikidata_id]?.note || '';
+    if (verdict === 'yes') yes++;
+    else if (verdict === 'no') no++;
+    else if (verdict === 'unsure') unsure++;
+    else pending++;
+
+    const cls = verdict === 'yes' ? 'correct' : verdict === 'no' ? 'wrong' : verdict === 'unsure' ? 'unsure' : '';
+    const row = document.createElement('div');
+    row.className = 'row' + (verdict ? ' annotated ' + cls : '');
+    row.dataset.qid = d.wikidata_id;
+    row.tabIndex = 0;
+
+    const occ = d.occupations ? d.occupations.split(';').slice(0, 3).join(' · ') : '';
+    const nat = d.nationality ? d.nationality.split(';').slice(0, 2).join(' · ') : '';
+
+    const realBirthLine = d.real_birth
+      ? `<span class="k">Birth (real):</span><span class="v">${d.real_birth}${d.real_birth_prec ? ' (' + d.real_birth_prec + ')' : ''}</span>`
+      : '';
+    const realDeathLine = d.real_death
+      ? `<span class="k">Death (real):</span><span class="v">${d.real_death}${d.real_death_prec ? ' (' + d.real_death_prec + ')' : ''}</span>`
+      : '';
+
+    const estLine = d.est_kind === 'birth'
+      ? `<div class="est-row"><span class="lbl">Birth estimated</span><span class="val">${d.est_birth || ''}</span></div>`
+      : `<div class="est-row"><span class="lbl">Death estimated</span><span class="val">${d.est_death || ''}</span></div>`;
+
+    const longLine = d.longevity != null
+      ? `<div class="longevity">Implied lifespan: <b>${d.longevity}</b> yr</div>` : '';
+
+    const bucketClass = `bucket-${d.bucket.replace(/[^A-Za-z_]/g, '_')}`;
+
+    row.innerHTML = `
+      <div class="idx">${i + 1}</div>
+      <div>
+        <div class="name">
+          <a href="https://www.wikidata.org/wiki/${d.wikidata_id}" target="_blank">${fmt(d.name)}</a>
+        </div>
+        ${d.description ? `<div class="desc">${d.description}</div>` : ''}
+        <div class="tags">
+          ${occ ? `<span class="chip">${occ}</span>` : ''}
+          ${nat ? `<span class="chip">${nat}</span>` : ''}
+          ${d.gender ? `<span class="chip">${d.gender}</span>` : ''}
+          <span class="chip">${d.wikidata_id}</span>
+          ${d.in_cv ? '<span class="chip" style="color:#1d3a8a;border-color:#bcd;">in CV</span>' : ''}
+        </div>
+        <div class="links" style="margin-top:6px;">
+          <a href="https://www.wikidata.org/wiki/${d.wikidata_id}" target="_blank">Wikidata</a>
+          <a href="https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(d.name || d.wikidata_id)}" target="_blank">Wikipedia search</a>
+          <a href="https://www.google.com/search?q=${encodeURIComponent((d.name || '') + ' ' + (d.description || ''))}" target="_blank">Google</a>
+        </div>
+      </div>
+      <div>
+        <div class="dates">
+          ${realBirthLine}
+          ${realDeathLine}
+        </div>
+        ${estLine}
+        ${longLine}
+        <div style="margin-top:8px;">
+          <span class="${bucketClass} bucket-chip">${d.bucket_label}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="row-buttons">
+          <button class="btn-yes"    data-verdict="yes"    title="Plausible (y)">Yes</button>
+          <button class="btn-no"     data-verdict="no"     title="Wrong (n)">No</button>
+          <button class="btn-unsure" data-verdict="unsure" title="Unsure (u)">?</button>
+        </div>
+        <textarea class="note" placeholder="Optional note">${note.replace(/</g, '&lt;')}</textarea>
+      </div>
+    `;
+
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => mark(d.wikidata_id, btn.dataset.verdict));
+    });
+    row.querySelector('.note').addEventListener('change', e => {
+      state[d.wikidata_id] = state[d.wikidata_id] || {};
+      state[d.wikidata_id].note = e.target.value;
+      persist();
+    });
+
+    main.appendChild(row);
+  });
+
+  document.getElementById('cnt-yes').textContent = yes;
+  document.getElementById('cnt-no').textContent = no;
+  document.getElementById('cnt-unsure').textContent = unsure;
+  document.getElementById('cnt-pending').textContent = pending;
+}
+
+function mark(qid, verdict) {
+  const cur = state[qid] || {};
+  if (cur.verdict === verdict) {
+    delete cur.verdict;
+  } else {
+    cur.verdict = verdict;
+  }
+  state[qid] = cur;
+  persist();
+  render();
+}
+
+function persist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function buildFilters() {
+  const cont = document.getElementById('filters');
+  BUCKET_IDS.forEach(([id, label]) => {
+    const lab = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.addEventListener('change', () => {
+      if (cb.checked) activeBuckets.add(id);
+      else activeBuckets.delete(id);
+      render();
+    });
+    const span = document.createElement('span');
+    span.textContent = label;
+    lab.appendChild(cb);
+    lab.appendChild(span);
+    cont.appendChild(lab);
+  });
+}
+
+document.getElementById('export').addEventListener('click', () => {
+  const out = DATA.map(d => ({
+    wikidata_id: d.wikidata_id,
+    name: d.name,
+    bucket: d.bucket,
+    bucket_label: d.bucket_label,
+    est_kind: d.est_kind,
+    real_birth: d.real_birth,
+    real_death: d.real_death,
+    est_birth: d.est_birth,
+    est_death: d.est_death,
+    longevity: d.longevity,
+    in_cv: d.in_cv,
+    verdict: state[d.wikidata_id]?.verdict || null,
+    note:    state[d.wikidata_id]?.note    || '',
+  }));
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'estimated_dates_annotations.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  const focused = document.activeElement;
+  if (!focused || !focused.classList.contains('row')) return;
+  const qid = focused.dataset.qid;
+  if (e.key === 'y') mark(qid, 'yes');
+  else if (e.key === 'n') mark(qid, 'no');
+  else if (e.key === 'u') mark(qid, 'unsure');
+});
+
+buildFilters();
+render();
+</script>
+</body>
+</html>

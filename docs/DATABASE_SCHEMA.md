@@ -1,6 +1,6 @@
 # Cultura Database Schema
 
-Complete documentation of all tables and columns in the database.
+Complete documentation of all tables and columns in `data/humans_clean.sqlite3`.
 
 ## Core Tables
 
@@ -17,85 +17,19 @@ Main biographical data for all individuals.
 | `birthdate_precision` | INTEGER | Precision: 11=day, 10=month, 9=year, 8=decade, 7=century |
 | `deathdate` | TEXT | Date of death |
 | `deathdate_precision` | INTEGER | Precision level |
-| `nationalities_en` | TEXT | Semicolon-separated nationalities |
+| `country_of_citizenship_en` | TEXT | Semicolon-separated countries of citizenship |
 | `birthcity_en` | TEXT | City of birth |
 | `deathcity_en` | TEXT | City of death |
 | `occupations_en` | TEXT | Semicolon-separated occupations |
-| `sitelinks_count` | INTEGER | Number of Wikipedia pages across all languages |
+| `wikimedia_links_count` | INTEGER | Number of Wikipedia pages across all languages |
 | `gender` | TEXT | Gender |
 | `identifiers_count` | INTEGER | Number of external database identifiers |
 | `writing_language_name_en` | TEXT | Writing language(s) |
-
-### `individuals_countries` (6,374,506 rows)
-
-Individual-to-modern-country mapping.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `wikidata_id` | TEXT | Individual Wikidata ID |
-| `name_en` | TEXT | Individual name |
-| `iso_country_name` | TEXT | Modern country name |
-| `iso_a3_code` | TEXT | ISO 3166-1 alpha-3 code |
-| `origins` | TEXT | Source: `nationality`, `deathplace`, or `birthplace` |
-
-**Priority order**: nationality → death city → birth city.
-
-### `individuals_regions` (5,319,041 rows)
-
-Individual-to-region mapping with temporal context.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `wikidata_id` | TEXT | Individual Wikidata ID |
-| `name_en` | TEXT | Individual name |
-| `iso_country_name` | TEXT | Modern country name |
-| `iso_a3_code` | TEXT | ISO 3166-1 alpha-3 code |
-| `origins` | TEXT | Source: `nationality`, `deathplace`, or `birthplace` |
-| `region` | TEXT | Region name (e.g., "Balkans", "Nordic countries") |
-| `macro_region` | TEXT | Macro-region (e.g., "Western Europe", "Asia") |
-| `impact_year` | INTEGER | Impact year used for region matching |
-
-**9 macro-regions**: Western Europe, Eastern Europe, North America, Asia, Latin America, Middle-East and Africa, Sub-Saharan Africa, Oceania, Ancient Mediterranean.
-
-**34 sub-regions** covering global and historical scope.
-
-### `individuals_impact_date` (7,749,380 rows)
-
-Computed impact dates for temporal analysis.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `wikidata_id` | TEXT | Individual Wikidata ID |
-| `name_en` | TEXT | Individual name |
-| `impact_date` | TEXT | Computed impact date (ISO format) |
-| `impact_date_precision` | INTEGER | Precision level |
-| `date_source` | TEXT | Source: `birthdate` or `deathdate` |
-| `precision_name` | TEXT | Human-readable: `year`, `month`, or `day` |
-
-**Calculation**:
-- Both dates available: `min(birthdate + 35, deathdate)`
-- Only birthdate: `birthdate + 35`
-- Only deathdate: `deathdate`
-
-### `individuals_cliopatria` (6,173,349 rows)
-
-Individual-to-historical-polity mapping (Cliopatria dataset).
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `wikidata_id` | TEXT | Individual Wikidata ID |
-| `name_en` | TEXT | Individual name |
-| `polity_name` | TEXT | Historical polity (e.g., "Ottoman Empire") |
-| `polity_id` | INTEGER | Polity ID in `polities_cliopatria` |
-| `origin` | TEXT | Location source: `deathplace`, `birthplace`, `nationality` |
-| `matched_name` | TEXT | City or nationality name matched |
-| `matched_wikidata_id` | TEXT | Wikidata ID of matched entity |
-| `method` | TEXT | `polygon` or `url` |
-| `impact_date` | INTEGER | Impact year for temporal matching |
-
-**Matching priority**:
-1. Polygon match (coordinates + impact year against polity boundaries)
-2. URL match (Wikipedia URLs with temporal validation)
+| `number_of_works` | INTEGER | Number of works in `works` table for this individual |
+| `floruit_date` | TEXT | Floruit date from Wikidata P1317 (ISO format) |
+| `floruit_precision` | INTEGER | Precision level for `floruit_date` |
+| `floruit_year` | INTEGER | Floruit year derived from `individuals_floruit_period` |
+| `works_period` | TEXT | Span of years the individual was producing works. Single year (e.g. `1946`) when first==last, else `min-max` (e.g. `1892-1964`). Per-work effective year = year of `works.publication_date` if present, else `works.inception_date`. NULL when none of the individual's works has a date. BCE preserves the leading `-` (e.g. `-558`). |
 
 ### `individuals_keys` (13,002,897 rows)
 
@@ -106,10 +40,101 @@ Raw Wikidata Q-IDs for cross-references.
 | `wikidata_id` | TEXT | Individual Wikidata ID |
 | `birthcity_id` | TEXT | Birth city Wikidata ID |
 | `deathcity_id` | TEXT | Death city Wikidata ID |
-| `nationalities_ids` | TEXT | Semicolon-separated nationality IDs |
+| `country_of_citizenship_ids` | TEXT | Semicolon-separated country-of-citizenship IDs |
 | `occupations_ids` | TEXT | Semicolon-separated occupation IDs |
 | `gender_id` | TEXT | Gender Wikidata ID |
 | `writing_language_ids` | TEXT | Semicolon-separated language IDs |
+
+### `individuals_floruit_period` (13,002,897 rows)
+
+Per-individual floruit window with the method used to derive it.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `wikidata_id` | TEXT | Individual Wikidata ID |
+| `name_en` | TEXT | Individual name |
+| `birthdate` | TEXT | Birth date (ISO format) |
+| `birthdate_precision` | INTEGER | Birth date precision |
+| `birth_year` | INTEGER | Birth year |
+| `deathdate` | TEXT | Death date |
+| `deathdate_precision` | INTEGER | Death date precision |
+| `death_year` | INTEGER | Death year |
+| `floruit_date` | TEXT | Floruit date (ISO format) |
+| `floruit_precision` | INTEGER | Floruit date precision |
+| `floruit_year` | INTEGER | Floruit year |
+| `floruit_period` | TEXT | Period label (e.g., "1962-1987") |
+| `floruit_period_start` | INTEGER | Start year of activity window |
+| `floruit_period_end` | INTEGER | End year of activity window |
+| `method` | TEXT | Derivation method: `birth`, `birth_century`, `death`, `death_century`, or `floruit` |
+
+### `individuals_cliopatria` (6,128,228 rows)
+
+Individual-to-historical-polity mapping (Cliopatria dataset).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `wikidata_id` | TEXT | Individual Wikidata ID |
+| `name_en` | TEXT | Individual name |
+| `polity_name` | TEXT | Historical polity (e.g., "Ottoman Empire") |
+| `polity_id` | TEXT | Polity ID in `polities_cliopatria` |
+| `origin` | TEXT | Location source: `deathplace`, `birthplace`, `nationality` |
+| `matched_name` | TEXT | City or country-of-citizenship name matched |
+| `matched_wikidata_id` | TEXT | Wikidata ID of matched entity |
+| `method` | TEXT | `merge_with_polygon` or `merge_with_url` |
+| `floruit_year` | INTEGER | Floruit year used for temporal matching |
+| `floruit_period_start` | INTEGER | Start of floruit window |
+| `floruit_period_end` | INTEGER | End of floruit window |
+
+**Matching priority**:
+
+1. Polygon match (coordinates + floruit window against polity boundaries)
+2. URL match (Wikipedia URLs with temporal validation)
+
+### `consolidated_database` (5,700,843 rows)
+
+Pre-joined slim view used by analysis notebooks. One row per individual with floruit + polity + occupation flags.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `wikidata_id` | TEXT | Individual Wikidata ID |
+| `name_en` | TEXT | Individual name |
+| `floruit_year` | INTEGER | Floruit year |
+| `polity_id` | TEXT | Cliopatria polity ID |
+| `polity_name` | TEXT | Cliopatria polity name |
+| `occupations` | TEXT | Semicolon-separated occupations |
+| `gender` | TEXT | Gender |
+| `references_count` | INTEGER | Aggregate reference/citation count |
+| `is_scientist` | INTEGER | 1 if any occupation rolls up to "scientist" |
+| `is_artist` | INTEGER | 1 if any occupation rolls up to "artist" |
+
+---
+
+## Works
+
+### `works` (38,554,301 rows)
+
+Individual-to-work edges across creative roles.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER | Primary key (autoincrement) |
+| `individual_id` | TEXT | Individual Wikidata ID |
+| `individual_name` | TEXT | Individual name |
+| `work_id` | TEXT | Work Wikidata ID |
+| `work_name` | TEXT | Work name |
+| `relationship` | TEXT | Role: `author`, `composer`, `creator`, `director`, `editor`, `illustrator`, `performer`, `producer`, `screenwriter` |
+| `instance_of` | TEXT | Pipe-joined Wikidata P31 class IDs |
+| `instance_of_en` | TEXT | Pipe-joined English labels (index-aligned with `instance_of`) |
+| `inception_date` | TEXT | Inception (P571) ISO timestamp |
+| `inception_precision` | INTEGER | Precision: 11=day, 10=month, 9=year, 8=decade, 7=century |
+| `publication_date` | TEXT | Publication date (P577) ISO timestamp |
+| `publication_precision` | INTEGER | Precision (same convention) |
+
+Date columns populated by
+`scripts/database_integration_scripts_V2/19_add_dates_to_works/` from JSON
+produced by `scripts/wikidata_extraction_scripts_v2/19_extract_work_dates.py`.
+Coverage: 942,320 distinct works with inception and 14,857,897 distinct works
+with publication; 37.1M of 38.5M `works` rows now carry at least one date.
 
 ---
 
@@ -125,12 +150,14 @@ Raw Wikidata Q-IDs for cross-references.
 | `count` | INTEGER | Number of individuals |
 | `description_en` | TEXT | Description |
 
-### `nationalities` (3,544 rows)
+### `country_of_citizenship` (3,544 rows)
+
+Citizenship entities (countries, polities, ethnic groups) referenced by `individuals.country_of_citizenship_en`.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `wikidata_id` | TEXT | Nationality Wikidata ID |
-| `name_en` | TEXT | Nationality name |
+| `wikidata_id` | TEXT | Wikidata ID (PK) |
+| `name_en` | TEXT | Name |
 | `count` | INTEGER | Number of individuals |
 | `description_en` | TEXT | Description |
 | `instance_of` | TEXT | Wikidata class |
@@ -142,20 +169,23 @@ Raw Wikidata Q-IDs for cross-references.
 | `iso_modern_country_origin` | TEXT | Resolution method (see below) |
 
 **`iso_modern_country_origin` values**:
+
 - `reverse_geocode`: coordinates lookup
 - `qlever_relation`: P17/P131/P1366 SPARQL chains
 - `qlever_replaced_by`: P1366 "replaced by" chain
 - `qlever_2hop_relation` / `qlever_3hop_relation`: multi-hop chains
 - `description`: found in Wikidata description
-- `name`: found in nationality name
+- `name`: found in country-of-citizenship name
 - `capital_city`: via capital city's country
 
-### `cities` (314,675 rows)
+### `places` (314,675 rows)
+
+All geographic entities referenced as birth/death locations (cities, settlements, regions, states).
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | TEXT | City Wikidata ID |
-| `name_en` | TEXT | City name |
+| `id` | TEXT | Place Wikidata ID |
+| `name_en` | TEXT | Place name |
 | `lat` | REAL | Latitude |
 | `lon` | REAL | Longitude |
 | `original_country_name` | TEXT | Country from Wikidata |
@@ -163,31 +193,9 @@ Raw Wikidata Q-IDs for cross-references.
 | `en_wikipedia_url_original_country_name` | TEXT | Country Wikipedia URL |
 | `iso_country_name` | TEXT | Mapped modern country |
 | `iso_a3_code` | TEXT | ISO 3166-1 alpha-3 code |
-
-### `modern_country` (271 rows)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | TEXT | Wikidata ID |
-| `name` | TEXT | Country name |
-| `continent` | TEXT | Continent |
-| `iso_a3_code` | TEXT | ISO 3166-1 alpha-3 code |
-| `en_wikipedia_url` | TEXT | Wikipedia URL |
-| `count` | INTEGER | Number of individuals |
-
-### `regions` (276 rows)
-
-Time-dependent region definitions.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | INTEGER | ID |
-| `macro_region` | TEXT | Macro-region |
-| `region` | TEXT | Region |
-| `iso_country_name` | TEXT | Country |
-| `iso_a3` | TEXT | ISO code |
-| `start_year` | INTEGER | Start year (negative = BCE) |
-| `end_year` | INTEGER | End year (NULL = still valid) |
+| `entity_type` | TEXT | Wikidata class label (e.g., "village", "city in the United States") |
+| `entity_type_ids` | TEXT | Semicolon-separated `instance of` (P31) IDs |
+| `is_urban_settlement` | INTEGER | 1 if classified as an urban settlement |
 
 ### `writing_languages` (524 rows)
 
@@ -210,7 +218,7 @@ Time-dependent region definitions.
 
 ## External Identifiers
 
-### `identifiers` (30,100,312 rows)
+### `identifiers` (59,503,508 rows)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -221,7 +229,7 @@ Time-dependent region definitions.
 | `value` | TEXT | Identifier value |
 | `url` | TEXT | Direct URL to external record |
 
-### `identifier_types` (2,305 rows)
+### `identifier_types` (5,152 rows)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -242,7 +250,7 @@ Time-dependent region definitions.
 
 ## Wikipedia Coverage
 
-### `sitelinks` (15,544,183 rows)
+### `wikimedia_links` (15,544,183 rows)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -257,7 +265,7 @@ Time-dependent region definitions.
 
 ## Cliopatria Tables
 
-### `polities_cliopatria` (1,618 rows)
+### `polities_cliopatria` (1,604 rows)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -268,7 +276,7 @@ Time-dependent region definitions.
 | `wikidata_id` | TEXT | Wikidata ID |
 | `number_individuals` | INTEGER | Matched individuals |
 
-### `cliopatria_polity_periods` (15,690 rows)
+### `polities_periods_cliopatria` (13,755 rows)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -280,16 +288,40 @@ Time-dependent region definitions.
 | `area` | REAL | Polygon area |
 | `geometry` | TEXT | GeoJSON polygon |
 
+### `polities_modern_countries_cliopatria` (1,531 rows)
+
+Wikidata-derived mapping from each Cliopatria polity to the present-day
+sovereign states it is associated with. One row per (polity, modern country):
+when more than one Wikidata pattern produces the same link, the patterns
+are pipe-joined into the `sources` column.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `polity_id` | INTEGER | References `polities_cliopatria.id` |
+| `polity_name` | TEXT | Polity name (denormalized copy of `polities_cliopatria.name` for ergonomic joins) |
+| `country_qid` | TEXT | Modern country Wikidata QID |
+| `country_name` | TEXT | English label of the country |
+| `iso_a3_code` | TEXT | ISO 3166-1 alpha-3 code |
+| `continent` | TEXT | Continent of the modern country (English label, derived from Wikidata P30 via `modern_countries.json`) |
+| `sources` | TEXT | Pipe-joined sorted list of Wikidata patterns that produced the link: `P17`, `P36/P17` (capital → country), `P1366/P17` (successor → country), `P131/P17` (admin parent → country) |
+
+PK: `(polity_id, country_qid)`. Indexes on `polity_id`, `polity_name`, `country_qid`, `iso_a3_code`, `continent`.
+
+Built by `scripts/database_integration_scripts_V2/17_create_polities_modern_countries/` from
+`scripts/wikidata_extraction_scripts_v2/17_extract_polity_modern_countries.py`.
+
 ---
 
 ## Metadata
 
-### `properties_definition` (19 rows)
+### `wikidata_properties_definition` (49 rows)
+
+Mapping from Wikidata properties to the table/column where they land.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `property_id` | TEXT | Wikidata property (e.g., P569) |
 | `property_name` | TEXT | Property label |
 | `description` | TEXT | Description |
-| `table_name` | TEXT | Database table(s) |
-| `column_name` | TEXT | Column name(s) |
+| `table_name` | TEXT | Database table |
+| `column_name` | TEXT | Column name |

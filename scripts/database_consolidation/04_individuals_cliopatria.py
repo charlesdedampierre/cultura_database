@@ -138,8 +138,10 @@ def _build_polygon_index(
     if not keys:
         return {}
 
-    log(f"[DB] {desc}: {len(keys)} points -> "
-        f"batched STRtree contains() against {len(periods)} periods")
+    log(
+        f"[DB] {desc}: {len(keys)} points -> "
+        f"batched STRtree contains() against {len(periods)} periods"
+    )
     points = shapely.points(xs, ys)
     # Shape (2, M):
     #   pairs[0] = INPUT (point) indices,
@@ -154,11 +156,12 @@ def _build_polygon_index(
     for point_idx, period_idx in zip(pairs[0].tolist(), pairs[1].tolist()):
         pp = periods[period_idx]
         out.setdefault(keys[point_idx], []).append(
-            (pp["polity_id"], pp["polity_name"],
-             pp["from_year"], pp["to_year"])
+            (pp["polity_id"], pp["polity_name"], pp["from_year"], pp["to_year"])
         )
-    log(f"[DB] {desc}: {len(out)} points have at least one polity match "
-        f"(total {sum(len(v) for v in out.values())} hits)")
+    log(
+        f"[DB] {desc}: {len(out)} points have at least one polity match "
+        f"(total {sum(len(v) for v in out.values())} hits)"
+    )
     return out
 
 
@@ -208,11 +211,10 @@ def run(conn: sqlite3.Connection) -> int:
     # The legacy `places` schema (was `cities`) keeps the wiki URL under
     # `en_wikipedia_url_original_country_name`; V2 builds rename it to
     # `en_wikipedia_url`. Pick whichever column exists.
-    place_cols = {
-        r[1] for r in conn.execute("PRAGMA table_info(places)").fetchall()
-    }
+    place_cols = {r[1] for r in conn.execute("PRAGMA table_info(places)").fetchall()}
     place_url_col = (
-        "en_wikipedia_url" if "en_wikipedia_url" in place_cols
+        "en_wikipedia_url"
+        if "en_wikipedia_url" in place_cols
         else "en_wikipedia_url_original_country_name"
     )
     place_lookup = _load_place_lookup(
@@ -254,13 +256,14 @@ def run(conn: sqlite3.Connection) -> int:
         periods, place_lookup, "place polygons", tree=tree
     )
     url_polity_index = _build_url_index(url_to_polities, year_ranges)
-    log(f"[DB] location index built: {len(coc_polygon_index)} coc polygons, "
+    log(
+        f"[DB] location index built: {len(coc_polygon_index)} coc polygons, "
         f"{len(place_polygon_index)} place polygons, "
-        f"{len(url_polity_index)} URL entries")
+        f"{len(url_polity_index)} URL entries"
+    )
 
     conn.execute("DROP TABLE IF EXISTS individuals_cliopatria")
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE individuals_cliopatria (
             wikidata_id TEXT PRIMARY KEY,
             name_en TEXT,
@@ -274,8 +277,7 @@ def run(conn: sqlite3.Connection) -> int:
             floruit_period_start INTEGER,
             floruit_period_end INTEGER
         )
-        """
-    )
+        """)
 
     total = conn.execute("SELECT COUNT(*) FROM individuals").fetchone()[0]
     inserted = 0
@@ -292,12 +294,15 @@ def run(conn: sqlite3.Connection) -> int:
                 info = coc_lookup.get(coc_id)
                 if not info:
                     continue
-                pols = _filter_overlap(
-                    coc_polygon_index.get(coc_id), fstart, fend
-                )
+                pols = _filter_overlap(coc_polygon_index.get(coc_id), fstart, fend)
                 if pols:
-                    return (pols, "country_of_citizenship",
-                            info["name_en"], coc_id, "merge_with_polygon")
+                    return (
+                        pols,
+                        "country_of_citizenship",
+                        info["name_en"],
+                        coc_id,
+                        "merge_with_polygon",
+                    )
             for coc_id in coc_ids.split(";"):
                 coc_id = coc_id.strip()
                 if not coc_id:
@@ -308,8 +313,13 @@ def run(conn: sqlite3.Connection) -> int:
                         url_polity_index.get(info["url"]), fstart, fend
                     )
                     if pols:
-                        return (pols, "country_of_citizenship",
-                                info["name_en"], coc_id, "merge_with_url")
+                        return (
+                            pols,
+                            "country_of_citizenship",
+                            info["name_en"],
+                            coc_id,
+                            "merge_with_url",
+                        )
         for cid, origin in ((birth_id, "birthplace"), (death_id, "deathplace")):
             if not cid:
                 continue
@@ -319,15 +329,11 @@ def run(conn: sqlite3.Connection) -> int:
             info = place_lookup.get(cid)
             if not info:
                 continue
-            pols = _filter_overlap(
-                place_polygon_index.get(cid), fstart, fend
-            )
+            pols = _filter_overlap(place_polygon_index.get(cid), fstart, fend)
             if pols:
                 return (pols, origin, info["name_en"], cid, "merge_with_polygon")
             if info["url"]:
-                pols = _filter_overlap(
-                    url_polity_index.get(info["url"]), fstart, fend
-                )
+                pols = _filter_overlap(url_polity_index.get(info["url"]), fstart, fend)
                 if pols:
                     return (pols, origin, info["name_en"], cid, "merge_with_url")
         return None
@@ -376,12 +382,19 @@ def run(conn: sqlite3.Connection) -> int:
     # QIDs) live on the `individuals` table directly; the legacy
     # humans_clean.sqlite3 keeps them in a side `individuals_keys` table.
     # Detect which is present so this script works for both.
-    has_keys = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals_keys'"
-    ).fetchone() is not None
-    indiv_cols = {r[1] for r in conn.execute("PRAGMA table_info(individuals)").fetchall()}
+    has_keys = (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals_keys'"
+        ).fetchone()
+        is not None
+    )
+    indiv_cols = {
+        r[1] for r in conn.execute("PRAGMA table_info(individuals)").fetchall()
+    }
     has_inline_ids = {
-        "birthcity_id", "deathcity_id", "country_of_citizenship_ids"
+        "birthcity_id",
+        "deathcity_id",
+        "country_of_citizenship_ids",
     }.issubset(indiv_cols)
 
     if has_inline_ids:
@@ -424,8 +437,19 @@ def run(conn: sqlite3.Connection) -> int:
             rep_year = (fstart + fend) // 2
         cur.execute(
             insert_sql,
-            (wid, name_en, pnames, pids, origin, mname, mwid, method,
-             rep_year, fstart, fend),
+            (
+                wid,
+                name_en,
+                pnames,
+                pids,
+                origin,
+                mname,
+                mwid,
+                method,
+                rep_year,
+                fstart,
+                fend,
+            ),
         )
         inserted += 1
         if inserted % BATCH_SIZE == 0:
@@ -562,8 +586,12 @@ def _sample_main() -> None:
                 seed,
                 "individuals_floruit_period",
                 [
-                    {"wikidata_id": "Q1", "floruit_year": 100,
-                     "floruit_period_start": 100, "floruit_period_end": 100},
+                    {
+                        "wikidata_id": "Q1",
+                        "floruit_year": 100,
+                        "floruit_period_start": 100,
+                        "floruit_period_end": 100,
+                    },
                 ],
             )
         with open_db(db) as conn:

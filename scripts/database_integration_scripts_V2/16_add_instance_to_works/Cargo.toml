@@ -1,0 +1,19 @@
+[package]
+name = "add_instance_to_works"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "add_instance_to_works"
+path = "src/main.rs"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
+indicatif = "0.17"
+anyhow = "1.0"
+chrono = "0.4"
+serde_json = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = "thin"

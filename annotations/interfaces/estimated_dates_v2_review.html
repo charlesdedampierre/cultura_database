@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Estimated dates v2 review &mdash; 30 individuals</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%232b6cb0' stroke-width='1.5'/%3E%3Cpath d='M8 4v4l2.5 2.5' stroke='%232b6cb0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#fafafa; --card:#fff; --line:#e5e5e5; --ink:#1a1a1a; --muted:#666;
+    --ok:#0f9d58; --bad:#d93025; --hl:#2b6cb0; --warn:#b76e00;
+    --est-bg:#fff8e6; --est-line:#f1d68a;
+    --low-prec-bg:#fbe9e7; --low-prec-fg:#8a3a13;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  header {
+    position:sticky; top:0; z-index:10;
+    background:#fff; border-bottom:1px solid var(--line);
+    padding:14px 22px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  }
+  header h1 { margin:0; font-size:16px; font-weight:600; }
+  header .meta { color:var(--muted); font-size:12px; }
+  .counters { display:flex; gap:14px; font-size:12px; color:var(--muted); }
+  .counters b { color:var(--ink); }
+  .filters { display:flex; gap:6px; flex-wrap:wrap; font-size:12px; }
+  .filters label {
+    border:1px solid var(--line); padding:4px 9px; border-radius:14px;
+    cursor:pointer; user-select:none; background:#fff;
+  }
+  .filters input { display:none; }
+  .filters input:checked + span { color:var(--hl); font-weight:600; }
+  button {
+    font: inherit; cursor:pointer; border:1px solid var(--line); background:#fff;
+    padding:6px 12px; border-radius:6px;
+  }
+  button:hover { background:#f3f3f3; }
+  .primary { background:var(--hl); color:#fff; border-color:var(--hl); }
+  .primary:hover { filter:brightness(.95); background:var(--hl); }
+  main { padding:18px 22px 90px; max-width:1180px; margin:0 auto; }
+  .row {
+    background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:14px 16px; margin-bottom:10px;
+    display:grid; grid-template-columns: 42px 1fr 340px 220px; gap:14px; align-items:start;
+  }
+  .row.annotated.correct { border-color:#b6dfc1; background:#f7fcf9; }
+  .row.annotated.wrong   { border-color:#f3b7b0; background:#fdf6f5; }
+  .row.annotated.unsure  { border-color:#e2cea2; background:#fdf9ef; }
+  .idx { color:var(--muted); font-variant-numeric: tabular-nums; padding-top:2px; }
+  .name { font-weight:600; }
+  .name a { color:var(--ink); text-decoration:none; }
+  .name a:hover { color:var(--hl); text-decoration:underline; }
+  .desc { color:var(--muted); font-size:12px; margin-top:2px; }
+  .tags { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+  .chip {
+    border:1px solid var(--line); border-radius:12px;
+    padding:2px 8px; font-size:11px; color:var(--muted);
+  }
+  .bucket-chip {
+    display:inline-block; padding:3px 9px; font-size:11px; border-radius:12px;
+    font-weight:600;
+  }
+  .b-Culture            { background:#fde2e7; color:#a01231; }
+  .b-SportsGames        { background:#e3f2dc; color:#256025; }
+  .b-Leadership         { background:#dde6f8; color:#1d3a8a; }
+  .b-DiscoveryScience   { background:#fff5cf; color:#7a5b00; }
+  .b-Other              { background:#ecdcf3; color:#4d1372; }
+  .b-no_cv              { background:#eee; color:#444; border:1px dashed #bbb; }
+  .dates {
+    display:grid; grid-template-columns:auto 1fr; column-gap:10px; row-gap:4px;
+    font-size:12.8px; line-height:1.4;
+  }
+  .dates .k { color:var(--muted); }
+  .dates .v { font-variant-numeric: tabular-nums; }
+  .prec-low {
+    display:inline-block; margin-left:6px; padding:1px 7px;
+    background:var(--low-prec-bg); color:var(--low-prec-fg);
+    border-radius:10px; font-size:10.5px; font-weight:600;
+  }
+  .est-row {
+    background:var(--est-bg); border:1px solid var(--est-line);
+    border-radius:6px; padding:5px 9px; margin-top:6px;
+    display:flex; align-items:baseline; gap:8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .est-row .lbl { color:var(--warn); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; }
+  .est-row .val { font-size:14px; font-weight:700; color:var(--warn); }
+  .lifespan { margin-top:6px; font-size:12px; color:var(--muted); }
+  .lifespan b { color:var(--ink); font-variant-numeric: tabular-nums; }
+  .source-line { margin-top:4px; font-size:11.5px; color:var(--muted); font-variant-numeric: tabular-nums; }
+  .actions { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .actions .row-buttons { display:flex; gap:6px; }
+  .btn-yes, .btn-no, .btn-unsure {
+    width:54px; padding:6px 0; text-align:center; border-radius:6px;
+    border:1px solid var(--line);
+  }
+  .row.annotated.correct .btn-yes    { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .row.annotated.wrong   .btn-no     { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .row.annotated.unsure  .btn-unsure { background:var(--warn); color:#fff; border-color:var(--warn); }
+  .note { width:100%; min-height:34px; font: inherit; padding:6px 8px;
+           border:1px solid var(--line); border-radius:6px; resize:vertical; }
+  .links a { color:var(--hl); text-decoration:none; font-size:12px; margin-right:8px; }
+  .links a:hover { text-decoration:underline; }
+  footer {
+    position:fixed; left:0; right:0; bottom:0;
+    background:#fff; border-top:1px solid var(--line);
+    padding:10px 22px; display:flex; gap:14px; align-items:center; justify-content:space-between;
+    font-size:12px; color:var(--muted);
+  }
+  kbd {
+    border:1px solid var(--line); border-bottom-width:2px; border-radius:4px;
+    padding:1px 5px; font-size:11px; background:#fafafa; font-family: ui-monospace, monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Estimated dates v2 review</h1>
+  <span class="meta">30 rows &middot; 50-yr bins, n&ge;50 lookup &middot; cascade: (CV category &times; period) &rarr; (period only)</span>
+  <div class="counters">
+    <span><b id="cnt-yes">0</b> plausible</span>
+    <span><b id="cnt-no">0</b> wrong</span>
+    <span><b id="cnt-unsure">0</b> unsure</span>
+    <span><b id="cnt-pending">30</b> pending</span>
+  </div>
+  <div class="filters" id="filters"></div>
+  <button id="export" class="primary">Download annotations</button>
+</header>
+
+<main id="rows"></main>
+
+<footer>
+  <span>Annotations are saved to your browser (localStorage). Click <b>Download annotations</b> to save them as JSON.</span>
+  <span><kbd>y</kbd> plausible &middot; <kbd>n</kbd> wrong &middot; <kbd>u</kbd> unsure</span>
+</footer>
+
+<script>
+const DATA = [{"wikidata_id": "Q6173575", "name_en": "Hans Severin", "description_en": "Danish military officer", "occupations_en": "military officer", "country_of_citizenship_en": "Kingdom of Denmark", "gender": "male", "real_birth": "1650-01-01", "real_birth_precision": 7, "real_birth_precision_label": "century", "real_death": "1679-02-01", "real_death_precision": 10, "real_death_precision_label": "month", "cv_category": "Sports/Games", "in_cv": 1, "wikimedia_links_count": 2, "anchor_kind": "death", "anchor_year": 1679, "period_bin": 1600, "est_kind": "birth", "est_year": 1618, "est_date": "1618-01-01", "median_life_expectancy_used": 61.49, "lookup_source": "birth_bin", "implied_lifespan": 61, "old_est_birth": "1606-01-01", "old_est_death": null}, {"wikidata_id": "Q21997825", "name_en": "Ablie Jagne", "description_en": "association football player", "occupations_en": "association football player", "country_of_citizenship_en": "The Gambia", "gender": "male", "real_birth": "1950-01-01", "real_birth_precision": 8, "real_birth_precision_label": "decade", "real_death": "2015-12-23", "real_death_precision": 11, "real_death_precision_label": "day", "cv_category": "Sports/Games", "in_cv": 1, "wikimedia_links_count": 2, "anchor_kind": "death", "anchor_year": 2015, "period_bin": 1900, "est_kind": "birth", "est_year": 1942, "est_date": "1942-01-01", "median_life_expectancy_used": 73.14, "lookup_source": "category+birth_bin:Sports/Games", "implied_lifespan": 73, "old_est_birth": "1937-01-01", "old_est_death": null}, {"wikidata_id": "Q6184123", "name_en": "Jerry Moore", "description_en": "American football player and coach (born 1939)", "occupations_en": "American football player", "country_of_citizenship_en": "United States", "gender": "male", "real_birth": "1939-07-18", "real_birth_precision": 11, "real_birth_precision_label": "day", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Sports/Games", "in_cv": 1, "wikimedia_links_count": 3, "anchor_kind": "birth", "anchor_year": 1939, "period_bin": 1900, "est_kind": "death", "est_year": 2012, "est_date": "2012-01-01", "median_life_expectancy_used": 73.14, "lookup_source": "category+birth_bin:Sports/Games", "implied_lifespan": 73, "old_est_birth": null, "old_est_death": "2019-01-01"}, {"wikidata_id": "Q22342434", "name_en": "Walter Düding", "description_en": "German association football player", "occupations_en": "association football player", "country_of_citizenship_en": "Germany", "gender": "male", "real_birth": "1925-07-09", "real_birth_precision": 11, "real_birth_precision_label": "day", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Sports/Games", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "birth", "anchor_year": 1925, "period_bin": 1900, "est_kind": "death", "est_year": 1998, "est_date": "1998-01-01", "median_life_expectancy_used": 73.14, "lookup_source": "category+birth_bin:Sports/Games", "implied_lifespan": 73, "old_est_birth": null, "old_est_death": "2005-01-01"}, {"wikidata_id": "Q6468453", "name_en": "Lachlan Maclean, 6th of Coll", "description_en": "Scottish laird", "occupations_en": "", "country_of_citizenship_en": "", "gender": "", "real_birth": null, "real_birth_precision": null, "real_birth_precision_label": "", "real_death": "1642-01-01", "real_death_precision": 10, "real_death_precision_label": "month", "cv_category": "Other", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "death", "anchor_year": 1642, "period_bin": 1550, "est_kind": "birth", "est_year": 1583, "est_date": "1583-01-01", "median_life_expectancy_used": 59.15, "lookup_source": "category+birth_bin:Other", "implied_lifespan": 59, "old_est_birth": "1584-01-01", "old_est_death": null}, {"wikidata_id": "Q23688854", "name_en": "Larry Payne", "description_en": "African American murder victim", "occupations_en": "student", "country_of_citizenship_en": "United States", "gender": "male", "real_birth": "1950-01-01", "real_birth_precision": 8, "real_birth_precision_label": "decade", "real_death": "1968-03-28", "real_death_precision": 11, "real_death_precision_label": "day", "cv_category": "Other", "in_cv": 1, "wikimedia_links_count": 3, "anchor_kind": "death", "anchor_year": 1968, "period_bin": 1850, "est_kind": "birth", "est_year": 1894, "est_date": "1894-01-01", "median_life_expectancy_used": 73.53, "lookup_source": "category+birth_bin:Other", "implied_lifespan": 74, "old_est_birth": "1893-01-01", "old_est_death": null}, {"wikidata_id": "Q6107456", "name_en": "J. William Davis", "description_en": "Professor of Government at Texas Tech University", "occupations_en": "academic", "country_of_citizenship_en": "United States", "gender": "male", "real_birth": "1908-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Other", "in_cv": 1, "wikimedia_links_count": 2, "anchor_kind": "birth", "anchor_year": 1908, "period_bin": 1900, "est_kind": "death", "est_year": 1985, "est_date": "1985-01-01", "median_life_expectancy_used": 76.53, "lookup_source": "category+birth_bin:Other", "implied_lifespan": 77, "old_est_birth": null, "old_est_death": "1987-01-01"}, {"wikidata_id": "Q20986439", "name_en": "Kayatyani Shankar Bajpai", "description_en": "", "occupations_en": "diplomat", "country_of_citizenship_en": "British Raj; Dominion of India; India", "gender": "male", "real_birth": "1928-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Other", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "birth", "anchor_year": 1928, "period_bin": 1900, "est_kind": "death", "est_year": 2005, "est_date": "2005-01-01", "median_life_expectancy_used": 76.53, "lookup_source": "category+birth_bin:Other", "implied_lifespan": 77, "old_est_birth": null, "old_est_death": "2008-01-01"}, {"wikidata_id": "Q6253108", "name_en": "John Pollard", "description_en": "British politician", "occupations_en": "lawyer; politician", "country_of_citizenship_en": "Kingdom of England", "gender": "male", "real_birth": null, "real_birth_precision": null, "real_birth_precision_label": "", "real_death": "1557-01-01", "real_death_precision": 9, "real_death_precision_label": "year", "cv_category": "Leadership", "in_cv": 1, "wikimedia_links_count": 2, "anchor_kind": "death", "anchor_year": 1557, "period_bin": 1450, "est_kind": "birth", "est_year": 1497, "est_date": "1497-01-01", "median_life_expectancy_used": 60.0, "lookup_source": "category+birth_bin:Leadership", "implied_lifespan": 60, "old_est_birth": "1499-01-01", "old_est_death": null}, {"wikidata_id": "Q23063031", "name_en": "Johannes Holthusen", "description_en": "judge", "occupations_en": "judge", "country_of_citizenship_en": "", "gender": "male", "real_birth": "1505-01-01", "real_birth_precision": 8, "real_birth_precision_label": "decade", "real_death": "1586-02-12", "real_death_precision": 11, "real_death_precision_label": "day", "cv_category": "Leadership", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "death", "anchor_year": 1586, "period_bin": 1500, "est_kind": "birth", "est_year": 1525, "est_date": "1525-01-01", "median_life_expectancy_used": 60.85, "lookup_source": "category+birth_bin:Leadership", "implied_lifespan": 61, "old_est_birth": "1526-01-01", "old_est_death": null}, {"wikidata_id": "Q6206143", "name_en": "Joanne Huelsman", "description_en": "Member of the Wisconsin State Assembly and the Wisconsin State Senate", "occupations_en": "lawyer; businessperson; politician", "country_of_citizenship_en": "United States", "gender": "female", "real_birth": "1938-03-21", "real_birth_precision": 11, "real_birth_precision_label": "day", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Leadership", "in_cv": 1, "wikimedia_links_count": 2, "anchor_kind": "birth", "anchor_year": 1938, "period_bin": 1900, "est_kind": "death", "est_year": 2014, "est_date": "2014-01-01", "median_life_expectancy_used": 75.67, "lookup_source": "category+birth_bin:Leadership", "implied_lifespan": 76, "old_est_birth": null, "old_est_death": "2020-01-01"}, {"wikidata_id": "Q2062034", "name_en": "Pedro Rosales Dean", "description_en": "Filipino archbishop", "occupations_en": "Catholic priest; Catholic bishop", "country_of_citizenship_en": "Philippines", "gender": "male", "real_birth": "1930-02-21", "real_birth_precision": 11, "real_birth_precision_label": "day", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Leadership", "in_cv": 1, "wikimedia_links_count": 10, "anchor_kind": "birth", "anchor_year": 1930, "period_bin": 1900, "est_kind": "death", "est_year": 2006, "est_date": "2006-01-01", "median_life_expectancy_used": 75.67, "lookup_source": "category+birth_bin:Leadership", "implied_lifespan": 76, "old_est_birth": null, "old_est_death": "2012-01-01"}, {"wikidata_id": "Q76057881", "name_en": "Caroline Alison Lushington", "description_en": "(died 1893)", "occupations_en": "", "country_of_citizenship_en": "", "gender": "female", "real_birth": null, "real_birth_precision": null, "real_birth_precision_label": "", "real_death": "1893-10-10", "real_death_precision": 11, "real_death_precision_label": "day", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 0, "anchor_kind": "death", "anchor_year": 1893, "period_bin": 1800, "est_kind": "birth", "est_year": 1824, "est_date": "1824-01-01", "median_life_expectancy_used": 69.18, "lookup_source": "birth_bin", "implied_lifespan": 69, "old_est_birth": "1826-01-01", "old_est_death": null}, {"wikidata_id": "Q134954097", "name_en": "Douglas H. March", "description_en": "", "occupations_en": "herpetologist", "country_of_citizenship_en": "", "gender": "male", "real_birth": null, "real_birth_precision": null, "real_birth_precision_label": "", "real_death": "1939-01-01", "real_death_precision": 9, "real_death_precision_label": "year", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 1, "anchor_kind": "death", "anchor_year": 1939, "period_bin": 1850, "est_kind": "birth", "est_year": 1867, "est_date": "1867-01-01", "median_life_expectancy_used": 72.0, "lookup_source": "birth_bin", "implied_lifespan": 72, "old_est_birth": "1871-01-01", "old_est_death": null}, {"wikidata_id": "Q75774326", "name_en": "Eva M. Smith", "description_en": "(born 1864)", "occupations_en": "", "country_of_citizenship_en": "", "gender": "female", "real_birth": "1864-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 0, "anchor_kind": "birth", "anchor_year": 1864, "period_bin": 1850, "est_kind": "death", "est_year": 1936, "est_date": "1936-01-01", "median_life_expectancy_used": 72.0, "lookup_source": "birth_bin", "implied_lifespan": 72, "old_est_birth": null, "old_est_death": "1935-01-01"}, {"wikidata_id": "Q12191704", "name_en": "", "description_en": "astronomer", "occupations_en": "astronomer", "country_of_citizenship_en": "", "gender": "male", "real_birth": "1420-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 1, "anchor_kind": "birth", "anchor_year": 1420, "period_bin": 1400, "est_kind": "death", "est_year": 1481, "est_date": "1481-01-01", "median_life_expectancy_used": 61.0, "lookup_source": "birth_bin", "implied_lifespan": 61, "old_est_birth": null, "old_est_death": "1481-01-01"}, {"wikidata_id": "Q6181006", "name_en": "Jeremiah W. Farnham", "description_en": "American sailor", "occupations_en": "sailor", "country_of_citizenship_en": "United States", "gender": "male", "real_birth": null, "real_birth_precision": null, "real_birth_precision_label": "", "real_death": "1905-02-20", "real_death_precision": 11, "real_death_precision_label": "day", "cv_category": "Discovery/Science", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "death", "anchor_year": 1905, "period_bin": 1800, "est_kind": "birth", "est_year": 1834, "est_date": "1834-01-01", "median_life_expectancy_used": 71.14, "lookup_source": "category+birth_bin:Discovery/Science", "implied_lifespan": 71, "old_est_birth": "1836-01-01", "old_est_death": null}, {"wikidata_id": "Q21407245", "name_en": "Heinrich Masius", "description_en": "", "occupations_en": "pedagogue; hymnwriter", "country_of_citizenship_en": "", "gender": "male", "real_birth": "1700-01-01", "real_birth_precision": 7, "real_birth_precision_label": "century", "real_death": "1714-06-13", "real_death_precision": 11, "real_death_precision_label": "day", "cv_category": "Discovery/Science", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "death", "anchor_year": 1714, "period_bin": 1600, "est_kind": "birth", "est_year": 1649, "est_date": "1649-01-01", "median_life_expectancy_used": 65.13, "lookup_source": "category+birth_bin:Discovery/Science", "implied_lifespan": 65, "old_est_birth": "1649-01-01", "old_est_death": null}, {"wikidata_id": "Q6035419", "name_en": "Mário Fernandes Lousa", "description_en": "botanist", "occupations_en": "botanist", "country_of_citizenship_en": "Portugal", "gender": "male", "real_birth": "1940-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Discovery/Science", "in_cv": 1, "wikimedia_links_count": 2, "anchor_kind": "birth", "anchor_year": 1940, "period_bin": 1900, "est_kind": "death", "est_year": 2019, "est_date": "2019-01-01", "median_life_expectancy_used": 79.02, "lookup_source": "category+birth_bin:Discovery/Science", "implied_lifespan": 79, "old_est_birth": null, "old_est_death": "2009-01-01"}, {"wikidata_id": "Q19631312", "name_en": "Samuel Bonis", "description_en": "American university teacher", "occupations_en": "university teacher", "country_of_citizenship_en": "United States", "gender": "male", "real_birth": "1934-10-24", "real_birth_precision": 11, "real_birth_precision_label": "day", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Discovery/Science", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "birth", "anchor_year": 1934, "period_bin": 1900, "est_kind": "death", "est_year": 2013, "est_date": "2013-01-01", "median_life_expectancy_used": 79.02, "lookup_source": "category+birth_bin:Discovery/Science", "implied_lifespan": 79, "old_est_birth": null, "old_est_death": "2018-01-01"}, {"wikidata_id": "Q6130042", "name_en": "James Bowen", "description_en": "English painter and topographer", "occupations_en": "painter", "country_of_citizenship_en": "Kingdom of Great Britain", "gender": "male", "real_birth": null, "real_birth_precision": null, "real_birth_precision_label": "", "real_death": "1774-01-01", "real_death_precision": 9, "real_death_precision_label": "year", "cv_category": "Culture", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "death", "anchor_year": 1774, "period_bin": 1700, "est_kind": "birth", "est_year": 1706, "est_date": "1706-01-01", "median_life_expectancy_used": 67.71, "lookup_source": "category+birth_bin:Culture", "implied_lifespan": 68, "old_est_birth": "1709-01-01", "old_est_death": null}, {"wikidata_id": "Q21009921", "name_en": "Jacob Balthasar Peeters", "description_en": "Flemish painter (1650-1720)", "occupations_en": "painter", "country_of_citizenship_en": "Flanders", "gender": "male", "real_birth": "1655-01-01", "real_birth_precision": 8, "real_birth_precision_label": "decade", "real_death": "1721-01-01", "real_death_precision": 9, "real_death_precision_label": "year", "cv_category": "Culture", "in_cv": 1, "wikimedia_links_count": 5, "anchor_kind": "death", "anchor_year": 1721, "period_bin": 1650, "est_kind": "birth", "est_year": 1655, "est_date": "1655-01-01", "median_life_expectancy_used": 66.48, "lookup_source": "category+birth_bin:Culture", "implied_lifespan": 66, "old_est_birth": "1655-01-01", "old_est_death": null}, {"wikidata_id": "Q6015494", "name_en": "Miguel Ángel Aguilar", "description_en": "Spanish journalist", "occupations_en": "journalist; writer; television presenter", "country_of_citizenship_en": "Spain", "gender": "male", "real_birth": "1943-02-15", "real_birth_precision": 11, "real_birth_precision_label": "day", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Culture", "in_cv": 1, "wikimedia_links_count": 3, "anchor_kind": "birth", "anchor_year": 1943, "period_bin": 1900, "est_kind": "death", "est_year": 2019, "est_date": "2019-01-01", "median_life_expectancy_used": 75.97, "lookup_source": "category+birth_bin:Culture", "implied_lifespan": 76, "old_est_birth": null, "old_est_death": "2009-01-01"}, {"wikidata_id": "Q21564791", "name_en": "Armando Franco Rovira", "description_en": "Mexican architect", "occupations_en": "architect", "country_of_citizenship_en": "Mexico", "gender": "male", "real_birth": "1921-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Culture", "in_cv": 1, "wikimedia_links_count": 1, "anchor_kind": "birth", "anchor_year": 1921, "period_bin": 1900, "est_kind": "death", "est_year": 1997, "est_date": "1997-01-01", "median_life_expectancy_used": 75.97, "lookup_source": "category+birth_bin:Culture", "implied_lifespan": 76, "old_est_birth": null, "old_est_death": "2001-01-01"}, {"wikidata_id": "Q75746638", "name_en": "Maria Constance Georgiana McMahon", "description_en": "(died 1847)", "occupations_en": "", "country_of_citizenship_en": "", "gender": "female", "real_birth": null, "real_birth_precision": null, "real_birth_precision_label": "", "real_death": "1847-09-02", "real_death_precision": 11, "real_death_precision_label": "day", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 0, "anchor_kind": "death", "anchor_year": 1847, "period_bin": 1750, "est_kind": "birth", "est_year": 1779, "est_date": "1779-01-01", "median_life_expectancy_used": 67.98, "lookup_source": "birth_bin", "implied_lifespan": 68, "old_est_birth": "1783-01-01", "old_est_death": null}, {"wikidata_id": "Q130748650", "name_en": "Maria Stuarda Varetti", "description_en": "", "occupations_en": "artist", "country_of_citizenship_en": "", "gender": "female", "real_birth": "1938-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 0, "anchor_kind": "birth", "anchor_year": 1938, "period_bin": 1900, "est_kind": "death", "est_year": 2012, "est_date": "2012-01-01", "median_life_expectancy_used": 74.35, "lookup_source": "birth_bin", "implied_lifespan": 74, "old_est_birth": null, "old_est_death": "2018-01-01"}, {"wikidata_id": "Q96739308", "name_en": "James Hosie", "description_en": "Scottish footballer", "occupations_en": "association football player", "country_of_citizenship_en": "", "gender": "", "real_birth": "1876-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 1, "anchor_kind": "birth", "anchor_year": 1876, "period_bin": 1850, "est_kind": "death", "est_year": 1948, "est_date": "1948-01-01", "median_life_expectancy_used": 72.0, "lookup_source": "birth_bin", "implied_lifespan": 72, "old_est_birth": null, "old_est_death": "1947-01-01"}, {"wikidata_id": "Q56681779", "name_en": "Alain Meerschaut", "description_en": "Research Director, Centre National de la Recherche Scientifique (CNRS)", "occupations_en": "", "country_of_citizenship_en": "", "gender": "male", "real_birth": "1945-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 0, "anchor_kind": "birth", "anchor_year": 1945, "period_bin": 1900, "est_kind": "death", "est_year": 2019, "est_date": "2019-01-01", "median_life_expectancy_used": 74.35, "lookup_source": "birth_bin", "implied_lifespan": 74, "old_est_birth": null, "old_est_death": "2012-01-01"}, {"wikidata_id": "Q75490194", "name_en": "Frank Wood", "description_en": "(born 1872)", "occupations_en": "", "country_of_citizenship_en": "", "gender": "", "real_birth": "1872-01-01", "real_birth_precision": 9, "real_birth_precision_label": "year", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "", "in_cv": 0, "wikimedia_links_count": 0, "anchor_kind": "birth", "anchor_year": 1872, "period_bin": 1850, "est_kind": "death", "est_year": 1944, "est_date": "1944-01-01", "median_life_expectancy_used": 72.0, "lookup_source": "birth_bin", "implied_lifespan": 72, "old_est_birth": null, "old_est_death": "1943-01-01"}, {"wikidata_id": "Q2939453", "name_en": "Carlos Ruiter", "description_en": "Brazilian association football player", "occupations_en": "association football player", "country_of_citizenship_en": "Brazil", "gender": "male", "real_birth": "1943-03-26", "real_birth_precision": 11, "real_birth_precision_label": "day", "real_death": null, "real_death_precision": null, "real_death_precision_label": "", "cv_category": "Sports/Games", "in_cv": 1, "wikimedia_links_count": 5, "anchor_kind": "birth", "anchor_year": 1943, "period_bin": 1900, "est_kind": "death", "est_year": 2016, "est_date": "2016-01-01", "median_life_expectancy_used": 73.14, "lookup_source": "category+birth_bin:Sports/Games", "implied_lifespan": 73, "old_est_birth": null, "old_est_death": "2010-01-01"}];
+const STORAGE_KEY = 'estimated_dates_v2_review_v1';
+
+const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+const buckets = Array.from(new Set(DATA.map(d => d.cv_category || 'no_cv')));
+const activeBuckets = new Set(buckets);
+
+function fmt(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return String(v);
+}
+
+function bucketKey(cat) { return cat ? cat.replace(/[^A-Za-z]/g, '') : 'no_cv'; }
+
+function precChip(p, label) {
+  if (!p && p !== 0) return '';
+  if (p >= 9) return ` <span class="chip">${label}</span>`;
+  return ` <span class="prec-low">${label || ('prec=' + p)} (placeholder)</span>`;
+}
+
+function render() {
+  const main = document.getElementById('rows');
+  main.innerHTML = '';
+  let yes = 0, no = 0, unsure = 0, pending = 0;
+
+  DATA.forEach((d, i) => {
+    const cat = d.cv_category || 'no_cv';
+    if (!activeBuckets.has(cat)) return;
+    const verdict = state[d.wikidata_id]?.verdict;
+    const note    = state[d.wikidata_id]?.note || '';
+    if (verdict === 'yes') yes++;
+    else if (verdict === 'no') no++;
+    else if (verdict === 'unsure') unsure++;
+    else pending++;
+
+    const cls = verdict === 'yes' ? 'correct' : verdict === 'no' ? 'wrong' : verdict === 'unsure' ? 'unsure' : '';
+    const row = document.createElement('div');
+    row.className = 'row' + (verdict ? ' annotated ' + cls : '');
+    row.dataset.qid = d.wikidata_id;
+    row.tabIndex = 0;
+
+    const occ = d.occupations_en ? String(d.occupations_en).split(';').slice(0, 3).join(' · ') : '';
+    const nat = d.country_of_citizenship_en ? String(d.country_of_citizenship_en).split(';').slice(0, 2).join(' · ') : '';
+
+    const realBirthLine = d.real_birth
+      ? `<span class="k">Birth (real):</span><span class="v">${d.real_birth}${precChip(d.real_birth_precision, d.real_birth_precision_label)}</span>`
+      : '';
+    const realDeathLine = d.real_death
+      ? `<span class="k">Death (real):</span><span class="v">${d.real_death}${precChip(d.real_death_precision, d.real_death_precision_label)}</span>`
+      : '';
+
+    const estLine = d.est_kind === 'birth'
+      ? `<div class="est-row"><span class="lbl">Birth estimated</span><span class="val">${d.est_date || ''}</span></div>`
+      : `<div class="est-row"><span class="lbl">Death estimated</span><span class="val">${d.est_date || ''}</span></div>`;
+
+    // Implied lifespan: prefer the est date over a low-precision real
+    const realPrec = d.est_kind === 'birth' ? d.real_death_precision : d.real_birth_precision;
+    const lifespanLine = d.implied_lifespan != null
+      ? `<div class="lifespan">Implied lifespan (est ↔ anchor): <b>${d.implied_lifespan}</b> yr ` +
+        `(median used: ${Number(d.median_life_expectancy_used).toFixed(1)} yr)</div>` : '';
+
+    const sourceLine = `<div class="source-line">Source: ${d.lookup_source} &middot; period bin ${d.period_bin} &middot; anchor ${d.anchor_kind}=${d.anchor_year}</div>`;
+
+    const bk = bucketKey(d.cv_category);
+
+    row.innerHTML = `
+      <div class="idx">${i + 1}</div>
+      <div>
+        <div class="name">
+          <a href="https://www.wikidata.org/wiki/${d.wikidata_id}" target="_blank">${fmt(d.name_en)}</a>
+        </div>
+        ${d.description_en ? `<div class="desc">${d.description_en}</div>` : ''}
+        <div class="tags">
+          ${occ ? `<span class="chip">${occ}</span>` : ''}
+          ${nat ? `<span class="chip">${nat}</span>` : ''}
+          ${d.gender ? `<span class="chip">${d.gender}</span>` : ''}
+          <span class="chip">${d.wikidata_id}</span>
+          ${d.in_cv ? '<span class="chip" style="color:#1d3a8a;border-color:#bcd;">in CV</span>' : ''}
+          ${d.wikimedia_links_count ? `<span class="chip">${d.wikimedia_links_count} wiki link${d.wikimedia_links_count > 1 ? 's' : ''}</span>` : ''}
+        </div>
+        <div class="links" style="margin-top:6px;">
+          <a href="https://www.wikidata.org/wiki/${d.wikidata_id}" target="_blank">Wikidata</a>
+          <a href="https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(d.name_en || d.wikidata_id)}" target="_blank">Wikipedia</a>
+          <a href="https://www.google.com/search?q=${encodeURIComponent((d.name_en || '') + ' ' + (d.description_en || ''))}" target="_blank">Google</a>
+        </div>
+      </div>
+      <div>
+        <div class="dates">
+          ${realBirthLine}
+          ${realDeathLine}
+        </div>
+        ${estLine}
+        ${lifespanLine}
+        ${sourceLine}
+        <div style="margin-top:8px;">
+          <span class="b-${bk} bucket-chip">${d.cv_category || 'no CV category'}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="row-buttons">
+          <button class="btn-yes"    data-verdict="yes"    title="Plausible (y)">Yes</button>
+          <button class="btn-no"     data-verdict="no"     title="Wrong (n)">No</button>
+          <button class="btn-unsure" data-verdict="unsure" title="Unsure (u)">?</button>
+        </div>
+        <textarea class="note" placeholder="Optional note">${note.replace(/</g, '&lt;')}</textarea>
+      </div>
+    `;
+
+    row.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => mark(d.wikidata_id, btn.dataset.verdict));
+    });
+    row.querySelector('.note').addEventListener('change', e => {
+      state[d.wikidata_id] = state[d.wikidata_id] || {};
+      state[d.wikidata_id].note = e.target.value;
+      persist();
+    });
+
+    main.appendChild(row);
+  });
+
+  document.getElementById('cnt-yes').textContent = yes;
+  document.getElementById('cnt-no').textContent = no;
+  document.getElementById('cnt-unsure').textContent = unsure;
+  document.getElementById('cnt-pending').textContent = pending;
+}
+
+function mark(qid, verdict) {
+  const cur = state[qid] || {};
+  if (cur.verdict === verdict) {
+    delete cur.verdict;
+  } else {
+    cur.verdict = verdict;
+  }
+  state[qid] = cur;
+  persist();
+  render();
+}
+
+function persist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function buildFilters() {
+  const cont = document.getElementById('filters');
+  buckets.forEach(b => {
+    const lab = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.addEventListener('change', () => {
+      if (cb.checked) activeBuckets.add(b);
+      else activeBuckets.delete(b);
+      render();
+    });
+    const span = document.createElement('span');
+    span.textContent = b === 'no_cv' ? 'no CV category' : b;
+    lab.appendChild(cb);
+    lab.appendChild(span);
+    cont.appendChild(lab);
+  });
+}
+
+document.getElementById('export').addEventListener('click', () => {
+  const out = DATA.map(d => ({
+    wikidata_id: d.wikidata_id,
+    name: d.name_en,
+    cv_category: d.cv_category,
+    est_kind: d.est_kind,
+    real_birth: d.real_birth,
+    real_birth_precision: d.real_birth_precision,
+    real_death: d.real_death,
+    real_death_precision: d.real_death_precision,
+    est_date: d.est_date,
+    median_life_expectancy_used: d.median_life_expectancy_used,
+    lookup_source: d.lookup_source,
+    period_bin: d.period_bin,
+    implied_lifespan: d.implied_lifespan,
+    in_cv: d.in_cv,
+    verdict: state[d.wikidata_id]?.verdict || null,
+    note:    state[d.wikidata_id]?.note    || '',
+  }));
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'estimated_dates_v2_annotations.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  const focused = document.activeElement;
+  if (!focused || !focused.classList.contains('row')) return;
+  const qid = focused.dataset.qid;
+  if (e.key === 'y') mark(qid, 'yes');
+  else if (e.key === 'n') mark(qid, 'no');
+  else if (e.key === 'u') mark(qid, 'unsure');
+});
+
+buildFilters();
+render();
+</script>
+</body>
+</html>
