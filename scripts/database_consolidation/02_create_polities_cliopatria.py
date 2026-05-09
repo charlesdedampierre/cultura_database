@@ -27,17 +27,20 @@ Usage
 from __future__ import annotations
 
 import json
-import sqlite3
+import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import quote
 
-from common import PROJECT_ROOT, log, open_db, parse_run_mode
+import duckdb
+
+from common import PROJECT_ROOT, log, parse_run_mode
 
 GEOJSON_PATH = (
     PROJECT_ROOT / "cliopatria_data" / "cliopatria_V2"
     / "cliopatria_polities_only_v3.geojson"
 )
+DUCKDB_PATH = PROJECT_ROOT / "data" / "humans_clean.duckdb"
 
 
 def _wikipedia_url(title: str | None) -> str | None:
@@ -83,7 +86,9 @@ def collect_polities(geojson_path: Path | str) -> list[tuple]:
     return polities
 
 
-def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> int:
+def run(
+    conn: duckdb.DuckDBPyConnection, geojson_path: Path | str = GEOJSON_PATH
+) -> int:
     log("[DB] 02: Creating polities_cliopatria from V3 GeoJSON...")
     polities = collect_polities(geojson_path)
     log(f"[02] distinct polities: {len(polities)}")
@@ -107,8 +112,9 @@ def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> in
         "VALUES (?, ?, ?, ?, ?, 0)",
         polities,
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_pc_name ON polities_cliopatria(name)")
-    conn.commit()
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pc_name ON polities_cliopatria(name)"
+    )
     log(f"[02] inserted {len(polities)} polities")
     return len(polities)
 
@@ -131,16 +137,25 @@ def _sample_main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "fake.geojson"
         path.write_text(json.dumps(fake))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
+        db = Path(tmp) / "sample.duckdb"
+        conn = duckdb.connect(str(db))
+        try:
             n = run(conn, geojson_path=path)
-            for r in conn.execute("SELECT * FROM polities_cliopatria"):
+            for r in conn.execute("SELECT * FROM polities_cliopatria").fetchall():
                 log(f"  {r}")
+        finally:
+            conn.close()
         log(f"[sample] {n} polities")
 
 
 if __name__ == "__main__":
     if parse_run_mode() == "full":
-        with open_db() as conn:
+        if not DUCKDB_PATH.exists():
+            sys.exit(f"DuckDB not found at {DUCKDB_PATH}")
+        conn = duckdb.connect(str(DUCKDB_PATH))
+        try:
             run(conn)
+        finally:
+            conn.close()
     else:
         _sample_main()

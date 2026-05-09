@@ -26,6 +26,8 @@ data_limited/
 cliopatria_data/
 archive/
 logs/
+temp_files/
+benchmarks/
 
 
 # Claude AI workspace

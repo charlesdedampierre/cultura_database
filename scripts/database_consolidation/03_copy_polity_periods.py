@@ -20,11 +20,13 @@ Usage
 from __future__ import annotations
 
 import json
-import sqlite3
+import sys
 import tempfile
 from pathlib import Path
 
-from common import PROJECT_ROOT, log, open_db, parse_run_mode
+import duckdb
+
+from common import PROJECT_ROOT, log, parse_run_mode
 
 GEOJSON_PATH = (
     PROJECT_ROOT
@@ -32,6 +34,7 @@ GEOJSON_PATH = (
     / "cliopatria_V2"
     / "cliopatria_polities_only_v3.geojson"
 )
+DUCKDB_PATH = PROJECT_ROOT / "data" / "humans_clean.duckdb"
 
 
 def _strip_parens(name: str) -> str:
@@ -41,16 +44,20 @@ def _strip_parens(name: str) -> str:
     return s
 
 
-def _load_polity_id_map(conn: sqlite3.Connection) -> dict[tuple[str, str], int]:
+def _load_polity_id_map(
+    conn: duckdb.DuckDBPyConnection,
+) -> dict[tuple[str, str], int]:
     out: dict[tuple[str, str], int] = {}
     for pid, name, qid in conn.execute(
         "SELECT id, name, wikidata_id FROM polities_cliopatria"
-    ):
+    ).fetchall():
         out[(name, qid or "")] = pid
     return out
 
 
-def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> int:
+def run(
+    conn: duckdb.DuckDBPyConnection, geojson_path: Path | str = GEOJSON_PATH
+) -> int:
     log("[DB] 03: Building polities_periods_cliopatria from V3 GeoJSON...")
 
     polity_id_map = _load_polity_id_map(conn)
@@ -64,9 +71,12 @@ def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> in
         gj = json.load(fh)
 
     conn.execute("DROP TABLE IF EXISTS polities_periods_cliopatria")
-    conn.execute("""
+    conn.execute("DROP SEQUENCE IF EXISTS seq_polities_periods_cliopatria")
+    conn.execute("CREATE SEQUENCE seq_polities_periods_cliopatria START 1")
+    conn.execute(
+        """
         CREATE TABLE polities_periods_cliopatria (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY DEFAULT nextval('seq_polities_periods_cliopatria'),
             polity_id INTEGER NOT NULL,
             polity_name TEXT,
             from_year INTEGER,
@@ -74,7 +84,8 @@ def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> in
             area REAL,
             geometry TEXT
         )
-        """)
+        """
+    )
 
     rows: list[tuple] = []
     skipped = 0
@@ -115,7 +126,6 @@ def run(conn: sqlite3.Connection, geojson_path: Path | str = GEOJSON_PATH) -> in
         "CREATE INDEX IF NOT EXISTS idx_ppc_years "
         "ON polities_periods_cliopatria(from_year, to_year)"
     )
-    conn.commit()
     log(f"[03] inserted {len(rows)} period rows (skipped {skipped})")
     return len(rows)
 
@@ -153,8 +163,9 @@ def _sample_main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "fake.geojson"
         path.write_text(json.dumps(fake))
-        db = Path(tmp) / "sample.sqlite3"
-        with open_db(db) as conn:
+        db = Path(tmp) / "sample.duckdb"
+        conn = duckdb.connect(str(db))
+        try:
             conn.execute(
                 "CREATE TABLE polities_cliopatria "
                 "(id INTEGER PRIMARY KEY, name TEXT, type TEXT, "
@@ -185,14 +196,21 @@ def _sample_main() -> None:
             for r in conn.execute(
                 "SELECT id, polity_id, polity_name, from_year, to_year "
                 "FROM polities_periods_cliopatria"
-            ):
+            ).fetchall():
                 log(f"  {r}")
+        finally:
+            conn.close()
         log(f"[sample] {n} period rows")
 
 
 if __name__ == "__main__":
     if parse_run_mode() == "full":
-        with open_db() as conn:
+        if not DUCKDB_PATH.exists():
+            sys.exit(f"DuckDB not found at {DUCKDB_PATH}")
+        conn = duckdb.connect(str(DUCKDB_PATH))
+        try:
             run(conn)
+        finally:
+            conn.close()
     else:
         _sample_main()
