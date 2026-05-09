@@ -196,6 +196,10 @@ All geographic entities referenced as birth/death locations (cities, settlements
 | `entity_type` | TEXT | Wikidata class label (e.g., "village", "city in the United States") |
 | `entity_type_ids` | TEXT | Semicolon-separated `instance of` (P31) IDs |
 | `is_urban_settlement` | INTEGER | 1 if classified as an urban settlement |
+| `inception_date` | TEXT | Inception (P571) ISO timestamp. 60,660 places. |
+| `inception_precision` | INTEGER | Precision: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium |
+| `dissolution_date` | TEXT | Dissolution (P576) ISO timestamp. 12,171 places. |
+| `dissolution_precision` | INTEGER | Precision codes as above |
 
 ### `writing_languages` (524 rows)
 

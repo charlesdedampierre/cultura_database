@@ -28,6 +28,7 @@ archive/
 logs/
 temp_files/
 benchmarks/
+photos_claude/
 
 
 # Claude AI workspace
