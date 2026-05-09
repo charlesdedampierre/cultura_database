@@ -1,0 +1,26 @@
+[package]
+name = "individuals_cliopatria_rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "individuals_cliopatria_rs"
+path = "src/main.rs"
+
+[dependencies]
+duckdb = { version = "1.4", features = ["bundled"] }
+geo = "0.31"
+geo-types = "0.7"
+geojson = { version = "0.24", features = ["geo-types"] }
+rstar = "0.12"
+rayon = "1.10"
+csv = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

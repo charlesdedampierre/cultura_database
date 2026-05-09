@@ -37,9 +37,11 @@ WIKIDATA_V2_DIR = ALL_HUMANS_DIR / "wikidata_extraction_scripts_v2"
 # `humans_v2.sqlite3`. This protects the user's existing DB from accidental
 # overwrites and lets the v2 build be re-run end-to-end at any time.
 LEGACY_DB_PATH = DATA_DIR / "humans_clean.sqlite3"
-DB_PATH = (Path(os.environ["CULTURA_DB_PATH"])
-           if os.environ.get("CULTURA_DB_PATH")
-           else DATA_DIR / "humans_v2.sqlite3")
+DB_PATH = (
+    Path(os.environ["CULTURA_DB_PATH"])
+    if os.environ.get("CULTURA_DB_PATH")
+    else DATA_DIR / "humans_v2.sqlite3"
+)
 SAMPLE_DB_PATH = DATA_DIR / "humans_v2.sample.sqlite3"
 
 TASK_LOG = PROJECT_ROOT / "task.log"
@@ -50,6 +52,7 @@ DEFAULT_BATCH = 50_000
 # --------------------------------------------------------------------------
 # Logging (mirrors the Rust `log()` helper)
 # --------------------------------------------------------------------------
+
 
 def log(msg: str) -> None:
     """Print to stdout and append to task.log (best-effort)."""
@@ -64,6 +67,7 @@ def log(msg: str) -> None:
 # --------------------------------------------------------------------------
 # SQLite connection helpers
 # --------------------------------------------------------------------------
+
 
 def open_db(
     db_path: Path | str = DB_PATH,
@@ -115,6 +119,7 @@ def row_count(conn: sqlite3.Connection, table: str) -> int:
 # Encoding fix (mirrors Rust 02_fix_encoding logic)
 # --------------------------------------------------------------------------
 
+
 def fix_mojibake(text: str | None) -> str | None:
     """Try to recover a string that was written as Latin-1-encoded UTF-8.
 
@@ -138,6 +143,7 @@ def fix_mojibake(text: str | None) -> str | None:
 # JSON helpers
 # --------------------------------------------------------------------------
 
+
 def load_json(path: Path | str) -> Any:
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
@@ -158,6 +164,7 @@ def iter_json_map(path: Path | str) -> Iterator[tuple[str, Any]]:
 # --------------------------------------------------------------------------
 # Batched transactions
 # --------------------------------------------------------------------------
+
 
 @contextmanager
 def transaction(conn: sqlite3.Connection):
@@ -211,6 +218,7 @@ def executemany_batched(
 # Date / year parsing (used by impact_date, regions, floruit, cliopatria)
 # --------------------------------------------------------------------------
 
+
 def parse_year(s: str | None) -> int | None:
     """Pull the integer year out of an ISO date string.
 
@@ -238,6 +246,7 @@ def parse_year(s: str | None) -> int | None:
 # --------------------------------------------------------------------------
 # Sample / probe helpers used by the per-script `__main__` blocks
 # --------------------------------------------------------------------------
+
 
 def parse_run_mode() -> str:
     """Parse the `--full` / `--sample` switch.

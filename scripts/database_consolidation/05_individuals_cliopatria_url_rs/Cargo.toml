@@ -1,0 +1,19 @@
+[package]
+name = "individuals_cliopatria_url_rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "individuals_cliopatria_url_rs"
+path = "src/main.rs"
+
+[dependencies]
+duckdb = { version = "1.4", features = ["bundled"] }
+rayon = "1.10"
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

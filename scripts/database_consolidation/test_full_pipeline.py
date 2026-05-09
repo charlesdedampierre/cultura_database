@@ -28,17 +28,19 @@ Usage
         --skip-extract         # reuse last *.test.json (faster)
         --skip-cliopatria      # if the V3 GeoJSON isn't around
 """
+
 from __future__ import annotations
 
 import argparse
 import importlib.util
 import json
 import os
-import sqlite3
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+import duckdb
 
 ROOT = Path(__file__).resolve().parents[2]
 EXTRACT_DIR = ROOT / "scripts" / "wikidata_extraction_scripts_v2"
@@ -51,8 +53,7 @@ COHORT_POOL = COHORT_DIR / "cohort_100k.json"
 COHORT_SAMPLE = COHORT_DIR / "cohort_sample.json"
 TEST_DB = DATA_DIR / "humans_clean_test.sqlite3"
 CLIOPATRIA_GEOJSON = (
-    ROOT / "cliopatria_data" / "cliopatria_V2"
-    / "cliopatria_polities_only_v3.geojson"
+    ROOT / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
 )
 
 
@@ -83,7 +84,11 @@ def ensure_pool(args) -> None:
     cmd = [
         sys.executable,
         str(EXTRACT_DIR / "00_extract_cohort.py"),
-        "extract", "--n", str(args.pool_size), "--out", str(COHORT_POOL),
+        "extract",
+        "--n",
+        str(args.pool_size),
+        "--out",
+        str(COHORT_POOL),
     ]
     subprocess.run(cmd, check=True)
 
@@ -94,10 +99,14 @@ def sample_cohort(args) -> None:
         sys.executable,
         str(EXTRACT_DIR / "00_extract_cohort.py"),
         "sample",
-        "--n", str(args.cohort_size),
-        "--src", str(COHORT_POOL),
-        "--out", str(COHORT_SAMPLE),
-        "--seed", str(args.seed),
+        "--n",
+        str(args.cohort_size),
+        "--src",
+        str(COHORT_POOL),
+        "--out",
+        str(COHORT_SAMPLE),
+        "--seed",
+        str(args.seed),
     ]
     subprocess.run(cmd, check=True)
 
@@ -134,9 +143,11 @@ def run_cliopatria(env: dict[str, str]) -> None:
     if not CLIOPATRIA_GEOJSON.exists():
         print(f"[cliopatria] SKIPPING — {CLIOPATRIA_GEOJSON} not found")
         return
-    for script in ("02_create_polities_cliopatria.py",
-                   "03_copy_polity_periods.py",
-                   "04_individuals_cliopatria.py"):
+    for script in (
+        "02_create_polities_cliopatria.py",
+        "03_copy_polity_periods.py",
+        "04_individuals_cliopatria.py",
+    ):
         step(f"running database_consolidation/{script} --full")
         cmd = [sys.executable, str(CONSOL_DIR / script), "--full"]
         t0 = time.time()
@@ -167,22 +178,39 @@ EXPECTED_AFTER_CLIOPATRIA = {
 
 
 def verify(stage: str, expectations: dict[str, int]) -> list[str]:
+    """Verify table existence + row counts via DuckDB.
+
+    The integration step still emits a SQLite file (out of scope for the
+    consolidation rewrite); we attach it through DuckDB's built-in sqlite
+    extension so this file no longer needs the sqlite3 module.
+    """
     failures: list[str] = []
-    with sqlite3.connect(TEST_DB) as conn:
+    conn = duckdb.connect()
+    try:
+        conn.execute("INSTALL sqlite")
+        conn.execute("LOAD sqlite")
+        conn.execute(f"ATTACH '{TEST_DB}' AS testdb (TYPE sqlite)")
+        present = {
+            r[0]
+            for r in conn.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_catalog = 'testdb'"
+            ).fetchall()
+        }
         for table, min_rows in expectations.items():
-            row = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-                (table,),
-            ).fetchone()
-            if not row:
+            if table not in present:
                 failures.append(f"  [{stage}] missing table: {table}")
                 continue
-            n = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            n = conn.execute(f"SELECT COUNT(*) FROM testdb.{table}").fetchone()[0]
             ok = n >= min_rows
-            print(f"  [{stage}] {table:34s} rows={n:>6}  (min {min_rows})  "
-                  f"{'ok' if ok else 'FAIL'}")
+            print(
+                f"  [{stage}] {table:34s} rows={n:>6}  (min {min_rows})  "
+                f"{'ok' if ok else 'FAIL'}"
+            )
             if not ok:
                 failures.append(f"  [{stage}] {table}: {n} < {min_rows}")
+    finally:
+        conn.close()
     return failures
 
 
@@ -191,9 +219,12 @@ def main():
     parser.add_argument("--cohort-size", type=int, default=1_000)
     parser.add_argument("--pool-size", type=int, default=100_000)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--skip-extract", action="store_true",
-                        help="Skip the wikidata extraction step (reuse the "
-                             "*.test.json that's already on disk).")
+    parser.add_argument(
+        "--skip-extract",
+        action="store_true",
+        help="Skip the wikidata extraction step (reuse the "
+        "*.test.json that's already on disk).",
+    )
     parser.add_argument("--skip-cliopatria", action="store_true")
     args = parser.parse_args()
 
