@@ -1,279 +1,233 @@
-"""Python+DuckDB+Polars port of scripts/database_integration_scripts_V2/
-21_estimate_dates_from_life_expectancy. Outputs a CSV instead of writing
-back into SQLite, and times the run.
+"""Estimate missing birthdate or deathdate from a life-expectancy cascade.
 
-Cascade: (CV-category × 20y period bin) → CV-category → 20y period bin → global,
-trained on individuals with both dates at year-or-finer precision (>= 9)
-and longevity in [0, 130].
+Training set: individuals with BOTH dates at year-or-finer precision (>= 9)
+and longevity in [0, 130]. From them we compute median longevity per
+(category × 20y period bin), per category, per period, and globally.
+
+Targets:    individuals with EXACTLY ONE of (birthdate, deathdate) at year
+or decade precision (>= 8). For each target we look up the median in the
+most specific available level (cascade order below) and add/subtract it
+from the known anchor to impute the missing year.
+
+Cascade (most specific first):
+    1. category + period
+    2. category
+    3. period
+    4. global
+
+Output: temp_files/estimated_dates_from_life_expectancy.csv with columns
+    wikidata_id,
+    estimated_birthdate_from_life_expectancy,
+    estimated_deathdate_from_life_expectancy,
+    source
 """
 
-from __future__ import annotations
-
-import argparse
-import time
 from pathlib import Path
+import time
 
 import duckdb
 import polars as pl
 
-REPO = Path(__file__).resolve().parents[1]
-DEFAULT_DB = REPO / "data" / "humans_clean.duckdb"
-CV_PATH = (
-    REPO
-    / "data"
-    / "similar_databases"
-    / "cross-verified-database"
-    / "cross-verified-database.utf8.csv.gz"
-)
-OUT_DIR = REPO / "temp_files"
+REPO     = Path(__file__).resolve().parents[2]
+DB_PATH  = REPO / "data" / "humans_clean.duckdb"
+CV_PATH  = REPO / "data" / "similar_databases" / "cross-verified-database" / "cross-verified-database.utf8.csv.gz"
+OUT_PATH = REPO / "temp_files" / "estimated_dates_from_life_expectancy.csv"
 
-BIN_WIDTH = 20
-MIN_PRECISION = 9
-MIN_BIN_SAMPLES = 5
+PERIOD_BIN_WIDTH = 20
+PRECISION_YEAR   = 9
+PRECISION_DECADE = 8
+MIN_LONGEVITY    = 0
+MAX_LONGEVITY    = 130
+MIN_BIN_SAMPLES  = 5
 
 
-def parse_year_frac(col: str) -> pl.Expr:
-    """Mirror of the Rust parse_year_frac: returns fractional year, BCE negative."""
-    s = pl.col(col).cast(pl.Utf8, strict=False)
-    is_blank = s.is_null() | (s.str.len_chars() == 0) | s.str.starts_with("_:")
-    sign = pl.when(s.str.starts_with("-")).then(-1.0).otherwise(1.0)
-    body = pl.when(s.str.starts_with("-")).then(s.str.slice(1)).otherwise(s)
-    g = body.str.extract_groups(r"^(?P<y>\d+)(?:-(?P<m>\d+))?(?:-(?P<d>\d+))?")
-    y = g.struct.field("y").cast(pl.Float64, strict=False)
-    m = g.struct.field("m").cast(pl.Float64, strict=False).fill_null(1.0).clip(1, 12)
-    d = g.struct.field("d").cast(pl.Float64, strict=False).fill_null(1.0).clip(1, 31)
-    yf = sign * (y + (30.0 * (m - 1.0) + (d - 1.0)) / 365.0)
-    return pl.when(is_blank | y.is_null()).then(None).otherwise(yf)
+def parse_iso_year_fraction(date_column: str) -> pl.Expr:
+    raw      = pl.col(date_column).cast(pl.Utf8, strict=False)
+    is_blank = raw.is_null() | (raw.str.len_chars() == 0) | raw.str.starts_with("_:")
+    sign     = pl.when(raw.str.starts_with("-")).then(-1.0).otherwise(1.0)
+    body     = pl.when(raw.str.starts_with("-")).then(raw.str.slice(1)).otherwise(raw)
+    parts    = body.str.extract_groups(r"^(?P<y>\d+)(?:-(?P<m>\d+))?(?:-(?P<d>\d+))?")
+    year     = parts.struct.field("y").cast(pl.Float64, strict=False)
+    month    = parts.struct.field("m").cast(pl.Float64, strict=False).fill_null(1.0).clip(1, 12)
+    day      = parts.struct.field("d").cast(pl.Float64, strict=False).fill_null(1.0).clip(1, 31)
+    fractional = sign * (year + (30.0 * (month - 1.0) + (day - 1.0)) / 365.0)
+    return pl.when(is_blank | year.is_null()).then(None).otherwise(fractional)
 
 
-def period_bin(expr: pl.Expr) -> pl.Expr:
-    """Floor to BIN_WIDTH, correctly for negatives (year_frac → integer bin)."""
-    y = expr.floor().cast(pl.Int64)
-    return y - ((y % BIN_WIDTH + BIN_WIDTH) % BIN_WIDTH)
+def floor_to_period(year_expr: pl.Expr) -> pl.Expr:
+    y = year_expr.floor().cast(pl.Int64)
+    return y - ((y % PERIOD_BIN_WIDTH + PERIOD_BIN_WIDTH) % PERIOD_BIN_WIDTH)
 
 
-def fmt_iso_year(expr: pl.Expr) -> pl.Expr:
-    """Year integer → 'YYYY-01-01' or '-YYYY-01-01' for BCE."""
-    abs_y = expr.abs().cast(pl.Int64).cast(pl.Utf8).str.zfill(4)
-    return pl.when(expr < 0).then("-" + abs_y + "-01-01").otherwise(abs_y + "-01-01")
+def year_to_iso(year_expr: pl.Expr) -> pl.Expr:
+    abs_year = year_expr.abs().cast(pl.Int64).cast(pl.Utf8).str.zfill(4)
+    return pl.when(year_expr < 0).then("-" + abs_year + "-01-01").otherwise(abs_year + "-01-01")
+
+
+def load_individuals(con: duckdb.DuckDBPyConnection) -> pl.DataFrame:
+    df = con.execute("""
+        SELECT wikidata_id, birthdate, deathdate,
+               birthdate_precision, deathdate_precision
+        FROM   individuals
+    """).pl()
+    return df.with_columns(
+        pl.when(pl.col("birthdate_precision") >= PRECISION_DECADE)
+          .then(parse_iso_year_fraction("birthdate"))
+          .otherwise(None)
+          .alias("birth_year_frac"),
+        pl.when(pl.col("deathdate_precision") >= PRECISION_DECADE)
+          .then(parse_iso_year_fraction("deathdate"))
+          .otherwise(None)
+          .alias("death_year_frac"),
+    )
+
+
+def load_cv_categories() -> pl.DataFrame:
+    return (
+        pl.read_csv(
+            CV_PATH,
+            columns=['wikidata_code', 'level1_main_occ'],
+            schema_overrides={'wikidata_code': pl.Utf8, 'level1_main_occ': pl.Utf8},
+        )
+        .drop_nulls(['wikidata_code', 'level1_main_occ'])
+        .filter(~pl.col('level1_main_occ').is_in(['', 'Missing']))
+        .rename({'wikidata_code': 'wikidata_id', 'level1_main_occ': 'category'})
+    )
+
+
+def build_cascade(training: pl.DataFrame, period_col: str) -> dict:
+    by_cat_period = (
+        training.filter(pl.col("category").is_not_null())
+                .group_by(["category", period_col])
+                .agg(
+                    pl.col("longevity").median().alias("median_longevity"),
+                    pl.len().alias("n"),
+                )
+                .filter(pl.col("n") >= MIN_BIN_SAMPLES)
+                .rename({period_col: "period"})
+                .select(["category", "period", "median_longevity"])
+    )
+    by_cat = (
+        training.filter(pl.col("category").is_not_null())
+                .group_by("category")
+                .agg(pl.col("longevity").median().alias("median_longevity"))
+    )
+    by_period = (
+        training.group_by(period_col)
+                .agg(
+                    pl.col("longevity").median().alias("median_longevity"),
+                    pl.len().alias("n"),
+                )
+                .filter(pl.col("n") >= MIN_BIN_SAMPLES)
+                .rename({period_col: "period"})
+                .select(["period", "median_longevity"])
+    )
+    return {
+        "category_period": by_cat_period,
+        "category":        by_cat,
+        "period":          by_period,
+        "global":          float(training["longevity"].median()),
+    }
+
+
+def apply_cascade(targets: pl.DataFrame, cascade: dict, anchor_col: str, sign: int) -> pl.DataFrame:
+    return (
+        targets
+        .join(cascade["category_period"].rename({"median_longevity": "med_cp"}),
+              on=["category", "period"], how="left")
+        .join(cascade["category"].rename({"median_longevity": "med_c"}),
+              on="category", how="left")
+        .join(cascade["period"].rename({"median_longevity": "med_p"}),
+              on="period", how="left")
+        .with_columns(
+            pl.coalesce(["med_cp", "med_c", "med_p", pl.lit(cascade["global"])]).alias("median_used"),
+            pl.when(pl.col("med_cp").is_not_null()).then(pl.lit("category+period"))
+              .when(pl.col("med_c").is_not_null()).then(pl.lit("category"))
+              .when(pl.col("med_p").is_not_null()).then(pl.lit("period"))
+              .otherwise(pl.lit("global"))
+              .alias("source"),
+        )
+        .with_columns(
+            (pl.col(anchor_col) + sign * pl.col("median_used")).floor().cast(pl.Int64).alias("est_year"),
+        )
+    )
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument(
-        "--db",
-        default=str(DEFAULT_DB),
-        help="DuckDB file (full mirror of humans_clean)",
-    )
-    ap.add_argument(
-        "--out", default=str(OUT_DIR / "estimated_dates_from_life_expectancy.csv")
-    )
-    args = ap.parse_args()
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    print(f"db:  {DB_PATH}")
+    print(f"cv:  {CV_PATH}")
+    print(f"out: {OUT_PATH}")
+    t0 = time.perf_counter()
 
-    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    timings = {}
-    t_total = time.perf_counter()
-
-    print(f"db: {args.db}")
-    print(f"cv: {CV_PATH}")
-    print(f"out: {args.out}\n")
-
-    # --- Load CV (id, category) ---
-    t = time.perf_counter()
-    con = duckdb.connect(args.db, read_only=True)
-    cv = con.execute(f"""
-        SELECT trim(wikidata_code) AS wikidata_id,
-               trim(level1_main_occ) AS cat
-        FROM read_csv_auto('{CV_PATH}', compression='gzip')
-        WHERE wikidata_code IS NOT NULL AND trim(wikidata_code) <> ''
-          AND level1_main_occ IS NOT NULL AND trim(level1_main_occ) NOT IN ('', 'Missing')
-    """).pl()
-    timings["cv_load"] = time.perf_counter() - t
-    print(f"  CV (id, category) entries: {cv.height:,}  [{timings['cv_load']:.2f}s]")
-
-    # --- Load individuals (only the columns we need) ---
-    t = time.perf_counter()
-    ind = con.execute("""
-        SELECT wikidata_id, birthdate, deathdate,
-               birthdate_precision, deathdate_precision
-        FROM individuals
-    """).pl()
+    con = duckdb.connect(str(DB_PATH), read_only=True)
+    individuals = load_individuals(con)
     con.close()
-    timings["ind_load"] = time.perf_counter() - t
-    print(f"  individuals loaded:        {ind.height:,}  [{timings['ind_load']:.2f}s]")
+    categories  = load_cv_categories()
+    print(f"  individuals loaded:           {individuals.height:,}")
+    print(f"  CV categories loaded:         {categories.height:,}")
 
-    # --- Parse + filter to year-precision anchors ---
-    t = time.perf_counter()
-    ind = ind.with_columns(
-        pl.when(pl.col("birthdate_precision") >= MIN_PRECISION)
-        .then(parse_year_frac("birthdate"))
-        .otherwise(None)
-        .alias("by"),
-        pl.when(pl.col("deathdate_precision") >= MIN_PRECISION)
-        .then(parse_year_frac("deathdate"))
-        .otherwise(None)
-        .alias("dy"),
-    ).join(cv, on="wikidata_id", how="left")
+    individuals = individuals.join(categories, on="wikidata_id", how="left")
 
-    have_b = pl.col("by").is_not_null()
-    have_d = pl.col("dy").is_not_null()
+    has_birth_anchor = pl.col("birth_year_frac").is_not_null()
+    has_death_anchor = pl.col("death_year_frac").is_not_null()
+    birth_year_precise = pl.col("birthdate_precision") >= PRECISION_YEAR
+    death_year_precise = pl.col("deathdate_precision") >= PRECISION_YEAR
 
-    both = (
-        ind.filter(have_b & have_d)
+    training = (
+        individuals
+        .filter(has_birth_anchor & has_death_anchor & birth_year_precise & death_year_precise)
         .with_columns(
-            (pl.col("dy") - pl.col("by")).alias("longevity"),
-            period_bin(pl.col("by")).alias("bin_birth"),
-            period_bin(pl.col("dy")).alias("bin_death"),
+            (pl.col("death_year_frac") - pl.col("birth_year_frac")).alias("longevity"),
+            floor_to_period(pl.col("birth_year_frac")).alias("birth_period"),
+            floor_to_period(pl.col("death_year_frac")).alias("death_period"),
         )
-        .filter((pl.col("longevity") >= 0) & (pl.col("longevity") <= 130))
+        .filter((pl.col("longevity") >= MIN_LONGEVITY) & (pl.col("longevity") <= MAX_LONGEVITY))
     )
-    only_b = ind.filter(have_b & ~have_d).with_columns(
-        period_bin(pl.col("by")).alias("bin")
+    only_birth = (
+        individuals
+        .filter(has_birth_anchor & ~has_death_anchor)
+        .with_columns(floor_to_period(pl.col("birth_year_frac")).alias("period"))
     )
-    only_d = ind.filter(~have_b & have_d).with_columns(
-        period_bin(pl.col("dy")).alias("bin")
+    only_death = (
+        individuals
+        .filter(~has_birth_anchor & has_death_anchor)
+        .with_columns(floor_to_period(pl.col("death_year_frac")).alias("period"))
     )
-    n_neither = ind.filter(~have_b & ~have_d).height
-    timings["parse_classify"] = time.perf_counter() - t
-    print(
-        f"  classified: both={both.height:,} only_birth={only_b.height:,} "
-        f"only_death={only_d.height:,} neither={n_neither:,}  "
-        f"[{timings['parse_classify']:.2f}s]"
+    n_neither = individuals.filter(~has_birth_anchor & ~has_death_anchor).height
+    print(f"  training (both year-precise): {training.height:,}")
+    print(f"  only_birth → estimate death:  {only_birth.height:,}")
+    print(f"  only_death → estimate birth:  {only_death.height:,}")
+    print(f"  neither:                      {n_neither:,}")
+
+    cascade_from_birth = build_cascade(training, "birth_period")
+    cascade_from_death = build_cascade(training, "death_period")
+    print(f"  global longevity median (birth-anchored): {cascade_from_birth['global']:.2f}")
+    print(f"  global longevity median (death-anchored): {cascade_from_death['global']:.2f}")
+
+    estimated_death = apply_cascade(only_birth, cascade_from_birth, "birth_year_frac", +1).select(
+        pl.col("wikidata_id"),
+        pl.lit(None, dtype=pl.Utf8).alias("estimated_birthdate_from_life_expectancy"),
+        year_to_iso(pl.col("est_year")).alias("estimated_deathdate_from_life_expectancy"),
+        pl.col("source"),
     )
-
-    # --- Build cascade tables (birth-anchored and death-anchored) ---
-    t = time.perf_counter()
-
-    def build_cascade(anchor: str):
-        bin_col = "bin_birth" if anchor == "birth" else "bin_death"
-        cat_period = (
-            both.filter(pl.col("cat").is_not_null())
-            .group_by(["cat", bin_col])
-            .agg(pl.col("longevity").median().alias("med_cp"), pl.len().alias("n_cp"))
-            .filter(pl.col("n_cp") >= MIN_BIN_SAMPLES)
-            .rename({bin_col: "bin"})
-            .select(["cat", "bin", "med_cp"])
-        )
-        cat_only = (
-            both.filter(pl.col("cat").is_not_null())
-            .group_by("cat")
-            .agg(pl.col("longevity").median().alias("med_c"))
-        )
-        period_only = (
-            both.group_by(bin_col)
-            .agg(pl.col("longevity").median().alias("med_p"), pl.len().alias("n_p"))
-            .filter(pl.col("n_p") >= MIN_BIN_SAMPLES)
-            .rename({bin_col: "bin"})
-            .select(["bin", "med_p"])
-        )
-        global_med = float(both["longevity"].median())
-        return cat_period, cat_only, period_only, global_med
-
-    casc_birth = build_cascade("birth")
-    casc_death = build_cascade("death")
-    timings["build_cascades"] = time.perf_counter() - t
-    print(
-        f"  cascades built. global median: birth-anchored={casc_birth[3]:.2f}, "
-        f"death-anchored={casc_death[3]:.2f}  [{timings['build_cascades']:.2f}s]"
+    estimated_birth = apply_cascade(only_death, cascade_from_death, "death_year_frac", -1).select(
+        pl.col("wikidata_id"),
+        year_to_iso(pl.col("est_year")).alias("estimated_birthdate_from_life_expectancy"),
+        pl.lit(None, dtype=pl.Utf8).alias("estimated_deathdate_from_life_expectancy"),
+        pl.col("source"),
     )
+    estimates = pl.concat([estimated_death, estimated_birth], how="vertical")
 
-    # --- Resolve targets via cascading LEFT JOINs ---
-    t = time.perf_counter()
+    print(f"\n  estimates produced: {estimates.height:,}")
+    by_source = estimates.group_by("source").agg(pl.len().alias("n")).sort("n", descending=True)
+    for row in by_source.iter_rows(named=True):
+        print(f"    {row['source']:18s} {row['n']:>10,}")
 
-    def resolve(
-        targets: pl.DataFrame, cascade, anchor_col: str, sign: int
-    ) -> pl.DataFrame:
-        cat_period, cat_only, period_only, global_med = cascade
-        out = (
-            targets.join(cat_period, on=["cat", "bin"], how="left")
-            .join(cat_only, on="cat", how="left")
-            .join(period_only, on="bin", how="left")
-            .with_columns(
-                pl.coalesce(["med_cp", "med_c", "med_p", pl.lit(global_med)]).alias(
-                    "le"
-                ),
-                pl.when(pl.col("med_cp").is_not_null())
-                .then(pl.lit("category+period"))
-                .when(pl.col("med_c").is_not_null())
-                .then(pl.lit("category"))
-                .when(pl.col("med_p").is_not_null())
-                .then(pl.lit("period"))
-                .otherwise(pl.lit("global"))
-                .alias("source"),
-            )
-            .with_columns(
-                (pl.col(anchor_col) + sign * pl.col("le"))
-                .floor()
-                .cast(pl.Int64)
-                .alias("est_year"),
-            )
-        )
-        return out
-
-    est_death = (
-        resolve(only_b, casc_birth, "by", +1)
-        .with_columns(
-            fmt_iso_year(pl.col("est_year")).alias(
-                "estimated_deathdate_from_life_expectancy"
-            ),
-            pl.lit(None, dtype=pl.Utf8).alias(
-                "estimated_birthdate_from_life_expectancy"
-            ),
-        )
-        .select(
-            [
-                "wikidata_id",
-                "estimated_birthdate_from_life_expectancy",
-                "estimated_deathdate_from_life_expectancy",
-                "source",
-            ]
-        )
-    )
-
-    est_birth = (
-        resolve(only_d, casc_death, "dy", -1)
-        .with_columns(
-            fmt_iso_year(pl.col("est_year")).alias(
-                "estimated_birthdate_from_life_expectancy"
-            ),
-            pl.lit(None, dtype=pl.Utf8).alias(
-                "estimated_deathdate_from_life_expectancy"
-            ),
-        )
-        .select(
-            [
-                "wikidata_id",
-                "estimated_birthdate_from_life_expectancy",
-                "estimated_deathdate_from_life_expectancy",
-                "source",
-            ]
-        )
-    )
-
-    estimates = pl.concat([est_death, est_birth], how="vertical")
-    timings["resolve"] = time.perf_counter() - t
-    print(f"  estimates produced: {estimates.height:,}  [{timings['resolve']:.2f}s]")
-
-    src_counts = (
-        estimates.group_by("source").agg(pl.len().alias("n")).sort("n", descending=True)
-    )
-    for r in src_counts.iter_rows():
-        print(f"    source={r[0]}  n={r[1]:,}")
-
-    # --- Write CSV ---
-    t = time.perf_counter()
-    estimates.write_csv(args.out)
-    timings["write_csv"] = time.perf_counter() - t
-
-    timings["total"] = time.perf_counter() - t_total
-    print()
-    for k, v in timings.items():
-        print(f"  {k:18s} {v:7.2f}s")
-    print(
-        f"\nDONE rows={estimates.height:,} -> {args.out} "
-        f"({Path(args.out).stat().st_size/1e6:.1f} MB) "
-        f"in {timings['total']:.2f}s"
-    )
+    estimates.write_csv(OUT_PATH)
+    elapsed = time.perf_counter() - t0
+    size_mb = OUT_PATH.stat().st_size / 1e6
+    print(f"\nDONE rows={estimates.height:,} → {OUT_PATH} ({size_mb:.1f} MB) in {elapsed:.2f}s")
 
 
 if __name__ == "__main__":

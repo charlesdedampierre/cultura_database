@@ -37,7 +37,9 @@ import duckdb
 from common import PROJECT_ROOT, log, parse_run_mode
 
 GEOJSON_PATH = (
-    PROJECT_ROOT / "cliopatria_data" / "cliopatria_V2"
+    PROJECT_ROOT
+    / "cliopatria_data"
+    / "cliopatria_V2"
     / "cliopatria_polities_only_v3.geojson"
 )
 DUCKDB_PATH = PROJECT_ROOT / "data" / "humans_clean.duckdb"
@@ -80,9 +82,7 @@ def collect_polities(geojson_path: Path | str) -> list[tuple]:
         if key in seen:
             continue
         seen[key] = len(seen) + 1
-        polities.append(
-            (seen[key], name, ptype, wikipedia_url, wikidata or None)
-        )
+        polities.append((seen[key], name, ptype, wikipedia_url, wikidata or None))
     return polities
 
 
@@ -94,8 +94,7 @@ def run(
     log(f"[02] distinct polities: {len(polities)}")
 
     conn.execute("DROP TABLE IF EXISTS polities_cliopatria")
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE polities_cliopatria (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
@@ -104,17 +103,14 @@ def run(
             wikidata_id TEXT,
             number_individuals INTEGER DEFAULT 0
         )
-        """
-    )
+        """)
     conn.executemany(
         "INSERT INTO polities_cliopatria "
         "(id, name, type, wikipedia_url, wikidata_id, number_individuals) "
         "VALUES (?, ?, ?, ?, ?, 0)",
         polities,
     )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_pc_name ON polities_cliopatria(name)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_pc_name ON polities_cliopatria(name)")
     log(f"[02] inserted {len(polities)} polities")
     return len(polities)
 
@@ -123,15 +119,36 @@ def _sample_main() -> None:
     fake = {
         "type": "FeatureCollection",
         "features": [
-            {"properties": {"Name": "France", "Type": "kingdom",
-                            "Wikipedia": "France", "Wikidata": "Q142",
-                            "FromYear": 1000, "ToYear": 1500}},
-            {"properties": {"Name": "France", "Type": "kingdom",
-                            "Wikipedia": "France", "Wikidata": "Q142",
-                            "FromYear": 1500, "ToYear": 1789}},
-            {"properties": {"Name": "(British Empire)", "Type": "empire",
-                            "Wikipedia": "British_Empire", "Wikidata": "Q8680",
-                            "FromYear": 1700, "ToYear": 1947}},
+            {
+                "properties": {
+                    "Name": "France",
+                    "Type": "kingdom",
+                    "Wikipedia": "France",
+                    "Wikidata": "Q142",
+                    "FromYear": 1000,
+                    "ToYear": 1500,
+                }
+            },
+            {
+                "properties": {
+                    "Name": "France",
+                    "Type": "kingdom",
+                    "Wikipedia": "France",
+                    "Wikidata": "Q142",
+                    "FromYear": 1500,
+                    "ToYear": 1789,
+                }
+            },
+            {
+                "properties": {
+                    "Name": "(British Empire)",
+                    "Type": "empire",
+                    "Wikipedia": "British_Empire",
+                    "Wikidata": "Q8680",
+                    "FromYear": 1700,
+                    "ToYear": 1947,
+                }
+            },
         ],
     }
     with tempfile.TemporaryDirectory() as tmp:

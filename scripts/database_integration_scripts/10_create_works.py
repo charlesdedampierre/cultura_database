@@ -18,19 +18,24 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
 
-from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
+import duckdb
+
+from common import (
+    WIKIDATA_V2_DIR,
+    log,
+    load_json,
+    open_db,
+    parse_run_mode,
+    table_exists,
+)
 
 
 WORKS_PATH = WIKIDATA_V2_DIR / "works.json"
 LABELS_PATH = WIKIDATA_V2_DIR / "work_labels.json"
 
-# Wikidata "creator-role" property -> human-readable role stored in
-# `works.relationship`. The P-id is preserved in
-# `wikidata_properties_definition`.
 RELATIONSHIP_BY_PID = {
     "P50":  "author",
     "P57":  "director",
@@ -51,7 +56,7 @@ def relationship_name(prop: str | None) -> str | None:
 
 
 def run(
-    conn: sqlite3.Connection,
+    conn: duckdb.DuckDBPyConnection,
     works_path: Path = WORKS_PATH,
     labels_path: Path = LABELS_PATH,
 ) -> int:
@@ -59,15 +64,17 @@ def run(
     works = load_json(works_path)
     labels = load_json(labels_path) if labels_path.exists() else {}
 
-    name_lookup = {}
-    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals'").fetchone():
-        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals"))
+    name_lookup: dict[str, str] = {}
+    if table_exists(conn, "individuals"):
+        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals").fetchall())
 
     conn.execute("DROP TABLE IF EXISTS works")
+    conn.execute("DROP SEQUENCE IF EXISTS seq_works_id")
+    conn.execute("CREATE SEQUENCE seq_works_id START 1")
     conn.execute(
         """
         CREATE TABLE works (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGINT PRIMARY KEY DEFAULT nextval('seq_works_id'),
             individual_id   TEXT NOT NULL,
             individual_name TEXT,
             work_id         TEXT NOT NULL,
@@ -95,7 +102,6 @@ def run(
     conn.execute("CREATE INDEX IF NOT EXISTS idx_works_individual ON works(individual_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_works_work ON works(work_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_works_rel ON works(relationship)")
-    conn.commit()
 
     log(f"[DB] 10: Inserted {len(rows)} works.")
     return len(rows)
@@ -113,13 +119,13 @@ def _sample_main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         wp = Path(tmp) / "works.json"; wp.write_text(_json.dumps(fake_works))
         lp = Path(tmp) / "labels.json"; lp.write_text(_json.dumps(fake_labels))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
-            conn.executescript(
-                "CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT);"
-                "INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams');"
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
+            conn.execute("CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute(
+                "INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams')"
             )
             n = run(conn, works_path=wp, labels_path=lp)
-            for r in conn.execute("SELECT * FROM works ORDER BY id"):
+            for r in conn.execute("SELECT * FROM works ORDER BY id").fetchall():
                 log(f"  works: {r}")
         log(f"[sample] inserted {n} works")
 

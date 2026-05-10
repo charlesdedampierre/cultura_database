@@ -1,13 +1,16 @@
-"""Mirror humans_clean.sqlite3 into a fresh humans_clean.duckdb (all tables).
+"""Mirror a SQLite cultura DB into a fresh DuckDB (all tables, no consolidation).
 
-Strategy:
-  - ATTACH the sqlite source via the sqlite_scanner extension.
-  - Per table: stream rows into a DuckDB table with `CREATE TABLE ... AS SELECT *`.
-  - Show progress with tqdm.
+Default: `data/humans_clean.sqlite3` -> `data/humans_clean.duckdb`.
+Use `--src` / `--dst` to point at the v2 sample build for a from-scratch
+end-to-end check (`humans_v2.sqlite3` or `humans_v2.sample.sqlite3`).
+
+Strategy: ATTACH the sqlite source via duckdb's sqlite_scanner, then
+`CREATE TABLE ... AS SELECT *` per table with a tqdm progress bar.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -16,24 +19,23 @@ import duckdb
 from tqdm import tqdm
 
 REPO = Path(__file__).resolve().parents[1]
-SRC = REPO / "data" / "humans_clean.sqlite3"
-DST = REPO / "data" / "humans_clean.duckdb"
+DEFAULT_SRC = REPO / "data" / "humans_clean.sqlite3"
+DEFAULT_DST = REPO / "data" / "humans_clean.duckdb"
 
 
-def main():
-    if not SRC.exists():
-        sys.exit(f"missing source: {SRC}")
-    if DST.exists():
-        sys.exit(f"refusing to overwrite existing {DST}")
+def mirror(src: Path, dst: Path) -> None:
+    if not src.exists():
+        sys.exit(f"missing source: {src}")
+    if dst.exists():
+        sys.exit(f"refusing to overwrite existing {dst}")
 
-    print(f"src: {SRC} ({SRC.stat().st_size / 1e9:.2f} GB)")
-    print(f"dst: {DST}")
+    print(f"src: {src} ({src.stat().st_size / 1e9:.2f} GB)")
+    print(f"dst: {dst}")
 
-    con = duckdb.connect(str(DST))
+    con = duckdb.connect(str(dst))
     con.execute("INSTALL sqlite; LOAD sqlite;")
-    con.execute(f"ATTACH '{SRC}' AS src (TYPE SQLITE, READ_ONLY);")
+    con.execute(f"ATTACH '{src}' AS src (TYPE SQLITE, READ_ONLY);")
 
-    # Pull table list from the attached sqlite via DuckDB's information_schema.
     rows = con.execute(
         "SELECT table_name FROM information_schema.tables "
         "WHERE table_catalog = 'src' AND table_schema = 'main' "
@@ -47,7 +49,6 @@ def main():
     pbar = tqdm(tables, unit="table")
     for name in pbar:
         pbar.set_postfix_str(name)
-        # Quote identifier with double quotes to be safe.
         q = f'"{name}"'
         ts = time.perf_counter()
         con.execute(f"CREATE TABLE {q} AS SELECT * FROM src.{q};")
@@ -57,8 +58,18 @@ def main():
     con.execute("DETACH src;")
     con.close()
 
-    sz = DST.stat().st_size
-    print(f"\ndone in {time.perf_counter() - t0:.1f}s — {DST.name} = {sz/1e9:.2f} GB")
+    sz = dst.stat().st_size
+    print(f"\ndone in {time.perf_counter() - t0:.1f}s — {dst.name} = {sz/1e9:.2f} GB")
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--src", default=str(DEFAULT_SRC),
+                   help=f"source SQLite (default: {DEFAULT_SRC})")
+    p.add_argument("--dst", default=str(DEFAULT_DST),
+                   help=f"destination DuckDB (default: {DEFAULT_DST})")
+    args = p.parse_args()
+    mirror(Path(args.src), Path(args.dst))
 
 
 if __name__ == "__main__":

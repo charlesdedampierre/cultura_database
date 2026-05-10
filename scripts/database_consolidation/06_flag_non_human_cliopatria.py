@@ -87,8 +87,7 @@ def run(db_path: Path, table: str) -> None:
 
     # ----- 2. individuals connected to a fictional CoC / place --------
     t = time.perf_counter()
-    con.execute(
-        """
+    con.execute("""
         DROP TABLE IF EXISTS _indiv_fict_coc;
         CREATE TEMP TABLE _indiv_fict_coc AS
         WITH coc_long AS (
@@ -101,49 +100,36 @@ def run(db_path: Path, table: str) -> None:
         SELECT DISTINCT cl.wikidata_id
         FROM coc_long cl
         JOIN _fictional_coc fc ON fc.id = cl.coc_id;
-        """
-    )
-    con.execute(
-        """
+        """)
+    con.execute("""
         DROP TABLE IF EXISTS _indiv_fict_birth;
         CREATE TEMP TABLE _indiv_fict_birth AS
         SELECT DISTINCT k.wikidata_id
         FROM individuals_keys k
         JOIN _fictional_place fp ON fp.id = k.birthcity_id;
-        """
-    )
-    con.execute(
-        """
+        """)
+    con.execute("""
         DROP TABLE IF EXISTS _indiv_fict_death;
         CREATE TEMP TABLE _indiv_fict_death AS
         SELECT DISTINCT k.wikidata_id
         FROM individuals_keys k
         JOIN _fictional_place fp ON fp.id = k.deathcity_id;
-        """
-    )
-    con.execute(
-        """
+        """)
+    con.execute("""
         DROP TABLE IF EXISTS _indiv_fict_any;
         CREATE TEMP TABLE _indiv_fict_any AS
         SELECT wikidata_id FROM _indiv_fict_coc
         UNION SELECT wikidata_id FROM _indiv_fict_birth
         UNION SELECT wikidata_id FROM _indiv_fict_death;
-        """
-    )
+        """)
 
     n_coc = con.execute("SELECT COUNT(*) FROM _indiv_fict_coc").fetchone()[0]
     n_birth = con.execute("SELECT COUNT(*) FROM _indiv_fict_birth").fetchone()[0]
     n_death = con.execute("SELECT COUNT(*) FROM _indiv_fict_death").fetchone()[0]
     n_any = con.execute("SELECT COUNT(*) FROM _indiv_fict_any").fetchone()[0]
-    print(
-        f"  individuals (whole DB) with fictional CoC        = {n_coc:,}"
-    )
-    print(
-        f"  individuals (whole DB) with fictional birthplace = {n_birth:,}"
-    )
-    print(
-        f"  individuals (whole DB) with fictional deathplace = {n_death:,}"
-    )
+    print(f"  individuals (whole DB) with fictional CoC        = {n_coc:,}")
+    print(f"  individuals (whole DB) with fictional birthplace = {n_birth:,}")
+    print(f"  individuals (whole DB) with fictional deathplace = {n_death:,}")
     print(
         f"  individuals (whole DB) with ANY fictional link   = {n_any:,} "
         f"[{time.perf_counter()-t:.2f}s]\n",
@@ -152,10 +138,7 @@ def run(db_path: Path, table: str) -> None:
 
     # ----- 3. add / reset non_human and flag rows ---------------------
     t = time.perf_counter()
-    cols = {
-        r[1]
-        for r in con.execute(f"PRAGMA table_info('{table}')").fetchall()
-    }
+    cols = {r[1] for r in con.execute(f"PRAGMA table_info('{table}')").fetchall()}
     if "non_human" not in cols:
         con.execute(f"ALTER TABLE {table} ADD COLUMN non_human INTEGER")
         con.execute(f"UPDATE {table} SET non_human = 0")
@@ -169,8 +152,7 @@ def run(db_path: Path, table: str) -> None:
         f"WHERE wikidata_id IN (SELECT wikidata_id FROM _indiv_fict_any)"
     )
     con.execute(
-        f"CREATE INDEX IF NOT EXISTS idx_{table}_non_human "
-        f"ON {table}(non_human)"
+        f"CREATE INDEX IF NOT EXISTS idx_{table}_non_human " f"ON {table}(non_human)"
     )
 
     n_total = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]

@@ -18,12 +18,20 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
+import duckdb
+
+from common import (
+    WIKIDATA_V2_DIR,
+    log,
+    load_json,
+    open_db,
+    parse_run_mode,
+    table_exists,
+)
 
 
 JSON_PATH = WIKIDATA_V2_DIR / "sitelinks.json"
@@ -41,23 +49,21 @@ def _parse(url: str) -> tuple[str | None, str | None]:
     return site, title
 
 
-def run(conn: sqlite3.Connection, json_path: Path = JSON_PATH) -> int:
+def run(conn: duckdb.DuckDBPyConnection, json_path: Path = JSON_PATH) -> int:
     log("[DB] 09: Creating wikimedia_links table...")
     data = load_json(json_path)
 
-    name_lookup = {}
-    if conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals'"
-    ).fetchone():
-        name_lookup = dict(
-            conn.execute("SELECT wikidata_id, name_en FROM individuals")
-        )
+    name_lookup: dict[str, str] = {}
+    if table_exists(conn, "individuals"):
+        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals").fetchall())
 
     conn.execute("DROP TABLE IF EXISTS wikimedia_links")
+    conn.execute("DROP SEQUENCE IF EXISTS seq_wikimedia_links_id")
+    conn.execute("CREATE SEQUENCE seq_wikimedia_links_id START 1")
     conn.execute(
         """
         CREATE TABLE wikimedia_links (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGINT PRIMARY KEY DEFAULT nextval('seq_wikimedia_links_id'),
             wikidata_id TEXT NOT NULL,
             individual_name TEXT,
             site TEXT,
@@ -83,7 +89,6 @@ def run(conn: sqlite3.Connection, json_path: Path = JSON_PATH) -> int:
         "CREATE INDEX IF NOT EXISTS idx_wikimedia_links_wikidata "
         "ON wikimedia_links(wikidata_id)"
     )
-    conn.commit()
     log(f"[DB] 09: Inserted {len(rows)} wikimedia_links.")
     return len(rows)
 
@@ -100,17 +105,17 @@ def _sample_main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "sitelinks.json"
         p.write_text(_json.dumps(fake))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
-            conn.executescript(
-                "CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT);"
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
+            conn.execute("CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute(
                 "INSERT INTO individuals VALUES "
-                "('Q937','Albert Einstein'),('Q42','Douglas Adams');"
+                "('Q937','Albert Einstein'),('Q42','Douglas Adams')"
             )
             n = run(conn, json_path=p)
             for r in conn.execute(
                 "SELECT wikidata_id, individual_name, site, title "
                 "FROM wikimedia_links ORDER BY id"
-            ):
+            ).fetchall():
                 log(f"  wikimedia_links: {r}")
         log(f"[sample] inserted {n} wikimedia_links")
 

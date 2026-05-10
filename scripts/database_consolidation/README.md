@@ -1,61 +1,43 @@
 # database_consolidation/
 
-Post-build consolidation steps that depend on **derived** data, not raw
-Wikidata. Run these after `scripts/database_integration_scripts_V2/build_all.py`
-has produced `data/humans_v2.sqlite3`.
+Post-build consolidation steps that depend on **derived** data and on
+**Cliopatria** geographic / political reference data, run after the raw
+Wikidata extraction has populated `data/humans_clean.duckdb`.
 
-These scripts are kept separate from the v2 integration pipeline because
-they:
-
-- depend on **Cliopatria** geographic / political data (an external
-  dataset under `cliopatria_data/`), not Wikidata, and
-- compute **time-aware** properties — i.e. they need a notion of *when*
-  an individual was active, not just their static facts.
+These steps add **time-aware** properties to each individual: when they
+were active (floruit period) and which historical polity they belong to
+during that period.
 
 ## Layout
 
-| # | Script | What it produces | Inputs |
+| # | Script | Output | Inputs |
 |---|---|---|---|
-| 01 | `01_individuals_floruit_period.py` | `individuals_floruit_period` (working period per Q5: floruit / birth / death rules with century fallback) | `individuals`, `individuals_floruit` |
-| 02 | `02_create_polities_cliopatria.py` | `polities_cliopatria` (polity reference table) | `cliopatria_data/processing/data/cliopatria.db` |
-| 03 | `03_copy_polity_periods.py` | `polities_periods_cliopatria` (per-period geometries) | same |
-| 04 | `04_individuals_cliopatria.py` | `individuals_cliopatria` (each Q5 → polity, polygon-first / URL-fallback, year-aware; uses `floruit_year` from `individuals_floruit_period`) | individuals, country_of_citizenship, cities, individuals_floruit_period, polities_cliopatria, polities_periods_cliopatria |
+| 01 | `01_individuals_floruit_period.py` | `individuals_floruit_period` (active period per individual; per-occupation productive-age window) | `individuals` |
+| — | `estimate_dates_from_life_expectancy_py.py` | `temp_files/estimated_dates_from_life_expectancy.csv` (cascade-imputed missing date for individuals with one anchor) | `individuals`, CV |
+| 02 | `02_create_polities_cliopatria.py` | `polities_cliopatria` (polity reference table) | Cliopatria source DB |
+| 03 | `03_copy_polity_periods.py` | `polities_periods_cliopatria` (per-period polygons) | Cliopatria source DB |
+| 04 | `04_individuals_cliopatria_rs/` (Rust) | `individuals_cliopatria` — one polity per matched individual; **two-phase cascade** (polygon then URL fallback in one binary) | `individuals_keys`, `places`, `country_of_citizenship`, `individuals_floruit_period`, `polities_cliopatria`, `polities_periods_cliopatria` |
+| 06 | `06_flag_non_human_cliopatria.py` | flag column on `individuals` for non-human polity matches | `individuals_cliopatria` |
 
-## Conceptual flow
-
-```
-floruit_period (01)
-       │
-       ▼
-individuals_location ◄── implicit: birth/death/country-of-citizenship QIDs
-       │                  from individuals + lat/lon from cities and
-       │                  country_of_citizenship
-       ▼
-link_to_cliopatria_polities (04)
-       │       (uses polity reference 02 + period geometries 03)
-       ▼
-individuals_cliopatria
-```
-
-Script 04 fuses the "pick the right location for someone given their
-floruit period" step with the "match that location to the right
-Cliopatria polity at that year" step, because the priority order
-(country-of-citizenship → birthplace → deathplace, polygon → URL) is
-unified across both stages.
+Script 04 is the unified linker. Phase 1 attempts polygon containment in
+order **deathplace → birthplace → centroid of country-of-citizenship**,
+restricted to polity-periods covering the impact year. Phase 2 (URL
+fallback, applied only when phase 1 fails) tries
+**country-of-citizenship URL → deathplace URL → birthplace URL** against
+`polities_cliopatria.wikipedia_url`. Impact year is the midpoint of
+`floruit_period_start` and `floruit_period_end` when both are present,
+else `floruit_year`.
 
 ## Database
 
-These scripts read from and write to `data/humans_v2.sqlite3` (set in
-`common.py`'s `DB_PATH`). They never touch the legacy
-`humans_clean.sqlite3`.
+Reads from and writes to `data/humans_clean.duckdb`.
 
 ## Running
 
 ```bash
-python scripts/database_consolidation/01_individuals_floruit_period.py --full
+python scripts/database_consolidation/01_individuals_floruit_period.py --full --insert-db
 python scripts/database_consolidation/02_create_polities_cliopatria.py --full
 python scripts/database_consolidation/03_copy_polity_periods.py --full
-python scripts/database_consolidation/04_individuals_cliopatria.py --full
+cargo run --release --manifest-path scripts/database_consolidation/04_individuals_cliopatria_rs/Cargo.toml -- --db data/humans_clean.duckdb
+python scripts/database_consolidation/06_flag_non_human_cliopatria.py
 ```
-
-Without `--full` each script runs a tiny synthetic-DB sample.

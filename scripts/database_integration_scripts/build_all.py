@@ -1,4 +1,4 @@
-"""Build a fresh `data/humans_v2.sqlite3` from the v2 Wikidata JSONs.
+"""Build a fresh `data/humans_v2.duckdb` from the v2 Wikidata JSONs.
 
 Order matters because some scripts back-fill columns from earlier tables:
     02 places                   (looks up country names from
@@ -18,11 +18,12 @@ Order matters because some scripts back-fill columns from earlier tables:
     10 works
     11 individual_writing_languages
 
-The legacy `data/humans_clean.sqlite3` is never touched.
+Output: a fresh ``data/humans_v2.duckdb`` (overridable via
+``CULTURA_DB_PATH``). Nothing is written to ``data/humans_clean.duckdb``.
 
 Usage
 -----
-    python build_all.py            # writes to data/humans_v2.sqlite3
+    python build_all.py            # writes to data/humans_v2.duckdb
     python build_all.py --sample   # tiny end-to-end (just runs each script's
                                    # _sample_main, no real DB written)
 
@@ -71,7 +72,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 70)
-    print(f"  database_integration_scripts_V2/build_all  "
+    print(f"  database_integration_scripts/build_all  "
           f"({'SAMPLE' if args.sample else 'FULL'} mode)")
     print("=" * 70)
 
@@ -88,7 +89,9 @@ def main():
                 raise
         return
 
-    from common import open_db
+    sys.path.insert(0, str(HERE))
+    from common import open_db, DB_PATH
+    print(f"writing to: {DB_PATH}")
     t_total = time.time()
     with open_db() as conn:
         for name in ORDER:

@@ -73,8 +73,7 @@ def run(
     conn.execute("DROP TABLE IF EXISTS polities_periods_cliopatria")
     conn.execute("DROP SEQUENCE IF EXISTS seq_polities_periods_cliopatria")
     conn.execute("CREATE SEQUENCE seq_polities_periods_cliopatria START 1")
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE polities_periods_cliopatria (
             id INTEGER PRIMARY KEY DEFAULT nextval('seq_polities_periods_cliopatria'),
             polity_id INTEGER NOT NULL,
@@ -84,8 +83,7 @@ def run(
             area REAL,
             geometry TEXT
         )
-        """
-    )
+        """)
 
     rows: list[tuple] = []
     skipped = 0
