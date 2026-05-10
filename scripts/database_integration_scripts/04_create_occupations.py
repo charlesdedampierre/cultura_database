@@ -11,9 +11,10 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
+
+import duckdb
 
 from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
 
@@ -22,7 +23,7 @@ LABEL_PATH = WIKIDATA_V2_DIR / "occupation_labels.json"
 META_PATH = WIKIDATA_V2_DIR / "occupation_metadata.json"
 
 
-def run(conn: sqlite3.Connection,
+def run(conn: duckdb.DuckDBPyConnection,
         label_path: Path = LABEL_PATH,
         meta_path: Path = META_PATH) -> int:
     log("[DB] 04: Creating occupations table...")
@@ -62,7 +63,6 @@ def run(conn: sqlite3.Connection,
         rows,
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_occ_name ON occupations(name_en)")
-    conn.commit()
     log(f"[DB] 04: Inserted {len(rows)} occupations.")
     return len(rows)
 
@@ -78,9 +78,9 @@ def _sample_main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         lp = Path(tmp) / "labels.json"; lp.write_text(_json.dumps(fake_labels))
         mp = Path(tmp) / "meta.json"; mp.write_text(_json.dumps(fake_meta))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
             n = run(conn, label_path=lp, meta_path=mp)
-            for r in conn.execute("SELECT * FROM occupations ORDER BY id"):
+            for r in conn.execute("SELECT * FROM occupations ORDER BY id").fetchall():
                 log(f"  occupations: {r}")
         log(f"[sample] inserted {n} occupations")
 

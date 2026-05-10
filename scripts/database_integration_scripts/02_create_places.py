@@ -16,13 +16,14 @@ Output : places (id PK, name_en, lat, lon, country_id, country_name,
 Usage
 -----
     python3 02_create_places.py            # tiny synthetic JSON
-    python3 02_create_places.py --full     # data/humans_v2.sqlite3
+    python3 02_create_places.py --full     # data/humans_v2.duckdb
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
+
+import duckdb
 
 from common import (
     WIKIDATA_V2_DIR,
@@ -44,7 +45,7 @@ def _load_country_names(path: Path) -> dict[str, str]:
 
 
 def run(
-    conn: sqlite3.Connection,
+    conn: duckdb.DuckDBPyConnection,
     json_path: Path = JSON_PATH,
     countries_path: Path = COUNTRIES_PATH,
 ) -> int:
@@ -58,8 +59,8 @@ def run(
         CREATE TABLE places (
             id TEXT PRIMARY KEY,
             name_en TEXT,
-            lat REAL,
-            lon REAL,
+            lat DOUBLE,
+            lon DOUBLE,
             country_id TEXT,
             country_name TEXT,
             entity_type_ids TEXT,
@@ -89,15 +90,8 @@ def run(
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
-    conn.commit()
-
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_places_name ON places(name_en)"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_places_country_id ON places(country_id)"
-    )
-    conn.commit()
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_places_name ON places(name_en)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_places_country_id ON places(country_id)")
 
     log(f"[DB] 02: Inserted {len(rows)} places.")
     return len(rows)
@@ -121,13 +115,13 @@ def _sample_main() -> None:
         places_path.write_text(__import__("json").dumps(fake_places))
         countries_path = Path(tmp) / "modern_countries.json"
         countries_path.write_text(__import__("json").dumps(fake_countries))
-        sample_db = Path(tmp) / "sample.sqlite3"
+        sample_db = Path(tmp) / "sample.duckdb"
         with open_db(sample_db) as conn:
             n = run(conn, json_path=places_path, countries_path=countries_path)
             for row in conn.execute(
                 "SELECT id, name_en, country_id, country_name, entity_type_ids "
                 "FROM places ORDER BY id"
-            ):
+            ).fetchall():
                 log(f"  places: {row}")
         log(f"[sample] inserted {n} places")
 

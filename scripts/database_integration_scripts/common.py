@@ -1,25 +1,27 @@
-"""Shared helpers for the Python port of the Rust enrichment pipeline.
+"""Shared helpers for the v2 integration pipeline.
 
-The Rust scripts under `enhance_db/src/bin/` all share a small set of
-patterns: open the SQLite database with WAL pragmas, append progress
-messages to `task.log`, stream JSON / TSV inputs from
-`data/all_humans/`, and bulk-update the database in batched
-transactions with a tqdm-style progress bar.
+Each script under this directory writes one table directly into a fresh
+DuckDB file (``data/humans_v2.duckdb`` by default). There is no SQLite
+intermediate any more — DuckDB is now the canonical storage format end
+to end.
 
-This module centralises those patterns so each numbered script stays
-short and focused on its own SQL.
+The shared helpers in this module mirror the small set of patterns the
+scripts share: opening the DB with sensible session settings, batched
+``executemany`` with tqdm progress, JSON loading, year parsing, and a
+``--full`` / ``--sample`` CLI mode.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import sqlite3
 import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Iterator
+
+import duckdb
 
 # --------------------------------------------------------------------------
 # Paths
@@ -27,23 +29,25 @@ from typing import Any, Iterable, Iterator
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
-ALL_HUMANS_DIR = DATA_DIR / "all_humans"
+RAW_DATA_DIR = DATA_DIR / "raw_data_from_wikidata"
+ALL_HUMANS_DIR = RAW_DATA_DIR  # backwards-compatible alias
 
-# v2 wikidata extraction outputs — this is what the simplified scripts read.
-WIKIDATA_V2_DIR = ALL_HUMANS_DIR / "wikidata_extraction_scripts_v2"
+# Where the v2 extraction JSONs live. Override with `WIKIDATA_V2_DIR` env
+# var when running against the test cohort (test_1000) or any other slice.
+WIKIDATA_V2_DIR = (Path(os.environ["WIKIDATA_V2_DIR"])
+                   if os.environ.get("WIKIDATA_V2_DIR")
+                   else RAW_DATA_DIR)
+WIKIDATA_TEST_DIR = RAW_DATA_DIR / "test_1000"
 
-# IMPORTANT: the canonical v1 database `humans_clean.sqlite3` is never written
-# to by this pipeline. The simplified v2 build always materialises a fresh
-# `humans_v2.sqlite3`. This protects the user's existing DB from accidental
-# overwrites and lets the v2 build be re-run end-to-end at any time.
-LEGACY_DB_PATH = DATA_DIR / "humans_clean.sqlite3"
 # `CULTURA_DB_PATH` env var overrides DB_PATH so the v2 scripts can be
-# pointed at, e.g., a fresh humans_test.sqlite3 for an isolated end-to-end
-# integrity check without modifying common.py.
+# pointed at, e.g., a fresh humans_test.duckdb without modifying common.py.
 DB_PATH = (Path(os.environ["CULTURA_DB_PATH"])
            if os.environ.get("CULTURA_DB_PATH")
-           else DATA_DIR / "humans_v2.sqlite3")
-SAMPLE_DB_PATH = DATA_DIR / "humans_v2.sample.sqlite3"
+           else DATA_DIR / "humans_v2.duckdb")
+SAMPLE_DB_PATH = DATA_DIR / "humans_v2.sample.duckdb"
+
+# Read-only reference to the canonical DuckDB. Never written by this pipeline.
+LEGACY_DB_PATH = DATA_DIR / "humans_clean.duckdb"
 
 TASK_LOG = PROJECT_ROOT / "task.log"
 
@@ -51,7 +55,7 @@ DEFAULT_BATCH = 50_000
 
 
 # --------------------------------------------------------------------------
-# Logging (mirrors the Rust `log()` helper)
+# Logging
 # --------------------------------------------------------------------------
 
 def log(msg: str) -> None:
@@ -65,65 +69,59 @@ def log(msg: str) -> None:
 
 
 # --------------------------------------------------------------------------
-# SQLite connection helpers
+# DuckDB connection helpers
 # --------------------------------------------------------------------------
 
 def open_db(
     db_path: Path | str = DB_PATH,
     *,
-    cache_mb: int = 2_000,
     read_only: bool = False,
-) -> sqlite3.Connection:
-    """Open SQLite with the same pragmas the Rust scripts use."""
-    db_path = str(db_path)
-    if read_only:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    else:
-        conn = sqlite3.connect(db_path)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute(f"PRAGMA cache_size=-{cache_mb * 1000}")
-    conn.execute("PRAGMA temp_store=MEMORY")
-    return conn
+    threads: int | None = None,
+) -> duckdb.DuckDBPyConnection:
+    """Open a DuckDB connection. Returns the connection (use as ctx manager)."""
+    con = duckdb.connect(str(db_path), read_only=read_only)
+    if threads is not None:
+        con.execute(f"PRAGMA threads={int(threads)}")
+    con.execute("PRAGMA enable_progress_bar=false")
+    return con
 
 
-def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
-    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
-    return any(r[1] == column for r in rows)
-
-
-def table_exists(conn: sqlite3.Connection, table: str) -> bool:
+def column_exists(conn: duckdb.DuckDBPyConnection, table: str, column: str) -> bool:
     row = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-        (table,),
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_schema='main' AND table_name=? AND column_name=?",
+        [table, column],
+    ).fetchone()
+    return row is not None
+
+
+def table_exists(conn: duckdb.DuckDBPyConnection, table: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM information_schema.tables "
+        "WHERE table_schema='main' AND table_name=?",
+        [table],
     ).fetchone()
     return row is not None
 
 
 def add_column_if_missing(
-    conn: sqlite3.Connection, table: str, column: str, decl: str
+    conn: duckdb.DuckDBPyConnection, table: str, column: str, decl: str
 ) -> bool:
     if column_exists(conn, table, column):
         return False
-    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
-    conn.commit()
+    conn.execute(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {decl}')
     return True
 
 
-def row_count(conn: sqlite3.Connection, table: str) -> int:
-    return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+def row_count(conn: duckdb.DuckDBPyConnection, table: str) -> int:
+    return conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
 
 
 # --------------------------------------------------------------------------
-# Encoding fix (mirrors Rust 02_fix_encoding logic)
+# Encoding fix (rare in the v2 pipeline; kept for legacy parity)
 # --------------------------------------------------------------------------
 
 def fix_mojibake(text: str | None) -> str | None:
-    """Try to recover a string that was written as Latin-1-encoded UTF-8.
-
-    Returns the fixed string if a fix was applied, otherwise None (so
-    callers can skip rows that were already clean).
-    """
     if not text:
         return None
     if not any(0xC0 <= ord(c) <= 0xFF for c in text):
@@ -147,11 +145,6 @@ def load_json(path: Path | str) -> Any:
 
 
 def iter_json_map(path: Path | str) -> Iterator[tuple[str, Any]]:
-    """Yield (key, value) from a JSON map. Loads the whole file (simple).
-
-    For very large files where memory matters, callers can swap in
-    `ijson` instead — keep this helper for the common < 1 GB case.
-    """
     obj = load_json(path)
     if not isinstance(obj, dict):
         raise TypeError(f"Expected a JSON object at {path}")
@@ -159,22 +152,23 @@ def iter_json_map(path: Path | str) -> Iterator[tuple[str, Any]]:
 
 
 # --------------------------------------------------------------------------
-# Batched transactions
+# Transactions and batched inserts
 # --------------------------------------------------------------------------
 
 @contextmanager
-def transaction(conn: sqlite3.Connection):
+def transaction(conn: duckdb.DuckDBPyConnection):
     """`with transaction(conn):` — commits on success, rollbacks on error."""
+    conn.execute("BEGIN TRANSACTION")
     try:
         yield
-        conn.commit()
+        conn.execute("COMMIT")
     except Exception:
-        conn.rollback()
+        conn.execute("ROLLBACK")
         raise
 
 
 def executemany_batched(
-    conn: sqlite3.Connection,
+    conn: duckdb.DuckDBPyConnection,
     sql: str,
     rows: Iterable[tuple],
     *,
@@ -182,10 +176,7 @@ def executemany_batched(
     desc: str | None = None,
     total: int | None = None,
 ) -> int:
-    """Execute `sql` over `rows` in transactions of `batch_size`.
-
-    Returns the number of rows processed. Wraps tqdm if available.
-    """
+    """Execute `sql` over `rows` in transactions of `batch_size`. Returns count."""
     try:
         from tqdm import tqdm
 
@@ -195,31 +186,25 @@ def executemany_batched(
 
     n = 0
     buf: list[tuple] = []
-    cur = conn.cursor()
     for row in iterator:
         buf.append(row)
         if len(buf) >= batch_size:
             with transaction(conn):
-                cur.executemany(sql, buf)
+                conn.executemany(sql, buf)
             n += len(buf)
             buf.clear()
     if buf:
         with transaction(conn):
-            cur.executemany(sql, buf)
+            conn.executemany(sql, buf)
         n += len(buf)
     return n
 
 
 # --------------------------------------------------------------------------
-# Date / year parsing (used by impact_date, regions, floruit, cliopatria)
+# Date / year parsing
 # --------------------------------------------------------------------------
 
 def parse_year(s: str | None) -> int | None:
-    """Pull the integer year out of an ISO date string.
-
-    Handles BCE years prefixed with `-`, blank-node placeholders, and
-    plain year strings ("1850").
-    """
     if not s:
         return None
     s = s.strip()
@@ -239,50 +224,37 @@ def parse_year(s: str | None) -> int | None:
 
 
 # --------------------------------------------------------------------------
-# Sample / probe helpers used by the per-script `__main__` blocks
+# Sample / probe helpers
 # --------------------------------------------------------------------------
 
 def parse_run_mode() -> str:
-    """Parse the `--full` / `--sample` switch.
-
-    Returns "full" when the caller wants to run against the real
-    `data/humans_clean.sqlite3`. Returns "sample" otherwise — each
-    script's `__main__` is expected to build a tiny synthetic DB.
-    """
-    argv = sys.argv[1:]
-    if "--full" in argv:
-        return "full"
-    return "sample"
+    """Return "full" if `--full` is passed, else "sample"."""
+    return "full" if "--full" in sys.argv[1:] else "sample"
 
 
 def insert_rows(
-    conn: sqlite3.Connection,
+    conn: duckdb.DuckDBPyConnection,
     table: str,
     rows: Iterable[dict[str, Any]],
 ) -> int:
-    """Convenience: dict-row insert. Used by `__main__` blocks to
-    seed synthetic data without writing the column list twice.
-    """
     rows = list(rows)
     if not rows:
         return 0
     cols = list(rows[0].keys())
-    col_csv = ",".join(cols)
+    col_csv = ",".join(f'"{c}"' for c in cols)
     placeholders = ",".join("?" * len(cols))
     conn.executemany(
-        f"INSERT INTO {table} ({col_csv}) VALUES ({placeholders})",
+        f'INSERT INTO "{table}" ({col_csv}) VALUES ({placeholders})',
         [tuple(r[c] for c in cols) for r in rows],
     )
     return len(rows)
 
 
-def temp_db(name: str = "_sample.sqlite3") -> Path:
-    """Path to a per-script throwaway DB next to this module."""
+def temp_db(name: str = "_sample.duckdb") -> Path:
     return Path(__file__).resolve().parent / name
 
 
 def stopwatch():
-    """Return a () -> elapsed-seconds closure."""
     t0 = time.time()
     return lambda: time.time() - t0
 
@@ -290,8 +262,10 @@ def stopwatch():
 __all__ = [
     "PROJECT_ROOT",
     "DATA_DIR",
+    "RAW_DATA_DIR",
     "ALL_HUMANS_DIR",
     "WIKIDATA_V2_DIR",
+    "WIKIDATA_TEST_DIR",
     "LEGACY_DB_PATH",
     "DB_PATH",
     "SAMPLE_DB_PATH",

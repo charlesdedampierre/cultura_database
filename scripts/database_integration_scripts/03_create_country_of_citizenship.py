@@ -17,9 +17,10 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
+
+import duckdb
 
 from common import (
     WIKIDATA_V2_DIR,
@@ -34,7 +35,7 @@ META_PATH = WIKIDATA_V2_DIR / "nationality_metadata.json"
 LABEL_PATH = WIKIDATA_V2_DIR / "nationality_labels.json"
 
 
-def run(conn: sqlite3.Connection,
+def run(conn: duckdb.DuckDBPyConnection,
         meta_path: Path = META_PATH,
         label_path: Path = LABEL_PATH) -> int:
     log("[DB] 03: Creating country_of_citizenship table...")
@@ -52,8 +53,8 @@ def run(conn: sqlite3.Connection,
             instance_of TEXT,
             country_id TEXT,
             replaced_by TEXT,
-            lat REAL,
-            lon REAL,
+            lat DOUBLE,
+            lon DOUBLE,
             en_wikipedia_url TEXT
         )
         """
@@ -82,12 +83,10 @@ def run(conn: sqlite3.Connection,
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
-    conn.commit()
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_coc_name "
         "ON country_of_citizenship(name_en)"
     )
-    conn.commit()
 
     log(f"[DB] 03: Inserted {len(rows)} country_of_citizenship rows.")
     return len(rows)
@@ -109,12 +108,12 @@ def _sample_main() -> None:
         labs = Path(tmp) / "labels.json"
         meta.write_text(_json.dumps(fake_meta))
         labs.write_text(_json.dumps(fake_labels))
-        sample_db = Path(tmp) / "sample.sqlite3"
+        sample_db = Path(tmp) / "sample.duckdb"
         with open_db(sample_db) as conn:
             n = run(conn, meta_path=meta, label_path=labs)
             for r in conn.execute(
                 "SELECT * FROM country_of_citizenship ORDER BY wikidata_id"
-            ):
+            ).fetchall():
                 log(f"  country_of_citizenship: {r}")
         log(f"[sample] inserted {n} rows")
 

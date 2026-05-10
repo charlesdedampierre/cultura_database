@@ -10,9 +10,10 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
+
+import duckdb
 
 from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
 
@@ -20,7 +21,7 @@ from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
 LABEL_PATH = WIKIDATA_V2_DIR / "writing_language_labels.json"
 
 
-def run(conn: sqlite3.Connection, label_path: Path = LABEL_PATH) -> int:
+def run(conn: duckdb.DuckDBPyConnection, label_path: Path = LABEL_PATH) -> int:
     log("[DB] 05: Creating writing_languages table...")
     labels = load_json(label_path)
 
@@ -32,7 +33,6 @@ def run(conn: sqlite3.Connection, label_path: Path = LABEL_PATH) -> int:
         "INSERT OR IGNORE INTO writing_languages (id, name_en) VALUES (?, ?)",
         list(labels.items()),
     )
-    conn.commit()
     log(f"[DB] 05: Inserted {len(labels)} writing languages.")
     return len(labels)
 
@@ -42,9 +42,9 @@ def _sample_main() -> None:
     fake = {"Q1860": "English", "Q150": "French", "Q188": "German"}
     with tempfile.TemporaryDirectory() as tmp:
         lp = Path(tmp) / "labels.json"; lp.write_text(_json.dumps(fake))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
             n = run(conn, label_path=lp)
-            for r in conn.execute("SELECT * FROM writing_languages ORDER BY id"):
+            for r in conn.execute("SELECT * FROM writing_languages ORDER BY id").fetchall():
                 log(f"  writing_languages: {r}")
         log(f"[sample] inserted {n} languages")
 

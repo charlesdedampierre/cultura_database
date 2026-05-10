@@ -67,6 +67,17 @@ struct UrlPeriod {
     to_year: i32,
 }
 
+struct Potentials {
+    wikidata_id: String,
+    floruit_year: i32,
+    polygon_deathplace: bool,
+    polygon_birthplace: bool,
+    polygon_country_of_citizenship: bool,
+    url_country_of_citizenship: bool,
+    url_deathplace: bool,
+    url_birthplace: bool,
+}
+
 type SpatialItem = GeomWithData<Rectangle<[f64; 2]>, u32>;
 
 fn parse_geojson_polygons(s: &str) -> Vec<Polygon<f64>> {
@@ -681,6 +692,66 @@ fn main() -> Result<()> {
     );
 
     // ---------------------------------------------------------------
+    // 7b. Potentials — for each dated individual, record whether each
+    //     of the 6 signals would *independently* match a polity, ignoring
+    //     cascade ordering. Same helpers as phase 1 / phase 2.
+    // ---------------------------------------------------------------
+    t = Instant::now();
+    let potentials: Vec<Potentials> = individuals
+        .par_iter()
+        .filter_map(|ind| {
+            let year = ind.year?;
+            let did = ind.deathcity_id.trim();
+            let bid = ind.birthcity_id.trim();
+            let coc_ids = split_ids(&ind.coc_ids);
+
+            let polygon_death = !did.is_empty()
+                && place_poly_index
+                    .get(did)
+                    .map_or(false, |h| polygon_best(h, year).is_some());
+            let polygon_birth = !bid.is_empty()
+                && place_poly_index
+                    .get(bid)
+                    .map_or(false, |h| polygon_best(h, year).is_some());
+            let polygon_coc = coc_ids.iter().any(|cid| {
+                coc_poly_index
+                    .get(*cid)
+                    .map_or(false, |h| polygon_best(h, year).is_some())
+            });
+            let url_coc = coc_ids.iter().any(|cid| {
+                coc_url_map
+                    .get(*cid)
+                    .map_or(false, |(_, url)| url_match(url, year).is_some())
+            });
+            let url_death = !did.is_empty()
+                && place_url_map
+                    .get(did)
+                    .map_or(false, |(_, url)| url_match(url, year).is_some());
+            let url_birth = !bid.is_empty()
+                && place_url_map
+                    .get(bid)
+                    .map_or(false, |(_, url)| url_match(url, year).is_some());
+
+            Some(Potentials {
+                wikidata_id: ind.wikidata_id.clone(),
+                floruit_year: year,
+                polygon_deathplace: polygon_death,
+                polygon_birthplace: polygon_birth,
+                polygon_country_of_citizenship: polygon_coc,
+                url_country_of_citizenship: url_coc,
+                url_deathplace: url_death,
+                url_birthplace: url_birth,
+            })
+        })
+        .collect();
+    let potentials_t = t.elapsed();
+    println!(
+        "  potentials computed: {} [{:.2}s]",
+        potentials.len(),
+        potentials_t.as_secs_f64()
+    );
+
+    // ---------------------------------------------------------------
     // 8. Write to DuckDB
     // ---------------------------------------------------------------
     t = Instant::now();
@@ -725,6 +796,92 @@ fn main() -> Result<()> {
         args.table
     ))?;
     let write_db = t.elapsed();
+
+    // Potentials table — one row per dated individual, six independence flags.
+    let potentials_table = format!("{}_potential", args.table);
+    let t_pot = Instant::now();
+    conn.execute_batch(&format!("DROP TABLE IF EXISTS {};", potentials_table))?;
+    conn.execute_batch(&format!(
+        "CREATE TABLE {} (\
+            wikidata_id VARCHAR PRIMARY KEY,\
+            floruit_year INTEGER,\
+            polygon_deathplace BOOLEAN,\
+            polygon_birthplace BOOLEAN,\
+            polygon_country_of_citizenship BOOLEAN,\
+            url_country_of_citizenship BOOLEAN,\
+            url_deathplace BOOLEAN,\
+            url_birthplace BOOLEAN\
+        );",
+        potentials_table
+    ))?;
+    {
+        let mut appender = conn.appender(&potentials_table)?;
+        for p in &potentials {
+            appender.append_row(params![
+                &p.wikidata_id,
+                p.floruit_year,
+                p.polygon_deathplace,
+                p.polygon_birthplace,
+                p.polygon_country_of_citizenship,
+                p.url_country_of_citizenship,
+                p.url_deathplace,
+                p.url_birthplace,
+            ])?;
+        }
+        appender.flush()?;
+    }
+    let write_potentials = t_pot.elapsed();
+    println!(
+        "  wrote {} ({} rows) [{:.2}s]",
+        potentials_table,
+        potentials.len(),
+        write_potentials.as_secs_f64()
+    );
+
+    // Non-recursive coverage summary
+    let n = potentials.len() as f64;
+    let pct = |c: usize| (c as f64) / n * 100.0;
+    let n_pd = potentials.iter().filter(|p| p.polygon_deathplace).count();
+    let n_pb = potentials.iter().filter(|p| p.polygon_birthplace).count();
+    let n_pc = potentials.iter().filter(|p| p.polygon_country_of_citizenship).count();
+    let n_uc = potentials.iter().filter(|p| p.url_country_of_citizenship).count();
+    let n_ud = potentials.iter().filter(|p| p.url_deathplace).count();
+    let n_ub = potentials.iter().filter(|p| p.url_birthplace).count();
+    println!();
+    println!(
+        "  Non-recursive potential coverage (of {} dated individuals):",
+        potentials.len()
+    );
+    println!(
+        "    Polygon · deathplace                n={:>10}  {:5.2}%",
+        n_pd,
+        pct(n_pd)
+    );
+    println!(
+        "    Polygon · birthplace                n={:>10}  {:5.2}%",
+        n_pb,
+        pct(n_pb)
+    );
+    println!(
+        "    Polygon · country-of-citizenship    n={:>10}  {:5.2}%",
+        n_pc,
+        pct(n_pc)
+    );
+    println!(
+        "    URL · country-of-citizenship        n={:>10}  {:5.2}%",
+        n_uc,
+        pct(n_uc)
+    );
+    println!(
+        "    URL · deathplace                    n={:>10}  {:5.2}%",
+        n_ud,
+        pct(n_ud)
+    );
+    println!(
+        "    URL · birthplace                    n={:>10}  {:5.2}%",
+        n_ub,
+        pct(n_ub)
+    );
 
     let total = t_total.elapsed();
 

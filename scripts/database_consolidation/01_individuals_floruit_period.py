@@ -77,14 +77,35 @@ from tqdm import tqdm
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DUCKDB_PATH = PROJECT_ROOT / "data" / "humans_clean.duckdb"
+CV_PATH = (
+    PROJECT_ROOT
+    / "data"
+    / "similar_databases"
+    / "cross-verified-database"
+    / "cross-verified-database.utf8.csv.gz"
+)
 OUTPUT_CSV = PROJECT_ROOT / "temp_files" / "individuals_floruit_period.csv"
 TASK_LOG = PROJECT_ROOT / "task.log"
 
 CURRENT_YEAR = 2026
-FLORUIT_LO_OFFSET = 30  # start of productive years
-FLORUIT_HI_OFFSET = 55  # end of productive years
-FLORUIT_SPAN = FLORUIT_HI_OFFSET - FLORUIT_LO_OFFSET  # 25-year window
-UNDER_30_BIRTH_CUTOFF = CURRENT_YEAR - FLORUIT_LO_OFFSET  # 1996
+
+# Productive-age windows per CV level1 occupation (Q1, Q3 of age-at-floruit).
+# Computed in notebooks/06_floruits.ipynb against year-precise birth + explicit
+# Wikidata floruit (P1317).
+PRODUCTIVE_AGE = {
+    "global": (29, 55),
+    "Culture": (30, 62),
+    "Discovery/Science": (33, 62),
+    "Leadership": (34, 67),
+    "Sports/Games": (21, 35),
+}
+GLOBAL_LO, GLOBAL_HI = PRODUCTIVE_AGE["global"]
+UNDER_FLORUIT_BIRTH_CUTOFF = CURRENT_YEAR - GLOBAL_LO  # 1997
+
+
+def productive_age(category):
+    return PRODUCTIVE_AGE.get(category, PRODUCTIVE_AGE["global"])
+
 
 # Columns pulled from `individuals`. Keeping the list close to the rules.
 QUERY_COLS = [
@@ -320,24 +341,25 @@ def two_century_window(year_a, year_b):
 # --------------------------------------------------------------------------
 
 
-def expand_around_floruit(fy, birth_year=None, death_year=None):
-    """Build a 30..55-width activity window anchored on a single floruit year.
+def expand_around_floruit(fy, lo, hi, birth_year=None, death_year=None):
+    """Active-period window anchored on a single floruit year.
 
-    With a known birth year we measure age at the floruit date and shift the
-    window so that the floruit sits at start (young), end (old), or fully
-    inside the productive years.
+    With a known birth year we measure age and place the floruit at start
+    (anchor before range), end (anchor after range), or inside the [lo, hi]
+    productive years. Without a birth year we span [fy, fy + (hi - lo)].
     """
+    span = hi - lo
     if birth_year is not None:
         age = fy - birth_year
-        if age <= FLORUIT_LO_OFFSET:
-            start, end = fy, birth_year + FLORUIT_HI_OFFSET
-        elif age >= FLORUIT_HI_OFFSET:
-            start, end = birth_year + FLORUIT_LO_OFFSET, fy
+        if age <= lo:
+            start, end = fy, birth_year + hi
+        elif age >= hi:
+            start, end = birth_year + lo, fy
         else:
-            start = birth_year + FLORUIT_LO_OFFSET
-            end = birth_year + FLORUIT_HI_OFFSET
+            start = birth_year + lo
+            end = birth_year + hi
     else:
-        start, end = fy, fy + FLORUIT_SPAN
+        start, end = fy, fy + span
     if death_year is not None and death_year < end:
         end = death_year
     end = min(end, CURRENT_YEAR)
@@ -345,21 +367,21 @@ def expand_around_floruit(fy, birth_year=None, death_year=None):
     return start, end
 
 
-def window_birth_death(b, d):
-    if b + FLORUIT_LO_OFFSET > CURRENT_YEAR:
+def window_birth_death(b, d, lo, hi):
+    if b + lo > CURRENT_YEAR:
         return None, None
-    start = b + FLORUIT_LO_OFFSET
-    end = min(b + FLORUIT_HI_OFFSET, d, CURRENT_YEAR)
+    start = b + lo
+    end = min(b + hi, d, CURRENT_YEAR)
     if start > end:
         end = min(d, CURRENT_YEAR)
         start = min(start, end)
     return start, end
 
 
-def window_birth_only(b):
-    if b + FLORUIT_LO_OFFSET > CURRENT_YEAR:
+def window_birth_only(b, lo, hi):
+    if b + lo > CURRENT_YEAR:
         return None, None
-    return b + FLORUIT_LO_OFFSET, min(b + FLORUIT_HI_OFFSET, CURRENT_YEAR)
+    return b + lo, min(b + hi, CURRENT_YEAR)
 
 
 # --------------------------------------------------------------------------
@@ -372,11 +394,14 @@ def _cand(priority, start, end, method, source, precision, estimated):
     return (priority, start, end, method, source, precision, estimated)
 
 
-def compute_floruit(row):
+def compute_floruit(row, cv_category=None):
     """Return (start, end, method, source, precision_class, estimated, label).
 
-    `row` is a tuple matching QUERY_COLS.
+    `row` is a tuple matching QUERY_COLS. `cv_category` is the individual's
+    CV level1 occupation (used to pick the productive-age window).
     """
+    lo, hi = productive_age(cv_category)
+
     (
         wikidata_id,
         name_en,
@@ -456,10 +481,10 @@ def compute_floruit(row):
         or works_first is not None
     )
 
-    # Under-30 cutoff
+    # Under-cutoff: best birth year is too recent to have entered productive years
     if (
         best_birth is not None
-        and best_birth > UNDER_30_BIRTH_CUTOFF
+        and best_birth > UNDER_FLORUIT_BIRTH_CUTOFF
         and not has_explicit_floruit
     ):
         return (None, None, "under_30", "none", "", False, None)
@@ -470,14 +495,14 @@ def compute_floruit(row):
 
     # A1 — Wikidata floruit property, year-precise
     if fl_year is not None and is_year_precise(floruit_precision):
-        s, e = expand_around_floruit(fl_year, bd_year, dd_year)
+        s, e = expand_around_floruit(fl_year, lo, hi, bd_year, dd_year)
         candidates.append(
             _cand(100, s, e, "floruit_property", "wikidata_property", "year", False)
         )
 
     # A2 — description, single floruit (no birth/death in description)
     if desc_f is not None and not has_desc_birthdeath:
-        s, e = expand_around_floruit(desc_f, bd_year, dd_year)
+        s, e = expand_around_floruit(desc_f, lo, hi, bd_year, dd_year)
         candidates.append(
             _cand(
                 110, s, e, "floruit_description", "wikidata_description", "year", False
@@ -499,7 +524,7 @@ def compute_floruit(row):
                 )
             )
         else:
-            s, e = expand_around_floruit(wp_f_a, bd_year, dd_year)
+            s, e = expand_around_floruit(wp_f_a, lo, hi, bd_year, dd_year)
             candidates.append(
                 _cand(118, s, e, "floruit_wikipedia", "wikipedia", "year", False)
             )
@@ -513,7 +538,7 @@ def compute_floruit(row):
                 )
             )
         else:
-            s, e = expand_around_floruit(works_first, bd_year, dd_year)
+            s, e = expand_around_floruit(works_first, lo, hi, bd_year, dd_year)
             candidates.append(_cand(125, s, e, "works_single", "works", "year", False))
 
     # A6 — Wikidata birth+death (year-precise)
@@ -523,7 +548,7 @@ def compute_floruit(row):
         and dd_year is not None
         and is_year_precise(deathdate_precision)
     ):
-        s, e = window_birth_death(bd_year, dd_year)
+        s, e = window_birth_death(bd_year, dd_year, lo, hi)
         if s is not None:
             candidates.append(
                 _cand(
@@ -539,7 +564,7 @@ def compute_floruit(row):
 
     # A7 — description birth+death
     if has_desc_birthdeath:
-        s, e = window_birth_death(desc_b, desc_d)
+        s, e = window_birth_death(desc_b, desc_d, lo, hi)
         if s is not None:
             candidates.append(
                 _cand(
@@ -555,7 +580,7 @@ def compute_floruit(row):
 
     # A8 — CV birth+death
     if cv_b is not None and cv_d is not None:
-        s, e = window_birth_death(cv_b, cv_d)
+        s, e = window_birth_death(cv_b, cv_d, lo, hi)
         if s is not None:
             candidates.append(
                 _cand(150, s, e, "birth_death_cv", "cv_database", "year", False)
@@ -563,7 +588,7 @@ def compute_floruit(row):
 
     # A9 — wikipedia birth+death
     if wp_b is not None and wp_d is not None:
-        s, e = window_birth_death(wp_b, wp_d)
+        s, e = window_birth_death(wp_b, wp_d, lo, hi)
         if s is not None:
             candidates.append(
                 _cand(155, s, e, "birth_death_wikipedia", "wikipedia", "year", False)
@@ -572,7 +597,7 @@ def compute_floruit(row):
     # A10 — birth-only (year-precise from any source, in priority order)
     if dd_year is None:  # only relevant when death isn't known
         if bd_year is not None and is_year_precise(birthdate_precision):
-            s, e = window_birth_only(bd_year)
+            s, e = window_birth_only(bd_year, lo, hi)
             if s is not None:
                 candidates.append(
                     _cand(
@@ -586,7 +611,7 @@ def compute_floruit(row):
                     )
                 )
         if desc_b is not None and not has_desc_birthdeath:
-            s, e = window_birth_only(desc_b)
+            s, e = window_birth_only(desc_b, lo, hi)
             if s is not None:
                 candidates.append(
                     _cand(
@@ -600,13 +625,13 @@ def compute_floruit(row):
                     )
                 )
         if cv_b is not None and cv_d is None:
-            s, e = window_birth_only(cv_b)
+            s, e = window_birth_only(cv_b, lo, hi)
             if s is not None:
                 candidates.append(
                     _cand(164, s, e, "birth_only_cv", "cv_database", "year", False)
                 )
         if wp_b is not None and wp_d is None:
-            s, e = window_birth_only(wp_b)
+            s, e = window_birth_only(wp_b, lo, hi)
             if s is not None:
                 candidates.append(
                     _cand(166, s, e, "birth_only_wikipedia", "wikipedia", "year", False)
@@ -619,7 +644,7 @@ def compute_floruit(row):
 
     # B0 — decade-precise floruit (still better than century)
     if fl_year is not None and is_decade_precise(floruit_precision):
-        s, e = expand_around_floruit(fl_year, bd_year, dd_year)
+        s, e = expand_around_floruit(fl_year, lo, hi, bd_year, dd_year)
         candidates.append(
             _cand(
                 200,
@@ -680,7 +705,7 @@ def compute_floruit(row):
         and dd_year is None
         and est_d is not None
     ):
-        s, e = window_birth_death(bd_year, est_d)
+        s, e = window_birth_death(bd_year, est_d, lo, hi)
         if s is not None:
             candidates.append(
                 _cand(
@@ -701,7 +726,7 @@ def compute_floruit(row):
         and bd_year is None
         and est_b is not None
     ):
-        s, e = window_birth_death(est_b, dd_year)
+        s, e = window_birth_death(est_b, dd_year, lo, hi)
         if s is not None:
             candidates.append(
                 _cand(
@@ -717,7 +742,7 @@ def compute_floruit(row):
 
     # C3 — both estimated (very rare, but covered for completeness)
     if est_b is not None and est_d is not None and bd_year is None and dd_year is None:
-        s, e = window_birth_death(est_b, est_d)
+        s, e = window_birth_death(est_b, est_d, lo, hi)
         if s is not None:
             candidates.append(
                 _cand(
@@ -742,9 +767,27 @@ def compute_floruit(row):
 # --------------------------------------------------------------------------
 
 
+def load_cv_categories():
+    """{wikidata_id: level1 occupation category}, dropping blank/Missing rows."""
+    conn = duckdb.connect()
+    df = conn.execute(f"""
+        SELECT TRIM(wikidata_code)   AS wikidata_id,
+               TRIM(level1_main_occ) AS category
+        FROM   read_csv_auto('{CV_PATH}', compression='gzip')
+        WHERE  wikidata_code   IS NOT NULL AND TRIM(wikidata_code)   <> ''
+          AND  level1_main_occ IS NOT NULL
+          AND  TRIM(level1_main_occ) NOT IN ('', 'Missing')
+    """).fetchall()
+    conn.close()
+    return dict(df)
+
+
 def run(sample_size=None):
     log(f"[01] Reading individuals from {DUCKDB_PATH}")
     OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
+
+    cv_categories = load_cv_categories()
+    log(f"[01] Loaded {len(cv_categories):,} CV occupation entries")
 
     conn = duckdb.connect(str(DUCKDB_PATH), read_only=True)
     cols_csv = ", ".join(QUERY_COLS)
@@ -780,7 +823,7 @@ def run(sample_size=None):
                 out_buf = []
                 for r in rows:
                     start, end, method, source, prec, estimated, label = (
-                        compute_floruit(r)
+                        compute_floruit(r, cv_categories.get(r[0]))
                     )
                     method_counts[method] = method_counts.get(method, 0) + 1
                     source_counts[source] = source_counts.get(source, 0) + 1
@@ -885,7 +928,9 @@ def insert_into_db():
         ):
             conn.execute(sql)
 
-        n = conn.execute("SELECT COUNT(*) FROM individuals_floruit_period").fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) FROM individuals_floruit_period").fetchone()[
+            0
+        ]
         with_p = conn.execute(
             "SELECT COUNT(*) FROM individuals_floruit_period "
             "WHERE floruit_period_start IS NOT NULL"

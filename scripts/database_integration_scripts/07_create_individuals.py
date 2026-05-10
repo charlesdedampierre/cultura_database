@@ -29,9 +29,10 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
+
+import duckdb
 
 from common import (
     WIKIDATA_V2_DIR,
@@ -39,18 +40,20 @@ from common import (
     load_json,
     open_db,
     parse_run_mode,
+    parse_year,
+    table_exists,
 )
 
 
 P = WIKIDATA_V2_DIR
 
 
-def _label_lookup(conn: sqlite3.Connection, table: str, key: str, val: str) -> dict[str, str]:
-    return {row[0]: row[1] for row in conn.execute(f"SELECT {key}, {val} FROM {table}")}
+def _label_lookup(conn: duckdb.DuckDBPyConnection, table: str, key: str, val: str) -> dict[str, str]:
+    return {row[0]: row[1] for row in conn.execute(f'SELECT "{key}", "{val}" FROM "{table}"').fetchall()}
 
 
 def run(
-    conn: sqlite3.Connection,
+    conn: duckdb.DuckDBPyConnection,
     main_info_path: Path = P / "main_info.json",
     places_path: Path = P / "places.json",
     precisions_path: Path = P / "date_precisions.json",
@@ -75,18 +78,9 @@ def run(
     wl_per_human = load_json(writing_languages_path) if writing_languages_path.exists() else {}
     wl_labels = load_json(writing_language_labels_path) if writing_language_labels_path.exists() else {}
 
-    occ_label = _label_lookup(conn, "occupations", "id", "name_en") if conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='occupations'"
-    ).fetchone() else {}
-    coc_label = _label_lookup(
-        conn, "country_of_citizenship", "wikidata_id", "name_en"
-    ) if conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' "
-        "AND name='country_of_citizenship'"
-    ).fetchone() else {}
-    place_label = _label_lookup(conn, "places", "id", "name_en") if conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='places'"
-    ).fetchone() else {}
+    occ_label = _label_lookup(conn, "occupations", "id", "name_en") if table_exists(conn, "occupations") else {}
+    coc_label = _label_lookup(conn, "country_of_citizenship", "wikidata_id", "name_en") if table_exists(conn, "country_of_citizenship") else {}
+    place_label = _label_lookup(conn, "places", "id", "name_en") if table_exists(conn, "places") else {}
 
     conn.execute("DROP TABLE IF EXISTS individuals")
     conn.execute(
@@ -122,24 +116,6 @@ def run(
             set(nats) | set(sitelinks) | set(catalogs) | set(works) |
             set(wl_per_human))
 
-    def _parse_year(s):
-        if not s:
-            return None
-        s = str(s).strip()
-        if not s or s.startswith("_:"):
-            return None
-        sign = 1
-        if s.startswith("-"):
-            sign = -1
-            s = s[1:]
-        elif s.startswith("+"):
-            s = s[1:]
-        head = s.split("-", 1)[0].split("T", 1)[0]
-        try:
-            return sign * int(head)
-        except ValueError:
-            return None
-
     rows = []
     for qid in qids:
         m = main_info.get(qid, {})
@@ -157,7 +133,7 @@ def run(
 
         floruit_date = m.get("floruit_date") or m.get("floruit")
         floruit_precision = pr.get("floruit_precision")
-        floruit_year = _parse_year(floruit_date)
+        floruit_year = parse_year(floruit_date)
 
         rows.append((
             qid,
@@ -195,14 +171,12 @@ def run(
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
-    conn.commit()
     conn.execute("CREATE INDEX IF NOT EXISTS idx_indiv_name ON individuals(name_en)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_indiv_works ON individuals(number_of_works)")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_individuals_floruit_year "
         "ON individuals(floruit_year)"
     )
-    conn.commit()
 
     log(f"[DB] 07: Inserted {len(rows)} individuals.")
     return len(rows)
@@ -211,7 +185,6 @@ def run(
 def _sample_main() -> None:
     import json as _json
     with tempfile.TemporaryDirectory() as tmp:
-        # minimal fake universe for end-to-end shape check
         files = {
             "main_info.json": {"Q937": {"id": "Q937", "name": "Albert Einstein",
                                          "description": "physicist", "gender": "Q6581097",
@@ -231,8 +204,6 @@ def _sample_main() -> None:
             "writing_languages.json": {"Q937": ["Q188"]},
             "writing_language_labels.json": {"Q188": "German"},
         }
-        # `run()` accepts `precisions_path`, not `date_precisions_path`,
-        # so override the auto-derived kwarg name for that one file.
         path_kw_overrides = {"date_precisions.json": "precisions_path"}
         kw = {}
         for fname, payload in files.items():
@@ -241,23 +212,20 @@ def _sample_main() -> None:
             kwarg = path_kw_overrides.get(fname, fname.replace(".json", "_path"))
             kw[kwarg] = p
 
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
-            # seed reference tables that 07 looks up
-            conn.executescript("""
-                CREATE TABLE occupations (id TEXT PRIMARY KEY, name_en TEXT);
-                CREATE TABLE country_of_citizenship (wikidata_id TEXT PRIMARY KEY, name_en TEXT);
-                CREATE TABLE places (id TEXT PRIMARY KEY, name_en TEXT);
-                INSERT INTO occupations VALUES ('Q169470','physicist');
-                INSERT INTO country_of_citizenship VALUES ('Q183','German');
-                INSERT INTO places VALUES ('Q3012','Ulm'),('Q138518','Princeton');
-            """)
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
+            conn.execute("CREATE TABLE occupations (id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute("CREATE TABLE country_of_citizenship (wikidata_id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute("CREATE TABLE places (id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute("INSERT INTO occupations VALUES ('Q169470','physicist')")
+            conn.execute("INSERT INTO country_of_citizenship VALUES ('Q183','German')")
+            conn.execute("INSERT INTO places VALUES ('Q3012','Ulm'),('Q138518','Princeton')")
             n = run(conn, **kw)
             for row in conn.execute(
                 "SELECT wikidata_id, name_en, gender, birthcity_en, deathcity_en, "
                 "country_of_citizenship_en, occupations_en, writing_language_name_en, "
                 "floruit_year, wikimedia_links_count, identifiers_count, "
                 "number_of_works FROM individuals"
-            ):
+            ).fetchall():
                 log(f"  individuals: {row}")
         log(f"[sample] inserted {n} individuals")
 

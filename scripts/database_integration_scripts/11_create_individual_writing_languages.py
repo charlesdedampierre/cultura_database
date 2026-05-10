@@ -13,26 +13,34 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
 
-from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
+import duckdb
+
+from common import (
+    WIKIDATA_V2_DIR,
+    log,
+    load_json,
+    open_db,
+    parse_run_mode,
+    table_exists,
+)
 
 
 JSON_PATH = WIKIDATA_V2_DIR / "writing_languages.json"
 
 
-def run(conn: sqlite3.Connection, json_path: Path = JSON_PATH) -> int:
+def run(conn: duckdb.DuckDBPyConnection, json_path: Path = JSON_PATH) -> int:
     log("[DB] 11: Creating individual_writing_languages table...")
     data = load_json(json_path)
 
-    name_lookup = {}
-    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals'").fetchone():
-        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals"))
-    lang_lookup = {}
-    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='writing_languages'").fetchone():
-        lang_lookup = dict(conn.execute("SELECT id, name_en FROM writing_languages"))
+    name_lookup: dict[str, str] = {}
+    if table_exists(conn, "individuals"):
+        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals").fetchall())
+    lang_lookup: dict[str, str] = {}
+    if table_exists(conn, "writing_languages"):
+        lang_lookup = dict(conn.execute("SELECT id, name_en FROM writing_languages").fetchall())
 
     conn.execute("DROP TABLE IF EXISTS individual_writing_languages")
     conn.execute(
@@ -58,7 +66,6 @@ def run(conn: sqlite3.Connection, json_path: Path = JSON_PATH) -> int:
         "VALUES (?, ?, ?, ?)",
         rows,
     )
-    conn.commit()
     log(f"[DB] 11: Inserted {len(rows)} (individual, language) pairs.")
     return len(rows)
 
@@ -68,15 +75,13 @@ def _sample_main() -> None:
     fake = {"Q937": ["Q188"], "Q42": ["Q1860"]}
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "writing_languages.json"; p.write_text(_json.dumps(fake))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
-            conn.executescript("""
-                CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT);
-                CREATE TABLE writing_languages (id TEXT PRIMARY KEY, name_en TEXT);
-                INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams');
-                INSERT INTO writing_languages VALUES ('Q188','German'),('Q1860','English');
-            """)
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
+            conn.execute("CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute("CREATE TABLE writing_languages (id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute("INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams')")
+            conn.execute("INSERT INTO writing_languages VALUES ('Q188','German'),('Q1860','English')")
             n = run(conn, json_path=p)
-            for r in conn.execute("SELECT * FROM individual_writing_languages ORDER BY wikidata_id"):
+            for r in conn.execute("SELECT * FROM individual_writing_languages ORDER BY wikidata_id").fetchall():
                 log(f"  individual_writing_languages: {r}")
         log(f"[sample] inserted {n} pairs")
 

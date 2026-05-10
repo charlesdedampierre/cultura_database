@@ -17,29 +17,37 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
 
-from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
+import duckdb
+
+from common import (
+    WIKIDATA_V2_DIR,
+    log,
+    load_json,
+    open_db,
+    parse_run_mode,
+    table_exists,
+)
 
 
 CATALOGS_PATH = WIKIDATA_V2_DIR / "catalogs.json"
 
 
-def run(conn: sqlite3.Connection, catalogs_path: Path = CATALOGS_PATH) -> int:
+def run(conn: duckdb.DuckDBPyConnection, catalogs_path: Path = CATALOGS_PATH) -> int:
     log("[DB] 08: Creating identifiers table...")
     catalogs = load_json(catalogs_path)
 
-    name_lookup = {}
-    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='individuals'").fetchone():
-        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals"))
+    name_lookup: dict[str, str] = {}
+    if table_exists(conn, "individuals"):
+        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals").fetchall())
 
-    type_lookup = {}
-    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='identifier_types'").fetchone():
+    type_lookup: dict[str, tuple[str | None, str | None]] = {}
+    if table_exists(conn, "identifier_types"):
         type_lookup = {
             r[0]: (r[1], r[2])
-            for r in conn.execute("SELECT property_id, name_en, formatter_url FROM identifier_types")
+            for r in conn.execute("SELECT property_id, name_en, formatter_url FROM identifier_types").fetchall()
         }
 
     conn.execute("DROP TABLE IF EXISTS identifiers")
@@ -76,7 +84,6 @@ def run(conn: sqlite3.Connection, catalogs_path: Path = CATALOGS_PATH) -> int:
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_id_qid ON identifiers(wikidata_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_id_pid ON identifiers(property_id)")
-    conn.commit()
     log(f"[DB] 08: Inserted {len(rows)} identifier rows.")
     return len(rows)
 
@@ -89,17 +96,20 @@ def _sample_main() -> None:
     }
     with tempfile.TemporaryDirectory() as tmp:
         cp = Path(tmp) / "catalogs.json"; cp.write_text(_json.dumps(fake))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
-            conn.executescript("""
-                CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT);
-                CREATE TABLE identifier_types (property_id TEXT PRIMARY KEY, name_en TEXT, formatter_url TEXT);
-                INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams');
-                INSERT INTO identifier_types VALUES
-                    ('P214','VIAF','https://viaf.org/viaf/$1/'),
-                    ('P227','GND','https://d-nb.info/gnd/$1');
-            """)
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
+            conn.execute("CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT)")
+            conn.execute(
+                "CREATE TABLE identifier_types "
+                "(property_id TEXT PRIMARY KEY, name_en TEXT, formatter_url TEXT)"
+            )
+            conn.execute("INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams')")
+            conn.execute(
+                "INSERT INTO identifier_types VALUES "
+                "('P214','VIAF','https://viaf.org/viaf/$1/'),"
+                "('P227','GND','https://d-nb.info/gnd/$1')"
+            )
             n = run(conn, catalogs_path=cp)
-            for row in conn.execute("SELECT * FROM identifiers ORDER BY wikidata_id, property_id"):
+            for row in conn.execute("SELECT * FROM identifiers ORDER BY wikidata_id, property_id").fetchall():
                 log(f"  identifiers: {row}")
         log(f"[sample] inserted {n} identifier rows")
 

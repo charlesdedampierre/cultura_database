@@ -41,7 +41,7 @@ NON_WESTERN_WIKIPEDIA_LANGUAGES = [
     'sa', 'pi', 'dty', 'awa', 'shn', 'tcy', 'kok',
 ]
 
-CONTINENTS = ['Europe', 'Asia', 'Africa', 'North America', 'Latin America', 'Oceania']
+CONTINENTS = ['Europe', 'Asia', 'Africa', 'North America', 'Latin America', 'Middle East']
 
 LATIN_AMERICAN_COUNTRIES = [
     'Mexico', 'Belize', 'Costa Rica', 'Cuba', 'Dominica', 'Dominican Republic',
@@ -51,6 +51,15 @@ LATIN_AMERICAN_COUNTRIES = [
     'Saint Vincent and the Grenadines', 'The Bahamas', 'Trinidad and Tobago',
     'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Ecuador',
     'Guyana', 'Paraguay', 'Peru', 'Suriname', 'Uruguay', 'Venezuela',
+]
+
+MIDDLE_EAST_COUNTRIES = [
+    'Bahrain', 'Cyprus', 'Egypt', 'Iran', 'Islamic Republic of Iran',
+    'Iraq', 'Israel', 'Jordan', 'Hashemite Kingdom of Jordan',
+    'Kuwait', 'Lebanon', 'Lebanese Republic', 'Oman', 'Sultanate of Oman',
+    'Palestine', 'State of Palestine', 'Qatar', 'Saudi Arabia',
+    'Syria', 'Syrian Arab Republic', 'Turkey', 'Republic of Turkey',
+    'United Arab Emirates', 'Yemen', 'Republic of Yemen',
 ]
 
 WORLDS = {

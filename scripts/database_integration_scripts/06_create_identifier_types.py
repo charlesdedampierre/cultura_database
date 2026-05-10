@@ -13,9 +13,10 @@ Usage
 """
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from pathlib import Path
+
+import duckdb
 
 from common import WIKIDATA_V2_DIR, log, load_json, open_db, parse_run_mode
 
@@ -24,7 +25,7 @@ PROPS_PATH = WIKIDATA_V2_DIR / "catalog_properties.json"
 META_PATH = WIKIDATA_V2_DIR / "catalog_metadata.json"
 
 
-def run(conn: sqlite3.Connection,
+def run(conn: duckdb.DuckDBPyConnection,
         props_path: Path = PROPS_PATH,
         meta_path: Path = META_PATH) -> int:
     log("[DB] 06: Creating identifier_types table...")
@@ -57,14 +58,12 @@ def run(conn: sqlite3.Connection,
     )
 
     rows: dict[str, tuple] = {}
-    # base from property list
     for p in props or []:
         pid = p["property_id"]
         rows[pid] = (
             pid, p.get("label"), None, p.get("formatter_url"),
             None, None, None, None, None, None, None, None,
         )
-    # enrich from metadata
     for pid, m in (meta or {}).items():
         rows[pid] = (
             pid,
@@ -88,7 +87,6 @@ def run(conn: sqlite3.Connection,
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         list(rows.values()),
     )
-    conn.commit()
     log(f"[DB] 06: Inserted {len(rows)} identifier types.")
     return len(rows)
 
@@ -108,9 +106,12 @@ def _sample_main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         pp = Path(tmp) / "props.json"; pp.write_text(_json.dumps(fake_props))
         mp = Path(tmp) / "meta.json"; mp.write_text(_json.dumps(fake_meta))
-        with open_db(Path(tmp) / "sample.sqlite3") as conn:
+        with open_db(Path(tmp) / "sample.duckdb") as conn:
             n = run(conn, props_path=pp, meta_path=mp)
-            for r in conn.execute("SELECT property_id, name_en, description, country_name FROM identifier_types ORDER BY property_id"):
+            for r in conn.execute(
+                "SELECT property_id, name_en, description, country_name "
+                "FROM identifier_types ORDER BY property_id"
+            ).fetchall():
                 log(f"  identifier_types: {r}")
         log(f"[sample] inserted {n} identifier types")
 
