@@ -1,8 +1,31 @@
-pandas>=2.0
-polars>=0.20
-matplotlib>=3.7
-numpy>=1.24
+# Cultura Database — Python dependencies
+# Tested on Python 3.11
+
+# Core: database + dataframes
+duckdb==1.5.2
+polars==1.39.3
+pandas==3.0.2
+numpy==2.4.4
+
+# Visualization
+matplotlib==3.10.8
+plotly==6.7.0
+
+# Geospatial (polity / country maps)
+geopandas==1.1.3
+shapely==2.1.2
+
+# Stats / scientific
+scipy==1.17.1
+
+# HTTP / Wikidata extraction
+requests==2.33.1
+python-dotenv==1.2.2
+
+# Notebook execution
 jupyter>=1.0
-SPARQLWrapper>=2.0
-requests>=2.31
-tqdm>=4.65
+nbformat==5.10.4
+nbclient==0.10.4
+
+# Progress bars (mandatory for long runs)
+tqdm==4.67.3
