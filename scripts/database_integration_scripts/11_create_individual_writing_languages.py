@@ -11,6 +11,7 @@ Usage
     python3 11_create_individual_writing_languages.py
     python3 11_create_individual_writing_languages.py --full
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -27,7 +28,6 @@ from common import (
     table_exists,
 )
 
-
 JSON_PATH = WIKIDATA_V2_DIR / "writing_languages.json"
 
 
@@ -37,14 +37,17 @@ def run(conn: duckdb.DuckDBPyConnection, json_path: Path = JSON_PATH) -> int:
 
     name_lookup: dict[str, str] = {}
     if table_exists(conn, "individuals"):
-        name_lookup = dict(conn.execute("SELECT wikidata_id, name_en FROM individuals").fetchall())
+        name_lookup = dict(
+            conn.execute("SELECT wikidata_id, name_en FROM individuals").fetchall()
+        )
     lang_lookup: dict[str, str] = {}
     if table_exists(conn, "writing_languages"):
-        lang_lookup = dict(conn.execute("SELECT id, name_en FROM writing_languages").fetchall())
+        lang_lookup = dict(
+            conn.execute("SELECT id, name_en FROM writing_languages").fetchall()
+        )
 
     conn.execute("DROP TABLE IF EXISTS individual_writing_languages")
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE individual_writing_languages (
             wikidata_id TEXT NOT NULL,
             individual_name TEXT,
@@ -52,8 +55,7 @@ def run(conn: duckdb.DuckDBPyConnection, json_path: Path = JSON_PATH) -> int:
             language_name TEXT,
             PRIMARY KEY (wikidata_id, language_id)
         )
-        """
-    )
+        """)
 
     rows = []
     for qid, langs in data.items():
@@ -72,16 +74,28 @@ def run(conn: duckdb.DuckDBPyConnection, json_path: Path = JSON_PATH) -> int:
 
 def _sample_main() -> None:
     import json as _json
+
     fake = {"Q937": ["Q188"], "Q42": ["Q1860"]}
     with tempfile.TemporaryDirectory() as tmp:
-        p = Path(tmp) / "writing_languages.json"; p.write_text(_json.dumps(fake))
+        p = Path(tmp) / "writing_languages.json"
+        p.write_text(_json.dumps(fake))
         with open_db(Path(tmp) / "sample.duckdb") as conn:
-            conn.execute("CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT)")
-            conn.execute("CREATE TABLE writing_languages (id TEXT PRIMARY KEY, name_en TEXT)")
-            conn.execute("INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams')")
-            conn.execute("INSERT INTO writing_languages VALUES ('Q188','German'),('Q1860','English')")
+            conn.execute(
+                "CREATE TABLE individuals (wikidata_id TEXT PRIMARY KEY, name_en TEXT)"
+            )
+            conn.execute(
+                "CREATE TABLE writing_languages (id TEXT PRIMARY KEY, name_en TEXT)"
+            )
+            conn.execute(
+                "INSERT INTO individuals VALUES ('Q937','Albert Einstein'),('Q42','Douglas Adams')"
+            )
+            conn.execute(
+                "INSERT INTO writing_languages VALUES ('Q188','German'),('Q1860','English')"
+            )
             n = run(conn, json_path=p)
-            for r in conn.execute("SELECT * FROM individual_writing_languages ORDER BY wikidata_id").fetchall():
+            for r in conn.execute(
+                "SELECT * FROM individual_writing_languages ORDER BY wikidata_id"
+            ).fetchall():
                 log(f"  individual_writing_languages: {r}")
         log(f"[sample] inserted {n} pairs")
 

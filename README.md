@@ -1,112 +1,159 @@
 # Cultura Database
 
-**13 million scientists, writers, and artists from Wikidata, linked to historical polities.**
+**13 million scientists, writers, and artists from Wikidata, linked to historical polities (Cliopatria).**
 
-## Download
+Distributed as a single **DuckDB** file, optimized for analytical queries from
+Python (Polars, pandas, Arrow) with no server to run.
+
+---
+
+## Data
 
 | File | Size | Format |
-|------|------|--------|
-| `humans_clean.sqlite3` | ~14 GB | SQLite3 |
+|---|---|---|
+| `humans_clean.duckdb` | ~8.8 GB | DuckDB (v1.5+) |
 
-Download from **OSF**: [https://osf.io/](https://osf.io/) *(link TBD)*
+Download from **OSF**: [https://osf.io/](https://osf.io/) *(link TBD)* and
+place the file at `data/humans_clean.duckdb` — the path used by every example
+and notebook in this repo.
 
-## Quick Start
-
-```python
-import sqlite3
-import polars as pl
-
-conn = sqlite3.connect("data/humans_clean.sqlite3")
-
-# Load main table with Polars (fast, memory-efficient)
-individuals = pl.read_database("SELECT * FROM individuals", conn)
-print(f"Total: {len(individuals):,} individuals")
-
-# Example: French writers born after 1800
-french_writers = pl.read_database("""
-    SELECT wikidata_id, name_en, birthdate, occupations_en
-    FROM individuals
-    WHERE country_of_citizenship_en LIKE '%French%'
-      AND occupations_en LIKE '%writer%'
-      AND birthdate >= '1800'
-    ORDER BY birthdate
-    LIMIT 20
-""", conn)
-print(french_writers)
-
-conn.close()
-```
-
-## Key Numbers
+### Key numbers
 
 | Metric | Value |
-|--------|-------|
-| Individuals | 13,002,897 |
-| Occupations | 18,227 |
-| Countries of citizenship | 3,544 |
-| Cities | 314,675 |
-| Wikimedia links | 15.5M |
-| External identifiers | 30.1M |
-| Historical polities (Cliopatria) | 1,618 |
+|---|---|
+| Individuals | 13,003,420 |
+| Works | 38,555,710 |
+| External identifiers | 59,508,342 |
+| Wikimedia links (300+ langs) | 15,551,839 |
+| Individual ↔ polity mappings | 5,126,001 |
+| Historical polities (Cliopatria) | 1,604 |
+| Cities (places) | 314,724 |
+| Occupations | 18,230 |
+| Countries of citizenship | 4,572 |
 
-## Main Tables
+### Main tables
 
 | Table | Rows | Description |
-|-------|------|-------------|
-| `individuals` | 13M | Core biographical data |
-| `individuals_floruit_period` | 13M | Working period per Q5 (floruit / birth / death rules with century fallback) |
-| `individuals_cliopatria` | 6.2M | Individual → historical polity, year-aware (`floruit_year`) |
-| `country_of_citizenship` | 3.5K | Reference table for P27 values |
-| `wikimedia_links` | 15.5M | Wikimedia project pages (300+ languages) |
-| `identifiers` | 30.1M | External database links |
+|---|---|---|
+| `individuals` | 13.0M | Core biographical record (one per Q5) |
+| `individuals_floruit_period` | 13.0M | Working period per individual (floruit / birth / death rules with century fallback) |
+| `individuals_cliopatria` | 5.1M | Individual → historical polity, year-aware (`floruit_year`) |
+| `polities_cliopatria` | 1.6K | Historical polities (name, period, modern-country mapping) |
+| `places` | 314K | Cities with coordinates and dates |
+| `occupations` | 18K | Occupation reference table |
+| `country_of_citizenship` | 4.5K | Country reference (P27 values) |
+| `wikimedia_links` | 15.6M | Wikipedia / Wikisource / Wikiquote pages |
+| `identifiers` | 59.5M | External database links (VIAF, ORCID, etc.) |
+| `works` | 38.6M | Works authored / created by individuals |
 
-The legacy `individuals_countries`, `individuals_regions`, `regions`,
-`modern_country` and `individuals_impact_date` tables were retired in
-2026-05; their rows are archived as CSV under
-`data/legacy_regions/`. `nationalities` was renamed to
-`country_of_citizenship`, `sitelinks` to `wikimedia_links`, and
-`cliopatria_polity_periods` to `polities_periods_cliopatria`.
-
-## Database Schema
+Full column-level documentation: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md).
 
 ![Database Schema](docs/schema.png)
 
-See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for full schema documentation.
+---
+
+## Installation
+
+Requires **Python 3.11**.
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+## Quick Start
+
+DuckDB returns query results directly as Polars (`.pl()`), pandas (`.df()`)
+or Arrow (`.arrow()`) — no copy needed.
+
+```python
+import duckdb
+
+con = duckdb.connect("data/humans_clean.duckdb", read_only=True)
+
+# How many individuals?
+n = con.execute("SELECT COUNT(*) FROM individuals").fetchone()[0]
+print(f"{n:,} individuals")
+```
+
+### Query a polity
+
+```python
+ottoman_writers = con.execute("""
+    SELECT ic.name_en, ic.floruit_year
+    FROM individuals_cliopatria ic
+    JOIN individuals i USING (wikidata_id)
+    WHERE ic.polity_name = 'Ottoman Empire'
+      AND i.occupations_en LIKE '%writer%'
+    ORDER BY ic.floruit_year
+""").pl()
+```
+
+### Active individuals over time (50-year bins)
+
+```python
+import polars as pl
+
+df = con.execute("""
+    SELECT polity_name, floruit_year
+    FROM individuals_cliopatria
+    WHERE polity_name IN ('Roman Empire', 'Tang Dynasty', 'Ottoman Empire')
+      AND floruit_year IS NOT NULL
+""").pl()
+
+by_bin = (
+    df.with_columns(((pl.col("floruit_year") // 50) * 50).alias("bin"))
+      .group_by(["polity_name", "bin"])
+      .agg(pl.len().alias("count"))
+      .sort(["polity_name", "bin"])
+)
+```
+
+A complete walk-through (load → query → plot) lives in
+[getting_started.ipynb](getting_started.ipynb).
+
+---
 
 ## Usage Recommendations
 
-| Table size | Approach |
-|------------|----------|
-| Large (millions of rows) | Use **Polars** or stream with SQL |
-| Small reference tables | **pandas** is fine |
-| `identifiers` (30M rows) | SQL streaming only |
+| Workload | Approach |
+|---|---|
+| Any query against `humans_clean.duckdb` | **DuckDB**, return as Polars (`.pl()`) |
+| In-memory dataframes (millions of rows) | **Polars** |
+| Small reference tables | pandas is fine |
 
-## Example Queries
+---
 
-```python
-# Scientists in the Ottoman Empire
-ottoman_scientists = pl.read_database("""
-    SELECT ic.name_en, ic.floruit_year, ic.polity_name
-    FROM individuals_cliopatria ic
-    JOIN individuals i ON ic.wikidata_id = i.wikidata_id
-    WHERE ic.polity_name = 'Ottoman Empire'
-      AND i.occupations_en LIKE '%scientist%'
-    ORDER BY ic.floruit_year
-""", conn)
+## Paper
 
-# Most common occupations
-top_occupations = pl.read_database("""
-    SELECT name_en, count
-    FROM occupations
-    ORDER BY count DESC
-    LIMIT 20
-""", conn)
+A descriptor of this database is under preparation for *Nature Scientific Data*.
+Citation, preprint link and DOI will be added here once available.
+
+---
+
+## Citation
+
+```bibtex
+@misc{cultura_database,
+  title  = {Cultura Database: 13 million scientists, writers, and artists from Wikidata, linked to historical polities},
+  author = {de Dampierre, Charles},
+  year   = {2026},
+  note   = {Version under preparation for Nature Scientific Data}
+}
 ```
 
-## Getting Started
-
-See the [getting_started.ipynb](getting_started.ipynb) notebook for a complete tutorial.
+---
 
 ## License
 
-Data derived from [Wikidata](https://www.wikidata.org/) under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+Data derived from [Wikidata](https://www.wikidata.org/) under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+---
+
+## Contact
+
+Charles de Dampierre — [cdedampierre@bunka.ai](mailto:cdedampierre@bunka.ai)

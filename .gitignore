@@ -30,6 +30,8 @@ temp_files/
 benchmarks/
 photos_claude/
 
+scripts/_one_off/
+
 
 # Claude AI workspace
 claude/
