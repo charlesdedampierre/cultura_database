@@ -1,19 +1,8 @@
 # Cultura Database Schema
 
-Complete documentation of all tables and columns in `data/humans_clean.duckdb`.
-
-> **Engine:** DuckDB. Types below are the native DuckDB types as reported by
-> `PRAGMA table_info` (`VARCHAR`, `BIGINT`, `INTEGER`, `DOUBLE`, `BOOLEAN`).
-> Query this file with DuckDB or Polars (not `sqlite3`). Row counts are
-> point-in-time snapshots and drift as the database is rebuilt.
-
-The database has **18 base tables** (no views).
-
 ## Core Tables
 
 ### `individuals` (13,003,420 rows)
-
-Main biographical data for all individuals. One row per `wikidata_id`.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -62,8 +51,6 @@ Main biographical data for all individuals. One row per `wikidata_id`.
 
 ### `individuals_keys` (13,002,897 rows)
 
-Raw Wikidata Q-IDs for cross-references.
-
 | Column | Type | Description |
 |--------|------|-------------|
 | `wikidata_id` | VARCHAR | Individual Wikidata ID |
@@ -75,8 +62,6 @@ Raw Wikidata Q-IDs for cross-references.
 | `writing_language_ids` | VARCHAR | Semicolon-separated language IDs |
 
 ### `individuals_floruit_period` (13,003,420 rows)
-
-Per-individual floruit window with the method and source used to derive it.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -102,11 +87,6 @@ Per-individual floruit window with the method and source used to derive it.
 
 ### `individuals_cliopatria` (7,830,341 rows · 5,161,090 individuals)
 
-Individual-to-historical-polity mapping (Cliopatria dataset). **Multi-polity:**
-one row per (individual, polity) where the polity's period overlaps the
-individual's floruit window. An individual whose floruit straddles a regime
-change therefore appears under every overlapping polity.
-
 | Column | Type | Description |
 |--------|------|-------------|
 | `wikidata_id` | VARCHAR | Individual Wikidata ID (NOT unique — multi-polity) |
@@ -122,25 +102,7 @@ change therefore appears under every overlapping polity.
 | `floruit_period_end` | INTEGER | End of floruit window |
 | `overlap_years` | INTEGER | Years of floruit window covered by this polity (sum across multiple periods of the same polity) |
 
-**Cascade priority** (location-priority preserved from single-polity version,
-multi-polity only on the temporal axis — see `docs/CLASSIFICATION_RULES.md`):
-
-1. Phase 1 polygon: deathplace → birthplace → country_of_citizenship.
-   First location that produces ANY overlap stops the cascade. ALL polities
-   whose period overlaps the floruit window are emitted from that location.
-2. Phase 2 URL (only if Phase 1 fails): country_of_citizenship → deathplace
-   → birthplace. Same overlap-emit logic.
-
-**Joining notes:** any aggregation must use `COUNT(DISTINCT wikidata_id)` for
-people-counts; `COUNT(*)` counts (individual, polity) pairs. To get the
-"primary" polity for a person, use `arg_max(polity_name, overlap_years)
-GROUP BY wikidata_id`.
-
 ### `individuals_cliopatria_potential` (9,721,925 rows)
-
-Per-individual flags marking which location signals are *candidates* for
-Cliopatria polity matching (the input universe to `individuals_cliopatria`,
-before overlap resolution). One row per `wikidata_id` (primary key).
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -159,8 +121,6 @@ before overlap resolution). One row per `wikidata_id` (primary key).
 
 ### `works` (38,555,710 rows)
 
-Individual-to-work edges across creative roles.
-
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | BIGINT | Primary key (autoincrement) |
@@ -175,10 +135,6 @@ Individual-to-work edges across creative roles.
 | `inception_precision` | BIGINT | Precision: 11=day, 10=month, 9=year, 8=decade, 7=century |
 | `publication_date` | VARCHAR | Publication date (P577) ISO timestamp |
 | `publication_precision` | BIGINT | Precision (same convention) |
-
-Date columns populated by
-`scripts/database_integration_scripts_V2/19_add_dates_to_works/` from JSON
-produced by `scripts/wikidata_extraction_scripts_v2/19_extract_work_dates.py`.
 
 ---
 
@@ -200,8 +156,6 @@ produced by `scripts/wikidata_extraction_scripts_v2/19_extract_work_dates.py`.
 
 ### `country_of_citizenship` (4,572 rows)
 
-Citizenship entities (countries, polities, ethnic groups) referenced by `individuals.country_of_citizenship_en`.
-
 | Column | Type | Description |
 |--------|------|-------------|
 | `wikidata_id` | VARCHAR | Wikidata ID (PK) |
@@ -214,25 +168,13 @@ Citizenship entities (countries, polities, ethnic groups) referenced by `individ
 | `lon` | DOUBLE | Longitude |
 | `iso_country_name` | VARCHAR | Mapped modern country |
 | `iso_a3_code` | VARCHAR | ISO 3166-1 alpha-3 code |
-| `iso_modern_country_origin` | VARCHAR | Resolution method (see below) |
+| `iso_modern_country_origin` | VARCHAR | Resolution method |
 | `instance_qids` | VARCHAR | Semicolon-separated `instance of` (P31) QIDs |
 | `instance_labels` | VARCHAR | English labels for `instance_qids` |
 | `inception` | VARCHAR | Inception date (P571) |
 | `dissolved` | VARCHAR | Dissolution date (P576) |
 
-**`iso_modern_country_origin` values**:
-
-- `reverse_geocode`: coordinates lookup
-- `qlever_relation`: P17/P131/P1366 SPARQL chains
-- `qlever_replaced_by`: P1366 "replaced by" chain
-- `qlever_2hop_relation` / `qlever_3hop_relation`: multi-hop chains
-- `description`: found in Wikidata description
-- `name`: found in country-of-citizenship name
-- `capital_city`: via capital city's country
-
 ### `places` (314,724 rows)
-
-All geographic entities referenced as birth/death locations (cities, settlements, regions, states).
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -346,31 +288,21 @@ All geographic entities referenced as birth/death locations (cities, settlements
 
 ### `polities_modern_countries_cliopatria` (1,531 rows)
 
-Wikidata-derived mapping from each Cliopatria polity to the present-day
-sovereign states it is associated with. One row per (polity, modern country):
-when more than one Wikidata pattern produces the same link, the patterns
-are pipe-joined into the `sources` column.
-
 | Column | Type | Description |
 |--------|------|-------------|
 | `polity_id` | BIGINT | References `polities_cliopatria.id` |
-| `polity_name` | VARCHAR | Polity name (denormalized copy of `polities_cliopatria.name` for ergonomic joins) |
+| `polity_name` | VARCHAR | Polity name (denormalized copy of `polities_cliopatria.name`) |
 | `country_qid` | VARCHAR | Modern country Wikidata QID |
 | `country_name` | VARCHAR | English label of the country |
 | `iso_a3_code` | VARCHAR | ISO 3166-1 alpha-3 code |
-| `continent` | VARCHAR | Continent of the modern country (English label, derived from Wikidata P30 via `modern_countries.json`) |
-| `sources` | VARCHAR | Pipe-joined sorted list of Wikidata patterns that produced the link: `P17`, `P36/P17` (capital → country), `P1366/P17` (successor → country), `P131/P17` (admin parent → country) |
-
-Built by `scripts/database_integration_scripts_V2/17_create_polities_modern_countries/` from
-`scripts/wikidata_extraction_scripts_v2/17_extract_polity_modern_countries.py`.
+| `continent` | VARCHAR | Continent of the modern country (English label, from Wikidata P30) |
+| `sources` | VARCHAR | Pipe-joined Wikidata patterns: `P17`, `P36/P17`, `P1366/P17`, `P131/P17` |
 
 ---
 
 ## Metadata
 
 ### `wikidata_properties_definition` (49 rows)
-
-Mapping from Wikidata properties to the table/column where they land.
 
 | Column | Type | Description |
 |--------|------|-------------|
