@@ -13,9 +13,10 @@ Python (Polars, pandas, Arrow) with no server to run.
 |---|---|---|
 | `humans_clean.duckdb` | ~8.8 GB | DuckDB (v1.5+) |
 
-Download from **OSF**: [https://osf.io/](https://osf.io/) *(link TBD)* and
-place the file at `data/humans_clean.duckdb` — the path used by every example
-and notebook in this repo.
+For access, send an email to
+[charlesdedampierre@gmail.com](mailto:charlesdedampierre@gmail.com). Place the
+file at `data/humans_clean.duckdb` — the path used by every example and
+notebook in this repo.
 
 ### Key numbers
 
@@ -115,16 +116,6 @@ by_bin = (
 
 A complete walk-through (load → query → plot) lives in
 [getting_started.ipynb](getting_started.ipynb).
-
----
-
-## Usage Recommendations
-
-| Workload | Approach |
-|---|---|
-| Any query against `humans_clean.duckdb` | **DuckDB**, return as Polars (`.pl()`) |
-| In-memory dataframes (millions of rows) | **Polars** |
-| Small reference tables | pandas is fine |
 
 ---
 
