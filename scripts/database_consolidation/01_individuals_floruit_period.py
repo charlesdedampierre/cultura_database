@@ -347,6 +347,11 @@ def expand_around_floruit(fy, lo, hi, birth_year=None, death_year=None):
     With a known birth year we measure age and place the floruit at start
     (anchor before range), end (anchor after range), or inside the [lo, hi]
     productive years. Without a birth year we span [fy, fy + (hi - lo)].
+
+    A floruit period is always a meaningful range. If clamping by death year
+    or current year would collapse the window to less than `min_span` years,
+    we walk `start` back so the window has at least `min_span` = max(10,
+    (hi-lo)//2) years — enough to represent productive activity.
     """
     span = hi - lo
     if birth_year is not None:
@@ -364,6 +369,11 @@ def expand_around_floruit(fy, lo, hi, birth_year=None, death_year=None):
         end = death_year
     end = min(end, CURRENT_YEAR)
     start = min(start, end)
+    # Guard: ensure a proper range. Walk start back so the window represents
+    # at least half of the productive span (or 10 years, whichever is larger).
+    min_span = max(10, span // 2)
+    if end - start < min_span:
+        start = end - min_span
     return start, end
 
 
@@ -563,20 +573,39 @@ def compute_floruit(row, cv_category=None):
             )
 
     # A7 — description birth+death
+    # If the two description dates are closer than `lo` years apart, they
+    # cannot represent a real birth-death pair of a productive adult — almost
+    # always a tenure range or a single date mis-tagged. Reroute to
+    # floruit_description: anchor at the upstream-parsed floruit_year (if any),
+    # else the midpoint of the two dates, expand via productive-age range,
+    # and make sure the documented [desc_b, desc_d] sits inside the window.
     if has_desc_birthdeath:
-        s, e = window_birth_death(desc_b, desc_d, lo, hi)
-        if s is not None:
+        gap = desc_d - desc_b
+        if gap < lo:
+            anchor = desc_f if desc_f is not None else (desc_b + desc_d) // 2
+            s, e = expand_around_floruit(anchor, lo, hi, bd_year, dd_year)
+            s = min(s, desc_b)
+            e = max(e, desc_d)
             candidates.append(
                 _cand(
-                    140,
-                    s,
-                    e,
-                    "birth_death_description",
-                    "wikidata_description",
-                    "year",
-                    False,
+                    110, s, e, "floruit_description",
+                    "wikidata_description", "year", False,
                 )
             )
+        else:
+            s, e = window_birth_death(desc_b, desc_d, lo, hi)
+            if s is not None:
+                candidates.append(
+                    _cand(
+                        140,
+                        s,
+                        e,
+                        "birth_death_description",
+                        "wikidata_description",
+                        "year",
+                        False,
+                    )
+                )
 
     # A8 — CV birth+death
     if cv_b is not None and cv_d is not None:
