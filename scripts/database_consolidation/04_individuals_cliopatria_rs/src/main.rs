@@ -1,25 +1,38 @@
 // 04 — Build `individuals_cliopatria` (Rust + DuckDB).
 //
-// One row per matched individual; one polity per individual.
+// Multi-polity output: one row per (individual, polity) where the polity's
+// period overlaps the individual's floruit window. An individual whose floruit
+// spans a regime transition therefore appears under every polity they overlap.
 //
 // Location selection (best to worst): deathplace, birthplace, country_of_citizenship.
-// Linkage to a Cliopatria polity is a two-phase procedure:
+// Linkage to Cliopatria polities is a two-phase procedure:
 //
 //   Phase 1 — polygon matching, applied in death → birth → CoC order.
-//     For the candidate location's coords, restrict polity-periods to those
-//     whose [from_year, to_year] contains the impact year, bbox-prefilter via
-//     R-tree, then ray-cast point-in-polygon. When several polities match
-//     (e.g. a city falls inside both a kingdom and a wider empire), the polity
-//     with the smallest bbox area wins. As soon as one location yields a hit,
-//     we stop.
+//     For each location's coords, restrict polity-periods to those whose
+//     [from_year, to_year] overlap the floruit window [floruit_period_start,
+//     floruit_period_end] (or [floruit_year, floruit_year] when only a single
+//     year is available). Bbox-prefilter via R-tree, then ray-cast
+//     point-in-polygon. ALL polities whose polygon contains the point AND
+//     whose period overlaps the floruit window are emitted (a city inside
+//     both a kingdom and a wider empire produces two rows). As soon as one
+//     location yields any hit, we stop the cascade and do not try the next.
 //
 //   Phase 2 — Wikipedia URL matching, applied only to individuals still
 //     unmatched after phase 1. URL priority is CoC → deathplace → birthplace,
 //     joined to `polities_cliopatria.wikipedia_url` and restricted to
-//     polity-periods that contain the impact year.
+//     polity-periods that overlap the floruit window. All overlapping
+//     periods are emitted.
 //
-// Impact year = midpoint(floruit_period_start, floruit_period_end) when both
-// are present, else `floruit_year`. Individuals with no impact year are skipped.
+// Within a (cascade step, polity) pair, multiple period rows of the same
+// polity are merged: `overlap_years` is the SUM of years covered across all
+// such periods (a polity that had two disjoint stints both within the
+// floruit window contributes the union of its years).
+//
+// Floruit window:
+//   - if both floruit_period_start and floruit_period_end are present,
+//     window = [start, end]
+//   - else if floruit_year is present, window = [floruit_year, floruit_year]
+//   - else the individual is skipped.
 //
 // Writes table `individuals_cliopatria` into data/humans_clean.duckdb via the
 // DuckDB Appender API. The existing table is dropped and rebuilt.
@@ -43,6 +56,9 @@ struct Args {
     db: PathBuf,
     #[arg(long, default_value = "individuals_cliopatria")]
     table: String,
+    /// Optional cap on number of individuals processed (for benching). 0 = all.
+    #[arg(long, default_value_t = 0)]
+    limit: usize,
 }
 
 #[derive(Clone)]
@@ -507,9 +523,11 @@ fn main() -> Result<()> {
         floruit_year: i32,
         floruit_period_start: Option<i64>,
         floruit_period_end: Option<i64>,
+        overlap_years: i32,
     }
 
     // Smallest-bbox period from a list of period_idx hits, restricted to year.
+    // Kept for the `_potential` table (uses midpoint-year flags as before).
     let polygon_best = |hits: &[u32], year: i32| -> Option<(u32, f64)> {
         let mut best: Option<(u32, f64)> = None;
         for &pidx in hits {
@@ -531,130 +549,241 @@ fn main() -> Result<()> {
             .find(|e| year >= e.from_year && year <= e.to_year)
     };
 
-    let matches: Vec<Match> = individuals
+    // Multi-polity helpers: return every polity that overlaps [fps, fpe],
+    // deduplicated by polity_id, with overlap_years = SUM of overlap across
+    // all of that polity's periods.
+    let polygon_overlaps = |hits: &[u32], fps: i32, fpe: i32| -> Vec<(u32, i32)> {
+        let mut acc: HashMap<i64, (u32, i32, i32)> = HashMap::new();
+        // polity_id -> (best_pidx, best_pidx_overlap, total_overlap)
+        for &pidx in hits {
+            let p = &periods[pidx as usize];
+            let lo = p.from_year.max(fps);
+            let hi = p.to_year.min(fpe);
+            if lo > hi {
+                continue;
+            }
+            let ov = hi - lo + 1;
+            acc.entry(p.polity_id)
+                .and_modify(|e| {
+                    e.2 += ov;
+                    if ov > e.1 {
+                        e.0 = pidx;
+                        e.1 = ov;
+                    }
+                })
+                .or_insert((pidx, ov, ov));
+        }
+        acc.into_iter().map(|(_, (pidx, _, tot))| (pidx, tot)).collect()
+    };
+
+    let url_overlaps = |url: &str, fps: i32, fpe: i32| -> Vec<(&UrlPeriod, i32)> {
+        let bucket = match url_periods.get(url) {
+            Some(b) => b,
+            None => return Vec::new(),
+        };
+        let mut acc: HashMap<i64, (usize, i32, i32)> = HashMap::new();
+        for (i, e) in bucket.iter().enumerate() {
+            let lo = e.from_year.max(fps);
+            let hi = e.to_year.min(fpe);
+            if lo > hi {
+                continue;
+            }
+            let ov = hi - lo + 1;
+            acc.entry(e.polity_id)
+                .and_modify(|x| {
+                    x.2 += ov;
+                    if ov > x.1 {
+                        x.0 = i;
+                        x.1 = ov;
+                    }
+                })
+                .or_insert((i, ov, ov));
+        }
+        acc.into_iter().map(|(_, (i, _, tot))| (&bucket[i], tot)).collect()
+    };
+
+    // Optional sample limit (for benching).
+    let individuals_view: Vec<&Individual> = if args.limit > 0 {
+        individuals.iter().take(args.limit).collect()
+    } else {
+        individuals.iter().collect()
+    };
+
+    let matches: Vec<Match> = individuals_view
         .par_iter()
-        .filter_map(|ind| {
-            let year = ind.year?;
+        .flat_map(|ind| {
+            // Floruit window: prefer [start, end]; fallback to [year, year].
+            let (fps, fpe) = match (ind.floruit_period_start, ind.floruit_period_end) {
+                (Some(s), Some(e)) => (s as i32, e as i32),
+                _ => match ind.year {
+                    Some(y) => (y, y),
+                    None => return Vec::new(),
+                },
+            };
+            let year = ind.year.unwrap_or((fps + fpe) / 2);
 
-            // -------- Phase 1: polygon --------
+            let mut out: Vec<Match> = Vec::new();
 
-            // 1.a deathplace polygon
+            // -------- Phase 1: polygon (death → birth → CoC). Stop at first
+            //         location that produces ANY overlap. --------
+
             let did = ind.deathcity_id.trim();
             if !did.is_empty() {
                 if let Some(hits) = place_poly_index.get(did) {
-                    if let Some((pidx, _)) = polygon_best(hits, year) {
-                        let p = &periods[pidx as usize];
-                        return Some(Match {
-                            wikidata_id: ind.wikidata_id.clone(),
-                            name_en: ind.name_en.clone(),
-                            polity_id: p.polity_id,
-                            polity_name: p.polity_name.clone(),
-                            origin: "deathplace",
-                            matched_name: place_name.get(did).cloned().unwrap_or_default(),
-                            matched_wikidata_id: did.to_string(),
-                            method: "merge_with_polygon",
-                            floruit_year: year,
-                            floruit_period_start: ind.floruit_period_start,
-                            floruit_period_end: ind.floruit_period_end,
-                        });
+                    let ov = polygon_overlaps(hits, fps, fpe);
+                    if !ov.is_empty() {
+                        let mname = place_name.get(did).cloned().unwrap_or_default();
+                        for (pidx, overlap) in ov {
+                            let p = &periods[pidx as usize];
+                            out.push(Match {
+                                wikidata_id: ind.wikidata_id.clone(),
+                                name_en: ind.name_en.clone(),
+                                polity_id: p.polity_id,
+                                polity_name: p.polity_name.clone(),
+                                origin: "deathplace",
+                                matched_name: mname.clone(),
+                                matched_wikidata_id: did.to_string(),
+                                method: "merge_with_polygon",
+                                floruit_year: year,
+                                floruit_period_start: ind.floruit_period_start,
+                                floruit_period_end: ind.floruit_period_end,
+                                overlap_years: overlap,
+                            });
+                        }
+                        return out;
                     }
                 }
             }
 
-            // 1.b birthplace polygon
             let bid = ind.birthcity_id.trim();
             if !bid.is_empty() {
                 if let Some(hits) = place_poly_index.get(bid) {
-                    if let Some((pidx, _)) = polygon_best(hits, year) {
+                    let ov = polygon_overlaps(hits, fps, fpe);
+                    if !ov.is_empty() {
+                        let mname = place_name.get(bid).cloned().unwrap_or_default();
+                        for (pidx, overlap) in ov {
+                            let p = &periods[pidx as usize];
+                            out.push(Match {
+                                wikidata_id: ind.wikidata_id.clone(),
+                                name_en: ind.name_en.clone(),
+                                polity_id: p.polity_id,
+                                polity_name: p.polity_name.clone(),
+                                origin: "birthplace",
+                                matched_name: mname.clone(),
+                                matched_wikidata_id: bid.to_string(),
+                                method: "merge_with_polygon",
+                                floruit_year: year,
+                                floruit_period_start: ind.floruit_period_start,
+                                floruit_period_end: ind.floruit_period_end,
+                                overlap_years: overlap,
+                            });
+                        }
+                        return out;
+                    }
+                }
+            }
+
+            // 1.c CoC polygon — aggregate hits across ALL coc_ids
+            //     (different citizenships can yield different polities).
+            //     Within a (cid, polity) pair, sum overlap as usual.
+            let coc_ids = split_ids(&ind.coc_ids);
+            if !coc_ids.is_empty() {
+                // Keep first cid that produced each polity, with summed overlap.
+                let mut seen: HashMap<i64, (u32, i32, &str)> = HashMap::new();
+                for cid in &coc_ids {
+                    if let Some(hits) = coc_poly_index.get(*cid) {
+                        for (pidx, overlap) in polygon_overlaps(hits, fps, fpe) {
+                            let pol_id = periods[pidx as usize].polity_id;
+                            seen.entry(pol_id)
+                                .and_modify(|e| {
+                                    e.1 += overlap;
+                                })
+                                .or_insert((pidx, overlap, cid));
+                        }
+                    }
+                }
+                if !seen.is_empty() {
+                    for (_, (pidx, overlap, cid)) in seen {
                         let p = &periods[pidx as usize];
-                        return Some(Match {
+                        out.push(Match {
                             wikidata_id: ind.wikidata_id.clone(),
                             name_en: ind.name_en.clone(),
                             polity_id: p.polity_id,
                             polity_name: p.polity_name.clone(),
-                            origin: "birthplace",
-                            matched_name: place_name.get(bid).cloned().unwrap_or_default(),
-                            matched_wikidata_id: bid.to_string(),
+                            origin: "country_of_citizenship",
+                            matched_name: coc_name.get(cid).cloned().unwrap_or_default(),
+                            matched_wikidata_id: cid.to_string(),
                             method: "merge_with_polygon",
                             floruit_year: year,
                             floruit_period_start: ind.floruit_period_start,
                             floruit_period_end: ind.floruit_period_end,
+                            overlap_years: overlap,
                         });
                     }
+                    return out;
                 }
             }
 
-            // 1.c country_of_citizenship centroid polygon — smallest bbox across all coc_ids
-            let coc_ids = split_ids(&ind.coc_ids);
-            if !coc_ids.is_empty() {
-                let mut best: Option<(u32, f64, &str)> = None;
+            // -------- Phase 2: URL (CoC → death → birth). Stop at first
+            //         location that produces ANY overlap. --------
+
+            // 2.a CoC URL
+            {
+                let mut seen: HashMap<i64, (UrlPeriod, i32, &str, String)> = HashMap::new();
                 for cid in &coc_ids {
-                    if let Some(hits) = coc_poly_index.get(*cid) {
-                        if let Some((pidx, area)) = polygon_best(hits, year) {
-                            if best.map_or(true, |(_, b, _)| area < b) {
-                                best = Some((pidx, area, cid));
-                            }
+                    if let Some((cname, curl)) = coc_url_map.get(*cid) {
+                        for (up, overlap) in url_overlaps(curl, fps, fpe) {
+                            seen.entry(up.polity_id)
+                                .and_modify(|e| {
+                                    e.1 += overlap;
+                                })
+                                .or_insert((up.clone(), overlap, cid, cname.clone()));
                         }
                     }
                 }
-                if let Some((pidx, _, cid)) = best {
-                    let p = &periods[pidx as usize];
-                    return Some(Match {
-                        wikidata_id: ind.wikidata_id.clone(),
-                        name_en: ind.name_en.clone(),
-                        polity_id: p.polity_id,
-                        polity_name: p.polity_name.clone(),
-                        origin: "country_of_citizenship",
-                        matched_name: coc_name.get(cid).cloned().unwrap_or_default(),
-                        matched_wikidata_id: cid.to_string(),
-                        method: "merge_with_polygon",
-                        floruit_year: year,
-                        floruit_period_start: ind.floruit_period_start,
-                        floruit_period_end: ind.floruit_period_end,
-                    });
-                }
-            }
-
-            // -------- Phase 2: URL --------
-
-            // 2.a CoC URL — first coc_id whose URL has a year-matching polity-period
-            for cid in &coc_ids {
-                if let Some((cname, curl)) = coc_url_map.get(*cid) {
-                    if let Some(up) = url_match(curl, year) {
-                        return Some(Match {
+                if !seen.is_empty() {
+                    for (_, (up, overlap, cid, cname)) in seen {
+                        out.push(Match {
                             wikidata_id: ind.wikidata_id.clone(),
                             name_en: ind.name_en.clone(),
                             polity_id: up.polity_id,
                             polity_name: up.polity_name.clone(),
                             origin: "country_of_citizenship",
-                            matched_name: cname.clone(),
+                            matched_name: cname,
                             matched_wikidata_id: cid.to_string(),
                             method: "merge_with_url",
                             floruit_year: year,
                             floruit_period_start: ind.floruit_period_start,
                             floruit_period_end: ind.floruit_period_end,
+                            overlap_years: overlap,
                         });
                     }
+                    return out;
                 }
             }
 
             // 2.b deathplace URL
             if !did.is_empty() {
                 if let Some((pn, purl)) = place_url_map.get(did) {
-                    if let Some(up) = url_match(purl, year) {
-                        return Some(Match {
-                            wikidata_id: ind.wikidata_id.clone(),
-                            name_en: ind.name_en.clone(),
-                            polity_id: up.polity_id,
-                            polity_name: up.polity_name.clone(),
-                            origin: "deathplace",
-                            matched_name: pn.clone(),
-                            matched_wikidata_id: did.to_string(),
-                            method: "merge_with_url",
-                            floruit_year: year,
-                            floruit_period_start: ind.floruit_period_start,
-                            floruit_period_end: ind.floruit_period_end,
-                        });
+                    let ov = url_overlaps(purl, fps, fpe);
+                    if !ov.is_empty() {
+                        for (up, overlap) in ov {
+                            out.push(Match {
+                                wikidata_id: ind.wikidata_id.clone(),
+                                name_en: ind.name_en.clone(),
+                                polity_id: up.polity_id,
+                                polity_name: up.polity_name.clone(),
+                                origin: "deathplace",
+                                matched_name: pn.clone(),
+                                matched_wikidata_id: did.to_string(),
+                                method: "merge_with_url",
+                                floruit_year: year,
+                                floruit_period_start: ind.floruit_period_start,
+                                floruit_period_end: ind.floruit_period_end,
+                                overlap_years: overlap,
+                            });
+                        }
+                        return out;
                     }
                 }
             }
@@ -662,32 +791,50 @@ fn main() -> Result<()> {
             // 2.c birthplace URL
             if !bid.is_empty() {
                 if let Some((pn, purl)) = place_url_map.get(bid) {
-                    if let Some(up) = url_match(purl, year) {
-                        return Some(Match {
-                            wikidata_id: ind.wikidata_id.clone(),
-                            name_en: ind.name_en.clone(),
-                            polity_id: up.polity_id,
-                            polity_name: up.polity_name.clone(),
-                            origin: "birthplace",
-                            matched_name: pn.clone(),
-                            matched_wikidata_id: bid.to_string(),
-                            method: "merge_with_url",
-                            floruit_year: year,
-                            floruit_period_start: ind.floruit_period_start,
-                            floruit_period_end: ind.floruit_period_end,
-                        });
+                    let ov = url_overlaps(purl, fps, fpe);
+                    if !ov.is_empty() {
+                        for (up, overlap) in ov {
+                            out.push(Match {
+                                wikidata_id: ind.wikidata_id.clone(),
+                                name_en: ind.name_en.clone(),
+                                polity_id: up.polity_id,
+                                polity_name: up.polity_name.clone(),
+                                origin: "birthplace",
+                                matched_name: pn.clone(),
+                                matched_wikidata_id: bid.to_string(),
+                                method: "merge_with_url",
+                                floruit_year: year,
+                                floruit_period_start: ind.floruit_period_start,
+                                floruit_period_end: ind.floruit_period_end,
+                                overlap_years: overlap,
+                            });
+                        }
+                        return out;
                     }
                 }
             }
 
-            None
+            out
         })
         .collect();
 
     let cascade_resolve = t.elapsed();
+    let n_unique_matched: usize = {
+        let mut set: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for m in &matches {
+            set.insert(m.wikidata_id.as_str());
+        }
+        set.len()
+    };
     println!(
-        "  matched individuals: {} [{:.2}s]",
+        "  matched rows: {} | unique individuals: {} | avg polities/ind: {:.2} [{:.2}s]",
         matches.len(),
+        n_unique_matched,
+        if n_unique_matched > 0 {
+            matches.len() as f64 / n_unique_matched as f64
+        } else {
+            0.0
+        },
         cascade_resolve.as_secs_f64()
     );
 
@@ -758,7 +905,7 @@ fn main() -> Result<()> {
     conn.execute_batch(&format!("DROP TABLE IF EXISTS {};", args.table))?;
     conn.execute_batch(&format!(
         "CREATE TABLE {} (\
-            wikidata_id VARCHAR PRIMARY KEY,\
+            wikidata_id VARCHAR,\
             name_en VARCHAR,\
             polity_id BIGINT,\
             polity_name VARCHAR,\
@@ -768,7 +915,8 @@ fn main() -> Result<()> {
             method VARCHAR,\
             floruit_year INTEGER,\
             floruit_period_start INTEGER,\
-            floruit_period_end INTEGER\
+            floruit_period_end INTEGER,\
+            overlap_years INTEGER\
         );",
         args.table
     ))?;
@@ -787,12 +935,14 @@ fn main() -> Result<()> {
                 m.floruit_year,
                 m.floruit_period_start,
                 m.floruit_period_end,
+                m.overlap_years,
             ])?;
         }
         appender.flush()?;
     }
     conn.execute_batch(&format!(
-        "CREATE INDEX IF NOT EXISTS idx_{0}_polity_id ON {0}(polity_id);",
+        "CREATE INDEX IF NOT EXISTS idx_{0}_polity_id ON {0}(polity_id);\
+         CREATE INDEX IF NOT EXISTS idx_{0}_wikidata_id ON {0}(wikidata_id);",
         args.table
     ))?;
     let write_db = t.elapsed();

@@ -1,6 +1,6 @@
 # Cultura Database
 
-**13 million scientists, writers, and artists from Wikidata, linked to historical polities (Cliopatria).**
+**13 million individuals from Wikidata, linked to historical polities (Cliopatria) and with a floruit period.**
 
 Distributed as a single **DuckDB** file, optimized for analytical queries from
 Python (Polars, pandas, Arrow) with no server to run.
@@ -25,7 +25,8 @@ and notebook in this repo.
 | Works | 38,555,710 |
 | External identifiers | 59,508,342 |
 | Wikimedia links (300+ langs) | 15,551,839 |
-| Individual ↔ polity mappings | 5,126,001 |
+| Individuals linked to a polity | 5,161,090 |
+| Individual ↔ polity mappings (pairs) | 7,830,341 |
 | Historical polities (Cliopatria) | 1,604 |
 | Cities (places) | 314,724 |
 | Occupations | 18,230 |
@@ -37,7 +38,7 @@ and notebook in this repo.
 |---|---|---|
 | `individuals` | 13.0M | Core biographical record (one per Q5) |
 | `individuals_floruit_period` | 13.0M | Working period per individual (floruit / birth / death rules with century fallback) |
-| `individuals_cliopatria` | 5.1M | Individual → historical polity, year-aware (`floruit_year`) |
+| `individuals_cliopatria` | 7.8M | Individual → historical polity, year-aware (`floruit_year`); one row per individual–polity pair (5.1M distinct individuals) |
 | `polities_cliopatria` | 1.6K | Historical polities (name, period, modern-country mapping) |
 | `places` | 314K | Cities with coordinates and dates |
 | `occupations` | 18K | Occupation reference table |
@@ -127,21 +128,16 @@ A complete walk-through (load → query → plot) lives in
 
 ---
 
-## Paper
-
-A descriptor of this database is under preparation for *Nature Scientific Data*.
-Citation, preprint link and DOI will be added here once available.
-
----
-
 ## Citation
+
+> Charles de Dampierre, James S. Bennett, Nicolas Baumard.
+> *Cultura Database: a comprehensive database of 13 million individuals linked to a floruit period and verified historical polities from 3500 BC to 2026.*
 
 ```bibtex
 @misc{cultura_database,
-  title  = {Cultura Database: 13 million scientists, writers, and artists from Wikidata, linked to historical polities},
-  author = {de Dampierre, Charles},
-  year   = {2026},
-  note   = {Version under preparation for Nature Scientific Data}
+  title  = {Cultura Database: a comprehensive database of 13 million individuals linked to a floruit period and verified historical polities from 3500BC to 2026},
+  author = {de Dampierre, Charles and Bennett, James S. and Baumard, Nicolas},
+  year   = {2026}
 }
 ```
 
@@ -156,4 +152,4 @@ Data derived from [Wikidata](https://www.wikidata.org/) under
 
 ## Contact
 
-Charles de Dampierre — [cdedampierre@bunka.ai](mailto:cdedampierre@bunka.ai)
+Charles de Dampierre — [charlesdedampierre@gmail.com](mailto:charlesdedampierre@gmail.com)
