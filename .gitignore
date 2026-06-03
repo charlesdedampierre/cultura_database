@@ -29,6 +29,7 @@ logs/
 temp_files/
 benchmarks/
 photos_claude/
+other_docs/
 
 scripts/_one_off/
 
