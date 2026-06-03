@@ -50,8 +50,6 @@ notebook in this repo.
 
 Full column-level documentation: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md).
 
-![Database Schema](docs/schema.png)
-
 ---
 
 ## Installation
