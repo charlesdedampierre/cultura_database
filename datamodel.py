@@ -27,7 +27,7 @@ class Wikidata(Source):
 
 
 class Dataset(Source):
-    platform: Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"] = (Field(..., description="Dataset the value was taken from."))
+    platform: Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"] = Field(..., description="Dataset the value was taken from.")
     dataset_version: str | None = Field(None, description="Version or release of the dataset, as listed in sources.json.")
 
 
@@ -46,35 +46,19 @@ class Information(Model, Generic[T]):
     source: Wikidata | Dataset | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among four — no field in this schema is tied to it.")
 
 
-PROPERTIES: dict[str, dict[str, str]] = json.loads(
-    (HERE / "properties.json").read_text()
-)
+PROPERTIES: dict[str, dict[str, str]] = json.loads((HERE / "properties.json").read_text())
 
-ROLE_FROM_PROPERTY: dict[str, str] = {
-    pid: p["credit_role"] for pid, p in PROPERTIES.items() if "credit_role" in p
-}
+ROLE_FROM_PROPERTY: dict[str, str] = {pid: p["credit_role"] for pid, p in PROPERTIES.items() if "credit_role" in p}
 
 SOURCES: dict[str, dict[str, str]] = json.loads((HERE / "sources.json").read_text())
 
 
 def urban_settlement_answer() -> "Information[bool]":
-    return Information[bool](
-        source=AIAnswer(
-            model="google/gemini-3-flash-preview",
-            prompt=(HERE / "prompts/urban_settlement.txt").read_text().strip(),
-            date_of_extraction=date(2026, 4, 23),
-        )
-    )
+    return Information[bool](source=AIAnswer(model="google/gemini-3-flash-preview", prompt=(HERE / "prompts/urban_settlement.txt").read_text().strip(), date_of_extraction=date(2026, 4, 23)))
 
 
 def wikipedia_dates_answer() -> "Information[str]":
-    return Information[str](
-        source=AIAnswer(
-            model="google/gemini-2.5-flash-lite",
-            prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip(),
-            date_of_extraction=date(2026, 5, 6),
-        )
-    )
+    return Information[str](source=AIAnswer(model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip(), date_of_extraction=date(2026, 5, 6)))
 
 
 class Date(Model):
@@ -149,16 +133,10 @@ class Individual(Model):
     notability_general: Information[float] | None = Field(None, description="Geometric mean of the two (0 to ~282). The project's canonical ranking metric: it rewards fame that crosses the Western / non-Western divide.")
     identifiers: tuple[Identifier, ...] = Field((), description="The individual's records in external databases, one entry per database.")
     number_of_identifiers: Information[int] | None = Field(None, description="Number of external-database identifiers. Counted over `identifiers`.")
-    floruit_year: Date | None = Field(None, description="The single date that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing.")
+    floruit_year: Date | None = Field(None, description="The single date that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing. Which dates fed it, and from which source, is its own `derived_from`.")
     floruit_start: Date | None = Field(None, description="First date of the activity window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
     floruit_end: Date | None = Field(None, description="Last date of the activity window. NULL when only one year is known.")
-    floruit_method: (Information[Literal["birth_only_property", "birth_only_description", "birth_only_cv", "birth_only_wikipedia", "birth_death_property", "birth_death_description", "birth_death_cv", "birth_death_wikipedia", "birth_death_estimated_birth", "birth_century", "birth_death_century", "death_century", "floruit_property", "floruit_property_century", "floruit_property_decade", "floruit_description", "floruit_wikipedia", "floruit_wikipedia_span", "works_span", "works_single", "under_30", "no_data"]] | None) = Field(None, description="How the window was derived, as <anchor>_<evidence>: which dates were available and how they were read.")
-    floruit_source: (Information[Literal["wikidata_property", "wikidata_description", "works", "life_expectancy", "cv_database", "wikipedia", "none"]] | None) = Field(None, description="Where the dates came from: a Wikidata property, the Wikidata description, the works, the life-expectancy model, CVDB, or Wikipedia.")
-    floruit_precision_class: (Information[Literal["year", "decade", "century"]] | None) = Field(None, description="How precisely the window is known: to the year, the decade, or only the century. Use it to exclude vague individuals from an analysis.")
-    floruit_estimated: Information[bool] | None = Field(None, description="True if the window rests on the life-expectancy model rather than on attested dates.")
-    floruit_birthdate_used: Date | None = Field(None, description="The birth date actually used as input, whichever source it came from.")
-    floruit_deathdate_used: Date | None = Field(None, description="The death date actually used as input, whichever source it came from.")
-    floruit_floruit_used: Date | None = Field(None, description="The floruit date actually used as input, whichever source it came from.")
+    floruit_precision_class: Information[Literal["year", "decade", "century"]] | None = Field(None, description="How precisely the window is known: to the year, the decade, or only the century. Use it to exclude vague individuals from an analysis.")
     works_period_start: Date | None = Field(None, description="First date at which the individual produced works. The date of a work is its publication date, else its inception date.")
     works_period_end: Date | None = Field(None, description="Last date at which the individual produced works.")
     number_of_works: Information[int] | None = Field(None, description="Number of works credited to the individual. Counted over `Work`.")
@@ -174,7 +152,7 @@ class Individual(Model):
     floruit_from_wikipedia: Date | None = Field(default_factory=wikipedia_date, description="Floruit read out of the Wikipedia article by a language model. Model and prompt travel with the value.")
     estimated_birthdate: Date | None = Field(None, description="Birth date estimated from the death date, iterating from birth = death - 70 against the birth-bin table to avoid the survivorship bias of a death-bin lookup.")
     estimated_deathdate: Date | None = Field(None, description="Death date estimated from the birth date. Never set when the estimate would fall in the last 5 years, or when the birth year would exceed 1950.")
-    life_expectancy_lookup_source: (Information[Literal["birth_bin", "category+birth_bin:Leadership", "category+birth_bin:Culture", "category+birth_bin:Sports/Games", "category+birth_bin:Discovery/Science", "category+birth_bin:Other"]] | None) = Field(None, description="Which lookup produced the estimate: the 50-year birth bin within a CVDB occupation category, or the birth bin alone as a fallback.")
+    life_expectancy_lookup_source: Information[Literal["birth_bin", "category+birth_bin:Leadership", "category+birth_bin:Culture", "category+birth_bin:Sports/Games", "category+birth_bin:Discovery/Science", "category+birth_bin:Other"]] | None = Field(None, description="Which lookup produced the estimate: the 50-year birth bin within a CVDB occupation category, or the birth bin alone as a fallback.")
     life_expectancy_median_used: Information[float] | None = Field(None, description="Median life expectancy in years applied. The medians are estimated in-sample from Cultura individuals that have both dates at year precision — they are not a published life table.")
     in_pantheon_2: Information[bool] | None = Field(None, description="True if the individual appears in the Pantheon 2.0 dataset.")
     in_cross_verified_db: Information[bool] | None = Field(None, description="True if the individual appears in the cross-verified database.")
@@ -185,7 +163,7 @@ class Work(Model):
     label_en: Information[str] | None = None
     description_en: Information[str] | None = None
     creator: Information[QID]
-    role: (Information[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None) = None
+    role: Information[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = None
     instance_of: Information[str] | None = None
     inception: Date | None = Field(None, description="Date the work was created. Wikidata P571.")
     publication: Date | None = Field(None, description="Date the work was first published or released. Wikidata P577.")
@@ -193,11 +171,7 @@ class Work(Model):
     @field_validator("role", mode="before")
     @classmethod
     def normalize_role(cls, value: object) -> object:
-        return (
-            value | {"value": ROLE_FROM_PROPERTY.get(value["value"], value["value"])}
-            if isinstance(value, dict) and isinstance(value.get("value"), str)
-            else value
-        )
+        return value | {"value": ROLE_FROM_PROPERTY.get(value["value"], value["value"])} if isinstance(value, dict) and isinstance(value.get("value"), str) else value
 
 
 TABLES: dict[str, type[Model]] = {"individuals": Individual, "works": Work}
