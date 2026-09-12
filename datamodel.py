@@ -106,10 +106,10 @@ class Identifier(BaseModel):
 
 
 class Notability(BaseModel):
-    total: Information | None = Field(None, description="Number of Wikipedia articles across all languages, western plus non-western. Counted over `wikipedia_links`.")
-    western: Information | None = Field(None, description="Number of Western-language Wikipedia editions covering the individual (0-228).")
-    non_western: Information | None = Field(None, description="Number of non-Western-language Wikipedia editions covering the individual.")
-    general: Information | None = Field(None, description="Geometric mean of the two (0 to ~282). The project's canonical ranking metric: it rewards fame that crosses the Western / non-Western divide.")
+    score: Information | None = Field(None, description="The project's ranking metric: the geometric mean of the two edition counts, 0 to about 282. A geometric mean rewards reach that crosses the divide — someone read in 100 Western and 100 non-Western editions outranks someone read in 200 Western ones.")
+    western_editions: Information | None = Field(None, description="Number of Western-language Wikipedia editions carrying an article about the individual, 0 to 228.")
+    non_western_editions: Information | None = Field(None, description="Number of non-Western-language editions carrying one.")
+    articles_fetched: Information | None = Field(None, description="Number of Wikipedia articles this project actually downloaded, counted over `wikipedia_links`. It is not the sum of the two edition counts and is usually smaller — by about 50 on average — because the extraction did not fetch every edition. Use the edition counts to measure fame and this one to measure coverage of the fetch.")
 
 
 class Individual(BaseModel):
