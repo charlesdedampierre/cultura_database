@@ -181,3 +181,16 @@ class PantheonPerson(BaseModel):
     dplace_geonameid: int | None = None
     dplace_country: str | None = None
     dplace_geacron_name: str | None = None
+
+
+class PlaceModernCountry(BaseModel):
+    qid: str = Field(..., description="The place's Wikidata item, the key this file is indexed by. Join it to PlaceWikidata.")
+    country_name: str | None = Field(None, description="The country holding that ground today. Not read from Wikidata — a reverse geocoder was run on the place's coordinates, so this answers a different question from PlaceWikidata.country, which is what Wikidata declares and is often a state that no longer exists.")
+    iso_a3_code: str | None = Field(None, description="ISO 3166-1 alpha-3 code of that country. Empty when the geocoder found no country, which happens for places at sea and in Antarctica.")
+
+
+class EntityTypeClassification(BaseModel):
+    qid: str = Field(..., description="A Wikidata class, not a place — 'Q1021711' is the class 'seaside resort'. The classification was run over the classes, of which there are a few thousand, rather than over the millions of places that instantiate them. A place is urban when any of its PlaceWikidata.instance_of classes is.")
+    label: str | None = Field(None, description="The class's English label, as given to the model.")
+    urban_settlement: bool | None = Field(None, description="Whether the class denotes a populated place — a town, a village, a quarter — rather than an administrative region, a building or a natural feature. Answered by a language model; the model id and the prompt are in the enrichment that used it.")
+    reason: str | None = Field(None, description="The short phrase the model gave for its answer, kept so a wrong call can be seen rather than guessed at.")
