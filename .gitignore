@@ -51,4 +51,11 @@ Cargo.lock
 
 # Jupyter
 .ipynb_checkpoints/
+<<<<<<< HEAD
 _wt/
+=======
+
+# Schema reference data, small and versioned (the data model imports these)
+!properties.json
+!sources.json
+>>>>>>> feature/cha-231-datamodel
