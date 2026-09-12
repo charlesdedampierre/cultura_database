@@ -17,7 +17,8 @@ class Model(BaseModel):
 
 
 class Wikidata(Model, Generic[T]):
-    property: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Its name and definition are in properties.json, which is why a Wikidata field needs no description of its own. Non-property sources keep their RDF term, e.g. 'rdfs:label'.")
+    property: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Non-property sources keep their RDF term, e.g. 'rdfs:label'.")
+    description: str | None = Field(None, description="What the property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field annotated Wikidata[...] describes itself: the description is data, not schema.")
     value: T | None = Field(None, description="The value itself, exactly as read from Wikidata. Multi-valued fields are pipe-joined in Wikidata order.")
     date_of_extraction: date = Field(..., description="Day the value was pulled from Wikidata. Mandatory: Wikidata is edited continuously, so an undated value cannot be reproduced.")
 
@@ -63,69 +64,69 @@ class Individual(Model):
     label_en: str | None = Field(None, description="English label of the individual. Wikidata rdfs:label.")
     description_en: str | None = Field(None, description="English one-line description of the individual. Wikidata schema:description.")
     date_of_extraction: date = Field(..., description="Day the individual was read from Wikidata.")
-    gender: Wikidata[QID] | None = Field(None, description="Gender item, e.g. Q6581097 for male. Free vocabulary: 48 distinct values in the data, a few of them unresolved.")
+    gender: Wikidata[QID] | None = None
     gender_label_en: Wikidata[str] | None = None
     non_human: Derived[bool] | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
-    birth: Wikidata[str] | None = Field(None, description="Date of birth as an ISO string; a negative year means BCE.")
-    birth_precision: Wikidata[int] | None = Field(None, description="Wikidata precision code of `birth`: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium.")
+    birth: Wikidata[str] | None = None
+    birth_precision: Wikidata[int] | None = None
     birth_year: Derived[int] | None = Field(None, description="Birth year alone, parsed out of `birth`. Negative for BCE.")
-    death: Wikidata[str] | None = Field(None, description="Date of death as an ISO string; a negative year means BCE.")
-    death_precision: Wikidata[int] | None = Field(None, description="Wikidata precision code of `death`.")
+    death: Wikidata[str] | None = None
+    death_precision: Wikidata[int] | None = None
     death_year: Derived[int] | None = Field(None, description="Death year alone, parsed out of `death`. Negative for BCE.")
-    floruit_declared: Wikidata[str] | None = Field(None, description="Floruit date as stated by Wikidata P1317, as an ISO string.")
-    floruit_declared_precision: Wikidata[int] | None = Field(None, description="Wikidata precision code of `floruit_declared`.")
+    floruit_declared: Wikidata[str] | None = None
+    floruit_declared_precision: Wikidata[int] | None = None
     floruit_declared_year: Derived[int] | None = Field(None, description="Floruit year alone, parsed out of `floruit_declared`.")
-    birthplace: Wikidata[QID] | None = Field(None, description="City of birth. Wikidata P19 'place of birth'.")
+    birthplace: Wikidata[QID] | None = None
     birthplace_label_en: Wikidata[str] | None = None
-    birthplace_lat: Wikidata[float] | None = Field(None, description="Latitude of the birthplace in degrees. Wikidata P625.")
-    birthplace_lon: Wikidata[float] | None = Field(None, description="Longitude of the birthplace in degrees. Wikidata P625.")
-    birthplace_entity_types: Wikidata[str] | None = Field(None, description="Classes of the birthplace, pipe-joined qids, e.g. 'village', 'city in the United States'. Wikidata P31 'instance of'.")
+    birthplace_lat: Wikidata[float] | None = None
+    birthplace_lon: Wikidata[float] | None = None
+    birthplace_entity_types: Wikidata[str] | None = None
     birthplace_is_urban_settlement: AIAnswer[bool] | None = Field(default_factory=urban_settlement_answer, description="True if the birthplace counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `birthplace_entity_types` is in the urban set.")
-    birthplace_country: Wikidata[QID] | None = Field(None, description="Country the birthplace belongs to according to Wikidata. Wikidata P17 'country'.")
+    birthplace_country: Wikidata[QID] | None = None
     birthplace_country_label_en: Wikidata[str] | None = None
     birthplace_country_wikipedia_url: Wikidata[str] | None = None
     birthplace_modern_country: Derived[str] | None = Field(None, description="Modern country the birthplace maps onto, so historical data can be aggregated on today's borders.")
     birthplace_modern_country_iso_a3: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
     birthplace_modern_country_resolved_by: Derived[str] | None = Field(None, description="How the mapping was resolved: 'reverse_geocode' (point-in-polygon on the coordinates), 'capital_city', 'qlever_relation', 'qlever_replaced_by', or 'unknown_legacy'.")
-    birthplace_inception: Wikidata[str] | None = Field(None, description="Date the birthplace began to exist, as an ISO string. Wikidata P571.")
-    birthplace_dissolution: Wikidata[str] | None = Field(None, description="Date the birthplace ceased to exist, as an ISO string. Wikidata P576.")
-    deathplace: Wikidata[QID] | None = Field(None, description="City of death. Wikidata P20 'place of death'.")
+    birthplace_inception: Wikidata[str] | None = None
+    birthplace_dissolution: Wikidata[str] | None = None
+    deathplace: Wikidata[QID] | None = None
     deathplace_label_en: Wikidata[str] | None = None
-    deathplace_lat: Wikidata[float] | None = Field(None, description="Latitude of the deathplace in degrees. Wikidata P625.")
-    deathplace_lon: Wikidata[float] | None = Field(None, description="Longitude of the deathplace in degrees. Wikidata P625.")
-    deathplace_entity_types: Wikidata[str] | None = Field(None, description="Classes of the deathplace, pipe-joined qids. Wikidata P31 'instance of'.")
+    deathplace_lat: Wikidata[float] | None = None
+    deathplace_lon: Wikidata[float] | None = None
+    deathplace_entity_types: Wikidata[str] | None = None
     deathplace_is_urban_settlement: AIAnswer[bool] | None = Field(default_factory=urban_settlement_answer, description="True if the deathplace counts as a populated settlement rather than an administrative region or a building.")
-    deathplace_country: Wikidata[QID] | None = Field(None, description="Country the deathplace belongs to according to Wikidata. Wikidata P17 'country'.")
+    deathplace_country: Wikidata[QID] | None = None
     deathplace_country_label_en: Wikidata[str] | None = None
     deathplace_country_wikipedia_url: Wikidata[str] | None = None
     deathplace_modern_country: Derived[str] | None = Field(None, description="Modern country the deathplace maps onto.")
     deathplace_modern_country_iso_a3: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country.")
     deathplace_modern_country_resolved_by: Derived[str] | None = Field(None, description="How the mapping was resolved, as for the birthplace.")
-    deathplace_inception: Wikidata[str] | None = Field(None, description="Date the deathplace began to exist, as an ISO string. Wikidata P571.")
-    deathplace_dissolution: Wikidata[str] | None = Field(None, description="Date the deathplace ceased to exist, as an ISO string. Wikidata P576.")
-    citizenships: Wikidata[str] | None = Field(None, description="Countries of citizenship, pipe-joined qids in Wikidata order, historical entities included. Wikidata P27 'country of citizenship'.")
-    citizenship_labels_en: Wikidata[str] | None = Field(None, description="English labels of `citizenships`, pipe-joined in the same order.")
+    deathplace_inception: Wikidata[str] | None = None
+    deathplace_dissolution: Wikidata[str] | None = None
+    citizenships: Wikidata[str] | None = None
+    citizenship_labels_en: Wikidata[str] | None = None
     citizenship_modern_countries: Derived[str] | None = Field(None, description="Modern countries those citizenships map onto, pipe-joined in the same order.")
     citizenship_modern_country_iso_a3_codes: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 codes of those modern countries, pipe-joined in the same order.")
-    occupations: Wikidata[str] | None = Field(None, description="Occupations, pipe-joined qids in Wikidata order. Wikidata P106 'occupation'.")
-    occupation_labels_en: Wikidata[str] | None = Field(None, description="English labels of `occupations`, pipe-joined in the same order.")
+    occupations: Wikidata[str] | None = None
+    occupation_labels_en: Wikidata[str] | None = None
     meta_occupation: Derived[Literal["scientist", "artist"]] | None = Field(None, description="Coarse split into scientist or artist, NULL for everything that is neither. Set when any occupation is reachable from Q901 'scientist' or Q483501 'artist' through the P279 subclass closure.")
     cvdb_level1: External[Literal["Leadership", "Culture", "Discovery/Science", "Sports/Games", "Other", "Missing"]] | None = Field(None, description="Top tier of the CVDB occupation ontology — the grouping used in the paper's figures. The modal CVDB label over the individuals sharing the occupation, not an AI classification. 'Missing' means unclassified.")
     cvdb_level2: External[str] | None = Field(None, description="Mid tier, e.g. 'Culture-core', 'Academia', 'Politics', 'Religious', 'Military', 'Nobility'. Modal label, as above.")
     cvdb_level3: External[str] | None = Field(None, description="Fine tier, e.g. 'politician', 'writer', 'actor', 'painter', 'historian'. Modal label, as above.")
     cvdb_n_votes: Derived[int] | None = Field(None, description="Number of CVDB individuals that voted for the modal label. Low values mark a weakly supported classification.")
-    writing_languages: Wikidata[str] | None = Field(None, description="Languages the individual wrote in, pipe-joined qids. Wikidata P6886 'writing language'.")
-    writing_language_labels_en: Wikidata[str] | None = Field(None, description="English labels of `writing_languages`, pipe-joined in the same order.")
-    wikipedia_sites: Wikidata[str] | None = Field(None, description="Wikipedia editions covering the individual, pipe-joined site codes, e.g. 'enwiki|frwiki'.")
-    wikipedia_titles: Wikidata[str] | None = Field(None, description="Article titles, pipe-joined in the same order as `wikipedia_sites`.")
-    wikipedia_urls: Wikidata[str] | None = Field(None, description="Article URLs, pipe-joined in the same order as `wikipedia_sites`.")
+    writing_languages: Wikidata[str] | None = None
+    writing_language_labels_en: Wikidata[str] | None = None
+    wikipedia_sites: Wikidata[str] | None = None
+    wikipedia_titles: Wikidata[str] | None = None
+    wikipedia_urls: Wikidata[str] | None = None
     number_of_wikipedia_articles: Derived[int] | None = Field(None, description="Number of Wikipedia articles across all languages. Counted over `wikipedia_sites`.")
     notability_western: Derived[int] | None = Field(None, description="Number of Western-language Wikipedia editions covering the individual (0-228).")
     notability_non_western: Derived[int] | None = Field(None, description="Number of non-Western-language Wikipedia editions covering the individual.")
     notability_general: Derived[float] | None = Field(None, description="Geometric mean of the two (0 to ~282). The project's canonical ranking metric: it rewards fame that crosses the Western / non-Western divide.")
-    identifier_properties: Wikidata[str] | None = Field(None, description="External databases the individual has a record in, pipe-joined Wikidata property ids, e.g. 'P214|P227' for VIAF and GND.")
-    identifier_values: Wikidata[str] | None = Field(None, description="The identifiers themselves, pipe-joined in the same order as `identifier_properties`.")
-    identifier_urls: Wikidata[str] | None = Field(None, description="URLs of those records, pipe-joined in the same order.")
+    identifier_properties: Wikidata[str] | None = None
+    identifier_values: Wikidata[str] | None = None
+    identifier_urls: Wikidata[str] | None = None
     number_of_identifiers: Derived[int] | None = Field(None, description="Number of external-database identifiers. Counted over `identifier_properties`.")
     floruit_year: Derived[int] | None = Field(None, description="The single year that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing.")
     floruit_start: Derived[int] | None = Field(None, description="First year of the activity window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
@@ -177,13 +178,13 @@ class Work(Model):
     label_en: str | None = Field(None, description="English label of the work. Wikidata rdfs:label.")
     description_en: str | None = Field(None, description="English one-line description of the work. Wikidata schema:description.")
     date_of_extraction: date = Field(..., description="Day the work was read from Wikidata.")
-    creator: Wikidata[QID] = Field(..., description="The individual credited for the work; joins `Individual` by qid.")
+    creator: Wikidata[QID]
     creator_label_en: Wikidata[str] | None = None
-    role: Wikidata[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = Field(None, description="How the individual is credited. Read from the credit property that linked them, e.g. P170 'creator' or P50 'author'.")
-    instance_of: Wikidata[str] | None = Field(None, description="Classes of the work, pipe-joined qids, e.g. 'painting', 'film'. Wikidata P31 'instance of'.")
-    inception: Wikidata[str] | None = Field(None, description="Date the work was created, as an ISO string. Wikidata P571.")
+    role: Wikidata[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = None
+    instance_of: Wikidata[str] | None = None
+    inception: Wikidata[str] | None = None
     inception_year: Derived[int] | None = Field(None, description="Inception year alone, parsed out of `inception`. Negative for BCE.")
-    publication: Wikidata[str] | None = Field(None, description="Date the work was first published or released, as an ISO string. Wikidata P577.")
+    publication: Wikidata[str] | None = None
     publication_year: Derived[int] | None = Field(None, description="Publication year alone, parsed out of `publication`. Negative for BCE.")
 
     @field_validator("role", mode="before")
