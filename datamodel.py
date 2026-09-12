@@ -49,12 +49,9 @@ class Date(BaseModel):
     year: Information | None = Field(None, description="The year alone, parsed out of `iso` when there is one. Negative for BCE. A source that gives only a year fills this and leaves `iso` empty.")
 
 
-class DateRange(BaseModel):
-    start: Date | None = Field(None, description="First date of the range.")
-    end: Date | None = Field(None, description="Last date of the range. Empty when only one date is known.")
-
-
-class Floruit(DateRange):
+class Floruit(BaseModel):
+    start: Date | None = Field(None, description="First date of the window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
+    end: Date | None = Field(None, description="Last date of the window. Empty when only one date is known.")
     mid: Date | None = Field(None, description="The single date that represents the range: its midpoint, or the only date known. This is what dating an individual relies on, since birth and death are often missing.")
 
 
@@ -64,7 +61,9 @@ class WikipediaLink(BaseModel):
     url: str | None = Field(None, description="URL of the article.")
 
 
-class Polity(DateRange):
+class Polity(BaseModel):
+    start: Date | None = Field(None, description="First year the polity held this ground.")
+    end: Date | None = Field(None, description="Last year it held it. Empty for a polity that still exists.")
     id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset. A polity held different ground at different times, so it appears once per period of its borders and several entries share an id.")
     name: Information | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
     type: Information | None = Field(None, description="'POLITY' for a state in its own right, 'RELATION' for a dependency between two of them — 329 against 29 in the sample. A relation is not a place someone can be born in, so filter on this before counting.")
@@ -117,7 +116,7 @@ class Individual(BaseModel):
     birthdates: tuple[Date, ...] = Field((), description="Every birth date known for the individual, one per source: Wikidata P569, the Wikidata description read by regex, the cross-verified database, or the Wikipedia article read by a language model. A date this project computes rather than reads is a candidate like any other, and its `rule` says how. Each Date names its own source, so which candidate is which is read off it rather than off a field name. Empty when no source gives one.")
     deathdates: tuple[Date, ...] = Field((), description="Every death date known for the individual, one per source, as for `birthdates`.")
     floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds — by convention an individual is active from age 30 to age 60, truncated by an early death. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
-    works_period: DateRange | None = Field(None, description="The range over which the individual produced works. The date of a work is its publication date, else its inception date.")
+    works_period: Floruit | None = Field(None, description="The window over which the individual produced works — a floruit like any other, and one of the things the resolved floruit is derived from. The date of a work is its publication date, else its inception date.")
 
     birthplace: Location | None = Field(None, description="City of birth, with its coordinates, its country and its modern country. Wikidata P19 'place of birth'.")
     deathplace: Location | None = Field(None, description="City of death, with its coordinates, its country and its modern country. Wikidata P20 'place of death'.")
