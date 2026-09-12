@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import duckdb
 from datamodel import (AIAnswer, Date, Derived, Floruit, Identifier, Individual,
                        Information, Location, Notability, Occupation,
-                       Wikidata, WikidataEntity, WikidataProperty, WikipediaLink)
+                       Polity, Wikidata, WikidataEntity, WikidataProperty, WikipediaLink)
 
 HERE = Path(__file__).resolve().parent.parent
 PROPERTIES = json.loads((HERE / "properties.json").read_text())
@@ -135,8 +135,9 @@ def build(limit: int) -> list[Individual]:
             id=entity(p["id"], label=p["name_en"]),
             lat=wikidata(p["lat"], "P625"), lon=wikidata(p["lon"], "P625"),
             entity_types=wikidata(p["entity_type"], "P31"),
-            modern_country=derived(p["iso_country_name"], "reverse geocode on today's borders", "Location.lat", "Location.lon"),
-            modern_country_iso_a3=derived(p["iso_a3_code"], "ISO 3166-1 lookup", "Location.modern_country"))
+            modern_polity=Polity(
+                name=derived(p["iso_country_name"], "reverse geocode on today's borders", "Location.lat", "Location.lon"),
+                id=derived(p["iso_a3_code"], "ISO 3166-1 lookup", "Polity.name")) if p["iso_country_name"] else None)
 
     out = []
     for r in rows:
