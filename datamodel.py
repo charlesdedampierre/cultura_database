@@ -11,54 +11,6 @@ T = TypeVar("T")
 
 QID = Annotated[str, StringConstraints(pattern=r"^Q\d+$")]
 
-ExternalPlatform = Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"]
-
-Relationship = Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]
-
-FloruitMethod = Literal[
-    "birth_only_property",
-    "birth_only_description",
-    "birth_only_cv",
-    "birth_only_wikipedia",
-    "birth_death_property",
-    "birth_death_description",
-    "birth_death_cv",
-    "birth_death_wikipedia",
-    "birth_death_estimated_birth",
-    "birth_century",
-    "birth_death_century",
-    "death_century",
-    "floruit_property",
-    "floruit_property_century",
-    "floruit_property_decade",
-    "floruit_description",
-    "floruit_wikipedia",
-    "floruit_wikipedia_span",
-    "works_span",
-    "works_single",
-    "under_30",
-    "no_data",
-]
-
-FloruitSource = Literal["wikidata_property", "wikidata_description", "works", "life_expectancy", "cv_database", "wikipedia", "none"]
-
-PrecisionClass = Literal["year", "decade", "century"]
-
-LifeExpectancyLookupSource = Literal[
-    "birth_bin",
-    "category+birth_bin:Leadership",
-    "category+birth_bin:Culture",
-    "category+birth_bin:Sports/Games",
-    "category+birth_bin:Discovery/Science",
-    "category+birth_bin:Other",
-]
-
-MetaOccupation = Literal["scientist", "artist"]
-
-Level1Occupation = Literal["Leadership", "Culture", "Discovery/Science", "Sports/Games", "Other", "Missing"]
-
-PIPE = "|"
-
 
 class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -71,7 +23,7 @@ class Wikidata(Model, Generic[T]):
 
 
 class External(Model, Generic[T]):
-    platform: ExternalPlatform = Field(..., description="Dataset the value was taken from.")
+    platform: Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"] = Field(..., description="Dataset the value was taken from.")
     value: T | None = Field(None, description="The value itself, as read from that dataset.")
     dataset_version: str | None = Field(None, description="Version or release of the dataset, as listed in sources.json.")
     date_of_extraction: date = Field(..., description="Day the value was taken from the dataset.")
@@ -157,8 +109,8 @@ class Individual(Model):
     citizenship_modern_country_iso_a3_codes: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 codes of those modern countries, pipe-joined in the same order.")
     occupations: Wikidata[str] | None = Field(None, description="Occupations, pipe-joined qids in Wikidata order. Wikidata P106 'occupation'.")
     occupation_labels_en: Wikidata[str] | None = Field(None, description="English labels of `occupations`, pipe-joined in the same order.")
-    meta_occupation: Derived[MetaOccupation] | None = Field(None, description="Coarse split into scientist or artist, NULL for everything that is neither. Set when any occupation is reachable from Q901 'scientist' or Q483501 'artist' through the P279 subclass closure.")
-    cvdb_level1: External[Level1Occupation] | None = Field(None, description="Top tier of the CVDB occupation ontology — the grouping used in the paper's figures. The modal CVDB label over the individuals sharing the occupation, not an AI classification. 'Missing' means unclassified.")
+    meta_occupation: Derived[Literal["scientist", "artist"]] | None = Field(None, description="Coarse split into scientist or artist, NULL for everything that is neither. Set when any occupation is reachable from Q901 'scientist' or Q483501 'artist' through the P279 subclass closure.")
+    cvdb_level1: External[Literal["Leadership", "Culture", "Discovery/Science", "Sports/Games", "Other", "Missing"]] | None = Field(None, description="Top tier of the CVDB occupation ontology — the grouping used in the paper's figures. The modal CVDB label over the individuals sharing the occupation, not an AI classification. 'Missing' means unclassified.")
     cvdb_level2: External[str] | None = Field(None, description="Mid tier, e.g. 'Culture-core', 'Academia', 'Politics', 'Religious', 'Military', 'Nobility'. Modal label, as above.")
     cvdb_level3: External[str] | None = Field(None, description="Fine tier, e.g. 'politician', 'writer', 'actor', 'painter', 'historian'. Modal label, as above.")
     cvdb_n_votes: Derived[int] | None = Field(None, description="Number of CVDB individuals that voted for the modal label. Low values mark a weakly supported classification.")
@@ -179,9 +131,9 @@ class Individual(Model):
     floruit_start: Derived[int] | None = Field(None, description="First year of the activity window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
     floruit_end: Derived[int] | None = Field(None, description="Last year of the activity window. NULL when only one year is known.")
     floruit_label: Derived[str] | None = Field(None, description="The window as written, e.g. '1892-1964', or a single year when start equals end.")
-    floruit_method: Derived[FloruitMethod] | None = Field(None, description="How the window was derived, as <anchor>_<evidence>: which dates were available and how they were read.")
-    floruit_source: Derived[FloruitSource] | None = Field(None, description="Where the dates came from: a Wikidata property, the Wikidata description, the works, the life-expectancy model, CVDB, or Wikipedia.")
-    floruit_precision_class: Derived[PrecisionClass] | None = Field(None, description="How precisely the window is known: to the year, the decade, or only the century. Use it to exclude vague individuals from an analysis.")
+    floruit_method: Derived[Literal["birth_only_property", "birth_only_description", "birth_only_cv", "birth_only_wikipedia", "birth_death_property", "birth_death_description", "birth_death_cv", "birth_death_wikipedia", "birth_death_estimated_birth", "birth_century", "birth_death_century", "death_century", "floruit_property", "floruit_property_century", "floruit_property_decade", "floruit_description", "floruit_wikipedia", "floruit_wikipedia_span", "works_span", "works_single", "under_30", "no_data"]] | None = Field(None, description="How the window was derived, as <anchor>_<evidence>: which dates were available and how they were read.")
+    floruit_source: Derived[Literal["wikidata_property", "wikidata_description", "works", "life_expectancy", "cv_database", "wikipedia", "none"]] | None = Field(None, description="Where the dates came from: a Wikidata property, the Wikidata description, the works, the life-expectancy model, CVDB, or Wikipedia.")
+    floruit_precision_class: Derived[Literal["year", "decade", "century"]] | None = Field(None, description="How precisely the window is known: to the year, the decade, or only the century. Use it to exclude vague individuals from an analysis.")
     floruit_estimated: Derived[bool] | None = Field(None, description="True if the window rests on the life-expectancy model rather than on attested dates.")
     floruit_birth_used: Derived[str] | None = Field(None, description="The birth date actually used as input, as an ISO string, whichever source it came from.")
     floruit_death_used: Derived[str] | None = Field(None, description="The death date actually used as input, as an ISO string, whichever source it came from.")
@@ -201,7 +153,7 @@ class Individual(Model):
     floruit_from_wikipedia: AIAnswer[str] | None = Field(default_factory=wikipedia_dates_answer, description="Floruit read out of the Wikipedia article by a language model. Model and prompt travel with the value.")
     estimated_birthdate: Derived[str] | None = Field(None, description="Birth date estimated from the death date, iterating from birth = death - 70 against the birth-bin table to avoid the survivorship bias of a death-bin lookup.")
     estimated_deathdate: Derived[str] | None = Field(None, description="Death date estimated from the birth date. Never set when the estimate would fall in the last 5 years, or when the birth year would exceed 1950.")
-    life_expectancy_lookup_source: Derived[LifeExpectancyLookupSource] | None = Field(None, description="Which lookup produced the estimate: the 50-year birth bin within a CVDB occupation category, or the birth bin alone as a fallback.")
+    life_expectancy_lookup_source: Derived[Literal["birth_bin", "category+birth_bin:Leadership", "category+birth_bin:Culture", "category+birth_bin:Sports/Games", "category+birth_bin:Discovery/Science", "category+birth_bin:Other"]] | None = Field(None, description="Which lookup produced the estimate: the 50-year birth bin within a CVDB occupation category, or the birth bin alone as a fallback.")
     life_expectancy_median_used: Derived[float] | None = Field(None, description="Median life expectancy in years applied. The medians are estimated in-sample from Cultura individuals that have both dates at year precision — they are not a published life table.")
     in_pantheon_2: External[bool] | None = Field(None, description="True if the individual appears in the Pantheon 2.0 dataset.")
     in_cross_verified_db: External[bool] | None = Field(None, description="True if the individual appears in the cross-verified database.")
@@ -227,7 +179,7 @@ class Work(Model):
     date_of_extraction: date = Field(..., description="Day the work was read from Wikidata.")
     creator: Wikidata[QID] = Field(..., description="The individual credited for the work; joins `Individual` by qid.")
     creator_label_en: Wikidata[str] | None = None
-    role: Wikidata[Relationship] | None = Field(None, description="How the individual is credited. Read from the credit property that linked them, e.g. P170 'creator' or P50 'author'.")
+    role: Wikidata[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = Field(None, description="How the individual is credited. Read from the credit property that linked them, e.g. P170 'creator' or P50 'author'.")
     instance_of: Wikidata[str] | None = Field(None, description="Classes of the work, pipe-joined qids, e.g. 'painting', 'film'. Wikidata P31 'instance of'.")
     inception: Wikidata[str] | None = Field(None, description="Date the work was created, as an ISO string. Wikidata P571.")
     inception_year: Derived[int] | None = Field(None, description="Inception year alone, parsed out of `inception`. Negative for BCE.")
