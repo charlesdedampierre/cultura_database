@@ -64,25 +64,15 @@ class WikipediaLink(BaseModel):
     url: str | None = Field(None, description="URL of the article.")
 
 
-class PolityPeriod(DateRange):
-    geometry: Information | None = Field(None, description="The territory held over these years, as a GeoJSON MultiPolygon. This is what decides whether a place falls inside the polity, and it is the heaviest field in the schema — a polity averages 16 periods and one reaches 212.")
-    area: Information | None = Field(None, description="Area of that territory in square kilometres.")
-
-
-class PolityCountry(BaseModel):
-    id: Information | None = Field(None, description="A modern country whose territory the polity once covered, as the qid of its Wikidata item. Its English label is in the source.")
-    iso_a3: Information | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'GRC'.")
-    continent: Information | None = Field(None, description="Continent that country sits on. Wikidata P30.")
-
-
-class Polity(BaseModel):
-    id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
+class Polity(DateRange):
+    id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset. A polity held different ground at different times, so it appears once per period of its borders and several entries share an id.")
     name: Information | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
     type: Information | None = Field(None, description="'POLITY' for a state in its own right, 'RELATION' for a dependency between two of them — 329 against 29 in the sample. A relation is not a place someone can be born in, so filter on this before counting.")
-    wikipedia_link: WikipediaLink | None = Field(None, description="The polity's English Wikipedia article. It is one of the two ways a place is matched to a polity, the other being the polygons of its periods.")
-    periods: tuple[PolityPeriod, ...] = Field((), description="The territory the polity held, one entry per change of borders. A polity is one thing that moved, so its name and its identity are not repeated here — only the ground and the years.")
-    modern_countries: tuple[PolityCountry, ...] = Field((), description="Modern countries the polity's territory overlaps, so historical polities can be aggregated on today's borders.")
-    overlap_years: Information | None = Field(None, description="Years of the individual's activity window covered by this polity. Use it to rank the polities of a multi-polity individual. Its Derived source says how the place was matched — a polygon or a shared Wikipedia URL — and the place itself is the Location this entry hangs from.")
+    wikipedia_link: WikipediaLink | None = Field(None, description="The polity's English Wikipedia article. It is one of the two ways a place is matched to a polity, the other being this period's polygon.")
+    geometry: Information | None = Field(None, description="The territory held over these years, as a GeoJSON MultiPolygon. This is what decides whether a place falls inside the polity, and it is the heaviest field in the schema — a polity averages 16 periods and one reaches 212.")
+    area: Information | None = Field(None, description="Area of that territory in square kilometres.")
+    modern_countries: Information | None = Field(None, description="Modern countries the polity's territory overlaps, as pipe-joined ISO 3166-1 alpha-3 codes, e.g. 'GRC|TUR'. This is how a historical polity is aggregated onto today's borders; each code's label and continent are a lookup away.")
+    overlap_years: Information | None = Field(None, description="Years of the individual's activity window covered by this period. Sum them over the entries that share an id to rank the polities of a multi-polity individual. Its Derived source says how the place was matched — a polygon or a shared Wikipedia URL — and the place itself is the Location this entry hangs from.")
 
 
 class Location(BaseModel):
@@ -98,7 +88,7 @@ class Location(BaseModel):
     modern_country_iso_a3: Information | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
     inception: Date | None = Field(None, description="Date the place began to exist. Wikidata P571.")
     dissolution: Date | None = Field(None, description="Date the place ceased to exist. Wikidata P576.")
-    polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity, empty when the place matched none. From the Cliopatria dataset.")
+    polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity and per period of its borders, empty when the place matched none. From the Cliopatria dataset.")
 
 
 class Occupation(BaseModel):
