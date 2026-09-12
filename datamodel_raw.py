@@ -87,3 +87,97 @@ class PolityCliopatria(BaseModel):
     components: str | None = Field(None, description="'Components' — the polities this one is made of, semicolon-joined names: 'Elam;Babylonia'. Filled on 1 722 features.")
     member_of: str | None = Field(None, description="'MemberOf' — the polity this one belongs to, in parentheses as published: '(Phoenician Empire)'. Filled on 2 658 features.")
     geometry: str | None = Field(None, description="The feature's GeoJSON geometry as a string: Polygon on 6 522 features, MultiPolygon on 7 233, never a Point. It is the heaviest thing in the pipeline.")
+
+
+class CrossVerifiedColumn(BaseModel):
+    column: str = Field(..., description="The column's name in the CSV. Every field of CrossVerifiedPerson is named after it, so this column is the whole join.")
+    description: str | None = Field(None, description="What the column holds, in the dataset's own wording, taken from the columns_dictionary.csv it ships with.")
+
+
+class CrossVerifiedPerson(BaseModel):
+    wikidata_code: str = Field(..., description="The qid, and the key this dataset is joined to Cultura on. The only field here that is not explained by CrossVerifiedColumn.")
+    birth: int | None = None
+    death: int | None = None
+    updated_death_date: int | None = None
+    approx_birth: str | None = None
+    approx_death: str | None = None
+    birth_min: int | None = None
+    birth_max: int | None = None
+    death_min: int | None = None
+    death_max: int | None = None
+    gender: str | None = None
+    level1_main_occ: str | None = None
+    name: str | None = None
+    un_subregion: str | None = None
+    birth_estimation: float | None = None
+    death_estimation: float | None = None
+    bigperiod_birth_graph_b: str | None = None
+    bigperiod_death_graph_b: str | None = None
+    curid: int | None = None
+    level2_main_occ: str | None = None
+    freq_main_occ: float | None = None
+    freq_second_occ: float | None = None
+    level2_second_occ: str | None = None
+    level3_main_occ: str | None = None
+    bigperiod_birth: str | None = None
+    bigperiod_death: str | None = None
+    wiki_readers_2015_2018: float | None = None
+    non_missing_score: float | None = None
+    total_count_words_b: float | None = None
+    number_wiki_editions: int | None = None
+    total_noccur_links_b: float | None = None
+    sum_visib_ln_5criteria: float | None = None
+    ranking_visib_5criteria: int | None = None
+    all_geography_groups: str | None = None
+    string_citizenship_raw_d: str | None = None
+    citizenship_1_b: str | None = None
+    citizenship_2_b: str | None = None
+    list_areas_of_rattach: str | None = None
+    area1_of_rattachment: str | None = None
+    area2_of_rattachment: str | None = None
+    list_wikipedia_editions: str | None = None
+    un_region: str | None = None
+    group_wikipedia_editions: str | None = None
+    bplo1: float | None = None
+    dplo1: float | None = None
+    bpla1: float | None = None
+    dpla1: float | None = None
+    pantheon_1: int | None = None
+    level3_all_occ: str | None = None
+
+
+class PantheonPerson(BaseModel):
+    id: int | None = Field(None, description="Pantheon's own row identifier. Not a qid: this dataset numbers its people itself.")
+    wd_id: str | None = Field(None, description="The qid, and the key this dataset is joined to Cultura on. Unlike CVDB, Pantheon ships no column dictionary, so the fields below are described here.")
+    wp_id: int | None = Field(None, description="English Wikipedia page id.")
+    slug: str | None = Field(None, description="The name as a URL slug.")
+    name: str | None = None
+    occupation: str | None = Field(None, description="Pantheon's own occupation label, uppercased — 'RELIGIOUS FIGURE'. Its own vocabulary, neither Wikidata's nor CVDB's.")
+    prob_ratio: float | None = Field(None, description="As published.")
+    gender: str | None = Field(None, description="'M' or 'F'.")
+    twitter: str | None = None
+    alive: bool | None = None
+    l: int | None = Field(None, description="Number of Wikipedia language editions carrying an article. Pantheon's coverage count, the equivalent of CVDB's number_wiki_editions.")
+    l_: float | None = Field(None, description="An effective number of editions, always smaller than `l` and never a whole number — 223 editions give 26.6. It discounts editions that carry little, which is what keeps a stub in 200 languages from outranking a real article in 30.")
+    hpi_raw: float | None = Field(None, description="Historical Popularity Index before adjustment.")
+    hpi: float | None = Field(None, description="Historical Popularity Index, Pantheon's ranking metric — its answer to the same question Cultura's notability score asks, computed differently.")
+    non_en_page_views: float | None = Field(None, description="Page views outside the English edition, which is how the index avoids ranking on English alone.")
+    coefficient_of_variation: float | None = Field(None, description="As published.")
+    age: float | None = None
+    is_group: bool | None = Field(None, description="True when the row is not one person. Filter these out, as non_human does in the curated model.")
+    birthdate: str | None = Field(None, description="As published, '0632-06-08' — zero-padded, no time stamp, unlike Wikidata's.")
+    birthyear: int | None = Field(None, description="Negative before the common era.")
+    deathdate: str | None = None
+    deathyear: int | None = None
+    bplace_name: str | None = Field(None, description="Birthplace as Pantheon names it, not a qid.")
+    bplace_lat: float | None = None
+    bplace_lon: float | None = None
+    bplace_geonameid: int | None = Field(None, description="The birthplace's GeoNames identifier. Pantheon resolves places against GeoNames, where Cultura resolves them against Wikidata.")
+    bplace_country: str | None = Field(None, description="Modern country of the birthplace, by name.")
+    bplace_geacron_name: str | None = Field(None, description="The historical polity holding the birthplace, from GeaCron — Pantheon's equivalent of Cultura's Cliopatria match.")
+    dplace_name: str | None = None
+    dplace_lat: float | None = None
+    dplace_lon: float | None = None
+    dplace_geonameid: int | None = None
+    dplace_country: str | None = None
+    dplace_geacron_name: str | None = None
