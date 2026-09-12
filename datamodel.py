@@ -16,31 +16,34 @@ class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
-class Wikidata(Model):
+class Wikidata(Model, Generic[T]):
     property: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'.")
     description: str | None = Field(None, description="What the property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field in this schema describes itself: the description is data, not schema.")
+    value: T | None = Field(None, description="The value as Wikidata states it. Multi-valued fields are pipe-joined in Wikidata order.")
+    label_en: str | None = Field(None, description="English label of `value` when the value is a qid, pipe-joined in the same order when it is several. Wikidata rdfs:label — only an item read from Wikidata has one, which is why it sits here and not on the Source.")
 
 
-class Dataset(Model):
+class Dataset(Model, Generic[T]):
     platform: Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"] = Field(..., description="Dataset the value was taken from.")
     dataset_version: str | None = Field(None, description="Version or release of the dataset, as listed in sources.json.")
+    value: T | None = Field(None, description="The value as that dataset states it.")
 
 
-class Derived(Model):
+class Derived(Model, Generic[T]):
     derived_from: tuple[str, ...] = Field(..., min_length=1, description="Fields the value was computed from, as 'Model.field'.")
     rule: str = Field(..., description="The rule applied to those fields, in one sentence.")
+    value: T | None = Field(None, description="The computed value.")
 
 
-class AIAnswer(Model):
+class AIAnswer(Model, Generic[T]):
     model: str = Field(..., description="Exact model id that produced the value.")
     prompt: str = Field(..., description="Exact prompt sent to the model, verbatim.")
+    value: T | None = Field(None, description="The value the model returned.")
 
 
 class Source(Model, Generic[T]):
-    value: T | None = Field(None, description="The value itself, as it stands in its origin. Multi-valued fields are pipe-joined in the origin's order.")
-    origin: Wikidata | Dataset | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that origin requires: a Wikidata property, another dataset, a computation over other fields, or a language model. Wikidata is one origin among four — no field in this schema is tied to it.")
+    origin: Wikidata[T] | Dataset[T] | Derived[T] | AIAnswer[T] = Field(..., description="Where the value came from, holding the value in the shape that origin requires: a Wikidata property, another dataset, a computation over other fields, or a language model. Wikidata is one origin among four — no field in this schema is tied to it.")
     date_of_extraction: date = Field(..., description="Day the value was obtained from its origin, whichever origin that is: read from Wikidata, taken from the dataset, computed, or answered by the model. Mandatory, because a source edited continuously — Wikidata above all — cannot be reproduced without it.")
-    label_en: str | None = Field(None, description="English label of `value` when the value is a qid, pipe-joined in the same order when it is several. It travels with the value, so no field needs an id / label twin.")
 
 
 PROPERTIES: dict[str, dict[str, str]] = json.loads((HERE / "properties.json").read_text())
@@ -51,11 +54,11 @@ SOURCES: dict[str, dict[str, str]] = json.loads((HERE / "sources.json").read_tex
 
 
 def urban_settlement_answer() -> "Source[bool]":
-    return Source[bool](origin=AIAnswer(model="google/gemini-3-flash-preview", prompt=(HERE / "prompts/urban_settlement.txt").read_text().strip()), date_of_extraction=date(2026, 4, 23))
+    return Source[bool](origin=AIAnswer[bool](model="google/gemini-3-flash-preview", prompt=(HERE / "prompts/urban_settlement.txt").read_text().strip()), date_of_extraction=date(2026, 4, 23))
 
 
 def wikipedia_dates_answer() -> "Source[str]":
-    return Source[str](origin=AIAnswer(model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip()), date_of_extraction=date(2026, 5, 6))
+    return Source[str](origin=AIAnswer[str](model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip()), date_of_extraction=date(2026, 5, 6))
 
 
 class Date(Model):
@@ -170,7 +173,7 @@ class Work(Model):
     @field_validator("role", mode="before")
     @classmethod
     def normalize_role(cls, value: object) -> object:
-        return value | {"value": ROLE_FROM_PROPERTY.get(value["value"], value["value"])} if isinstance(value, dict) and isinstance(value.get("value"), str) else value
+        return value | {"origin": value["origin"] | {"value": ROLE_FROM_PROPERTY.get(value["origin"]["value"], value["origin"]["value"])}} if isinstance(value, dict) and isinstance(value.get("origin"), dict) and isinstance(value["origin"].get("value"), str) else value
 
 
 TABLES: dict[str, type[Model]] = {"individuals": Individual, "works": Work}
