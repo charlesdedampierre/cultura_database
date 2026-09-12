@@ -24,7 +24,7 @@ from datamodel import (AIAnswer, Date, Derived, Floruit, Identifier, Individual,
 HERE = Path(__file__).resolve().parent.parent
 PROPERTIES = json.loads((HERE / "properties.json").read_text())
 SOURCES = json.loads((HERE / "sources.json").read_text())
-DB = HERE.parent.parent / "data/sample/sample.duckdb"
+DB = HERE / "data/sample/sample.duckdb"
 READ = date(2026, 2, 13)
 
 
