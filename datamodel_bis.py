@@ -13,7 +13,7 @@ class Origin(BaseModel):
 class IndividualEnriched(BaseModel):
     wikidata_id: str = Field(..., description="The individual, and the key back to every source: IndividualWikidata, CrossVerifiedPerson and PantheonPerson in datamodel_raw.py all carry it. Nothing else on this row was read from anywhere — every field below was computed by this project, and `origins` says from what and how.")
 
-    birth_year: int | None = Field(None, description="The birth year this project publishes. It is here, rather than left to be read off IndividualWikidata.date_of_birth, because Wikidata dates most individuals after 1500 and few before it: for the rest this is taken from another source or estimated, and `origins` says which. `origins` says which, and an estimated year should be left out of any analysis that depends on exact dating.")
+    birth_year: int | None = Field(None, description="The birth year this project publishes: the one date chosen among everything the sources offer, or estimated when none offers any. It is not a copy of IndividualWikidata.date_of_birth — Wikidata dates most individuals after 1500 and few before it, so for the earlier half this is the only year there is. `origins` says where it came from, and a year whose rule mentions an estimate should be left out of any analysis that depends on exact dating.")
     death_year: int | None = Field(None, description="The death year, on the same terms.")
 
     floruit: int | None = Field(None, description="The single year that represents the individual's activity — what to date them by when birth and death are missing, which they are for most people before 1500. By convention an individual is active from age 30 to age 60, truncated by an early death, and this is the middle of that window.")
