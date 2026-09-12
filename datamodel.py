@@ -83,8 +83,7 @@ class City(BaseModel):
     id: Information | None = Field(None, description="The city, as the qid of its Wikidata item. Its English label and description are in the source.")
     lat: Information | None = None
     lon: Information | None = None
-    entity_types: Information | None = None
-    is_urban_settlement: Information | None = Field(None, description="True if the place counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `entity_types` is in the urban set.")
+    is_urban_settlement: Information | None = Field(None, description="True if the place counts as a populated settlement rather than an administrative region or a building — a hospital and a district are not. A language model classified the Wikidata P31 classes rather than the places themselves, and a place is urban when any of its classes is; those classes are not kept here, so its AIAnswer source is all that remains of how the call was made.")
     wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
     modern_polity: Polity | None = Field(None, description="The polity that holds this place today — one that still exists, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
     start: Date | None = Field(None, description="First year the place existed. Wikidata P571 'inception'.")
