@@ -98,7 +98,7 @@ class Polity(DateRange):
 
 
 class Location(Model):
-    qid: Information[str] | None = None
+    id: Information[str] | None = Field(None, description="The place, as the qid of its Wikidata item. Its English label and description are in the source.")
     lat: Information[float] | None = None
     lon: Information[float] | None = None
     entity_types: Information[str] | None = None
@@ -114,7 +114,7 @@ class Location(Model):
 
 
 class Occupation(Model):
-    qid: Information[str] | None = Field(None, description="The occupation item, e.g. Q169470 'physicist'. Wikidata P106 'occupation'.")
+    id: Information[str] | None = Field(None, description="The occupation, as the qid of its Wikidata item, e.g. Q169470 'physicist'. Wikidata P106 'occupation'.")
     meta_occupation: Information[Literal["scientist", "artist"]] | None = Field(None, description="Coarse split into scientist or artist, NULL for everything that is neither. Set when the occupation is reachable from Q901 'scientist' or Q483501 'artist' through the P279 subclass closure.")
     cvdb_level1: Information[Literal["Leadership", "Culture", "Discovery/Science", "Sports/Games", "Other", "Missing"]] | None = Field(None, description="Top tier of the CVDB occupation ontology — the grouping used in the paper's figures. The modal CVDB label over the individuals sharing the occupation, not an AI classification. 'Missing' means unclassified.")
     cvdb_level2: Information[str] | None = Field(None, description="Mid tier, e.g. 'Culture-core', 'Academia', 'Politics', 'Religious', 'Military', 'Nobility'. Modal label, as above.")
@@ -135,7 +135,7 @@ class Notability(Model):
 
 
 class Individual(Model):
-    wikidata_entity: Wikidata | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
+    id: Information[str] | None = Field(None, description="The individual, as the qid of their Wikidata item. Their English label and description are in the source. Empty when the row was named by a source that never resolved them to Wikidata.")
 
     birthdates: tuple[Date, ...] = Field((), description="Every birth date known for the individual, one per source: Wikidata P569, the Wikidata description read by regex, the cross-verified database, or the Wikipedia article read by a language model. A date this project computes rather than reads is a candidate like any other, and its `rule` says how. Each Date names its own source, so which candidate is which is read off it rather than off a field name. Empty when no source gives one.")
     deathdates: tuple[Date, ...] = Field((), description="Every death date known for the individual, one per source, as for `birthdates`.")
