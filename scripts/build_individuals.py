@@ -163,10 +163,10 @@ def build(limit: int) -> list[Individual]:
             wikipedia_links=tuple(WikipediaLink(language=w["site"], title=w["title"], url=w["url"])
                                   for w in links_by.get(qid, [])[:40]),
             notability=Notability(
-                total=derived(r["wikimedia_links_count"], "one per language edition", "Individual.wikipedia_links"),
-                western=derived(r["notability_western"], "Western-language editions", "Individual.wikipedia_links"),
-                non_western=derived(r["notability_non_western"], "non-Western-language editions", "Individual.wikipedia_links"),
-                general=derived(r["notability_general"], "geometric mean of western and non_western", "Individual.notability")),
+                score=derived(r["notability_general"], "geometric mean of the two edition counts", "Notability.western_editions", "Notability.non_western_editions"),
+                western_editions=derived(r["notability_western"], "Western-language editions carrying an article", "Individual.id"),
+                non_western_editions=derived(r["notability_non_western"], "non-Western-language editions carrying an article", "Individual.id"),
+                articles_fetched=derived(r["wikimedia_links_count"], "articles downloaded for this individual", "Individual.wikipedia_links")),
             non_human=derived(bool(r["non_human"]), "set from the Wikidata classes that are not human", "Individual.id") if r["non_human"] else None,
             number_of_works=derived(int(r["number_of_works"]), "counted over Work", "Work.creator") if r["number_of_works"] else None,
             number_of_identifiers=derived(int(r["identifiers_count"]), "counted over identifiers", "Individual.identifiers") if r["identifiers_count"] else None,
