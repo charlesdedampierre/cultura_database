@@ -70,7 +70,7 @@ def wikipedia_dates_answer() -> "Information[str]":
 
 class Date(Model):
     iso: Information[str] | None = Field(None, description="The date as an ISO string; a negative year means BCE.")
-    precision: Information[int] | None = Field(None, description="Wikidata precision code: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium. Only a date read from Wikidata states it; elsewhere it is inferred from how the date was written.")
+    precision: Information[int] | None = Field(None, description="Wikidata precision code: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium. A date read from Wikidata states it; elsewhere it is inferred from how the date was written, or from the coarsest input a computed date rests on. This is how precisely a date is known — use it to exclude vague individuals from an analysis.")
     year: Information[int] | None = Field(None, description="The year alone, parsed out of `iso` when there is one. Negative for BCE. A source that gives only a year fills this and leaves `iso` empty.")
 
 
@@ -149,7 +149,6 @@ class Individual(Model):
     floruit_year: Date | None = Field(None, description="The single date that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing. Which dates fed it, and from which source, is its own `derived_from`.")
     floruit_start: Date | None = Field(None, description="First date of the activity window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
     floruit_end: Date | None = Field(None, description="Last date of the activity window. NULL when only one year is known.")
-    floruit_precision_class: Information[Literal["year", "decade", "century"]] | None = Field(None, description="How precisely the window is known: to the year, the decade, or only the century. Use it to exclude vague individuals from an analysis.")
     works_period_start: Date | None = Field(None, description="First date at which the individual produced works. The date of a work is its publication date, else its inception date.")
     works_period_end: Date | None = Field(None, description="Last date at which the individual produced works.")
     number_of_works: Information[int] | None = Field(None, description="Number of works credited to the individual. Counted over `Work`.")
