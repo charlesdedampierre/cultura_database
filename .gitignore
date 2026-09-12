@@ -51,3 +51,4 @@ Cargo.lock
 
 # Jupyter
 .ipynb_checkpoints/
+_wt/
