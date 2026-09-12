@@ -1,38 +1,3 @@
-"""Cultura, as it is published: one row per source, plus one row of what we made of them.
-
-Four tables, all joined on `wikidata_id`:
-
-    IndividualWikidata    what Wikidata says
-    IndividualCV          what the cross-verified database of Laouenan et al. (2022) adds to it
-    IndividualPantheon    what Pantheon 2.0 adds to it
-    IndividualEnriched    what this project computed from them
-
-Wikidata is the backbone, so it carries the names, the dates, the places, the
-occupations. The other two carry only what it does not have: CVDB the
-uncertainty windows around a year and its own occupation ontology, Pantheon the
-GeoNames identifiers and its popularity index. Nothing is repeated across the
-three, which is what makes the question "where does this come from" answerable
-by looking at which table a column is in.
-
-The source tables are cleaned, not corrected. A date is an ISO string rather
-than Wikidata's '1879-03-14T00:00:00Z', a place is its English name rather than
-a bare qid — but nothing is chosen, reconciled or filled in.
-
-The fourth table is where this project's judgement lives, and nowhere else. It
-holds the floruit, the polity, the notability score, the modern country under a
-historical place — each with the rule that produced it, in `origins`.
-
-The split exists so that a researcher can take the sources without taking our
-conclusions, or run their own method against ours on the same individuals. A
-table that mixed a birth date with a floruit would invite treating both as
-given, and only one is.
-
-Every table carries an `origins` map, keyed by field name, naming the fields of
-datamodel_raw.py the value was read from — the link back to the data exactly as
-it arrived. On IndividualEnriched every entry carries the inputs and the rule
-instead, because nothing there was read.
-"""
-
 from datetime import date
 from typing import Literal
 
@@ -51,6 +16,8 @@ class IndividualWikidata(BaseModel):
     wikidata_id: str = Field(..., description="The individual's Wikidata item, and the key every other table joins on.")
     name: str | None = Field(None, description="English label.")
     description: str | None = Field(None, description="English one-line description, e.g. 'German-born theoretical physicist'.")
+    birth_year: int | None = Field(None, description="The year in Wikidata's birth date, negative before the common era. The year is what most analyses use, and reading it off the ISO string every time is a needless step.")
+    death_year: int | None = Field(None, description="The year in Wikidata's death date.")
     birth_date: str | None = Field(None, description="Date of birth as an ISO string, '1879-03-14'. Only as precise as Wikidata states it — see `birth_precision`.")
     birth_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="How precisely Wikidata states the birth date. A date known only to the century still appears as a full ISO string, so this is the only way to know it is not one.")
     death_date: str | None = Field(None, description="Date of death, on the same terms.")
@@ -64,6 +31,10 @@ class IndividualWikidata(BaseModel):
     deathplace_wikidata_id: str | None = None
     deathplace_latitude: float | None = None
     deathplace_longitude: float | None = None
+    birthplace_country: str | None = Field(None, description="The country Wikidata declares the birthplace to be in, P17. For a historical place this is often a historical country — Königsberg is declared in the Kingdom of Prussia. For the country holding that ground today, see IndividualEnriched.birthplace_modern_country.")
+    birthplace_country_iso: str | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, P298 on the country itself. Empty when the declared country no longer exists, which is how a historical declaration shows itself.")
+    deathplace_country: str | None = Field(None, description="The country Wikidata declares the deathplace to be in, P17.")
+    deathplace_country_iso: str | None = None
     gender: str | None = Field(None, description="Sex or gender by name. A free vocabulary in practice: 48 distinct values in the data.")
     citizenships: tuple[str, ...] = Field((), description="Countries of citizenship in Wikidata's order, historical states included — 'Kingdom of Prussia' as readily as 'Germany'.")
     occupations: tuple[str, ...] = Field((), description="Occupations in Wikidata's order: 'physicist', 'theoretical physicist'.")
@@ -106,7 +77,7 @@ class IndividualPantheon(BaseModel):
 class IndividualEnriched(BaseModel):
     wikidata_id: str = Field(..., description="The key back to the three source tables. Nothing else on this row was read from anywhere: every field below was computed by this project, and `origins` says how.")
 
-    birth_year: int | None = Field(None, description="The birth year this project publishes, chosen among what the sources offer or estimated when none does. `origins` says which, and an estimated year should be left out of any analysis that depends on exact dating.")
+    birth_year: int | None = Field(None, description="The birth year this project publishes. Wikidata states one for most individuals after 1500 and for few before it, so this is chosen among what the sources offer, or estimated when none does — it will often differ from IndividualWikidata.birth_year, and joining the two shows where. `origins` says which, and an estimated year should be left out of any analysis that depends on exact dating.")
     death_year: int | None = Field(None, description="The death year, on the same terms.")
     dating_precision: Literal["day", "year", "decade", "century"] | None = Field(None, description="How precisely the individual is dated, taking the coarser of the two years. Filter on it: 'century' individuals will distort any distribution over time.")
 
@@ -115,11 +86,11 @@ class IndividualEnriched(BaseModel):
     floruit_end: int | None = Field(None, description="Last year of the activity window.")
     floruit_is_estimated: bool | None = Field(None, description="True when the window rests on an estimated year rather than an attested one. The floruit is still usable; it is simply softer, and this says so.")
 
-    birthplace_country: str | None = Field(None, description="The country the birthplace is in today, so individuals can be aggregated on present-day borders. Not the country at the time: for that, see `polity`.")
-    birthplace_country_iso: str | None = Field(None, description="ISO 3166-1 alpha-3 code of that country.")
+    birthplace_modern_country: str | None = Field(None, description="The country holding the birthplace's ground today, found by point-in-polygon on its coordinates — not what Wikidata declares, which is on IndividualWikidata and is often a state that no longer exists. Use this to aggregate on present-day borders, and `polity` for the state of the time.")
+    birthplace_modern_country_iso: str | None = Field(None, description="ISO 3166-1 alpha-3 code of that country. Always filled where the country is, since a country that holds ground today has a code.")
     birthplace_is_settlement: bool | None = Field(None, description="True when the birthplace is a populated place rather than a hospital, a building or an administrative region. Wikidata names all of these as places of birth, and a study of urbanisation needs to tell them apart.")
-    deathplace_country: str | None = None
-    deathplace_country_iso: str | None = None
+    deathplace_modern_country: str | None = None
+    deathplace_modern_country_iso: str | None = None
 
     polity: str | None = Field(None, description="The historical polity the individual most belonged to. A place is matched to a polity when it falls inside the ground that polity held while the individual was active, and the one with the longest overlap is published here. CVDB and Pantheon answer this question too, by other methods, on their own rows.")
     polity_years: int | None = Field(None, description="Years of the activity window spent inside that polity. A small number means the match is incidental — someone who died abroad.")
