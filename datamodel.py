@@ -80,7 +80,8 @@ class Polity(BaseModel):
 
 
 class City(BaseModel):
-    id: Information | None = Field(None, description="The city, as the qid of its Wikidata item. Its English label and description are in the source.")
+    id: Information | None = Field(None, description="The city, as the qid of its Wikidata item.")
+    name: Information | None = Field(None, description="Name of the city, e.g. 'Ulm'. It is also in the source of `id`, as the label of the item; it is repeated here because a place is read by its name far more often than by its qid, and Polity does the same.")
     lat: Information | None = None
     lon: Information | None = None
     is_urban_settlement: Information | None = Field(None, description="True if the place counts as a populated settlement rather than an administrative region or a building — a hospital and a district are not. A language model classified the Wikidata P31 classes rather than the places themselves, and a place is urban when any of its classes is; those classes are not kept here, so its AIAnswer source is all that remains of how the call was made.")
