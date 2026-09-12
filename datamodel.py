@@ -69,7 +69,7 @@ def wikipedia_dates_answer() -> "Information[str]":
 
 
 class Date(Model):
-    iso: Information[str] | None = Field(None, description="The date as an ISO string; a negative year means BCE.")
+    iso: Information[str] | None = Field(None, description="The full date, written in ISO 8601: year-month-day, e.g. '1879-03-14'. A leading minus is a date before the common era, e.g. '-0356-07-20' for Alexander the Great. Empty when the source gives only a year — then `year` alone is filled.")
     precision: Information[int] | None = Field(None, description="Wikidata precision code: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium. A date read from Wikidata states it; elsewhere it is inferred from how the date was written, or from the coarsest input a computed date rests on. This is how precisely a date is known — use it to exclude vague individuals from an analysis.")
     year: Information[int] | None = Field(None, description="The year alone, parsed out of `iso` when there is one. Negative for BCE. A source that gives only a year fills this and leaves `iso` empty.")
 
