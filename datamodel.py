@@ -88,8 +88,8 @@ class City(BaseModel):
     wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
     declared_polity: Polity | None = Field(None, description="The polity Wikidata declares this place to be in, which for a historical place is often a historical one — the Kingdom of Prussia rather than Germany. Wikidata P17. Its name and its Wikipedia article are on the polity itself.")
     modern_polity: Polity | None = Field(None, description="The polity that holds this place today — one that still exists, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
-    inception: Date | None = Field(None, description="Date the place began to exist. Wikidata P571.")
-    dissolution: Date | None = Field(None, description="Date the place ceased to exist. Wikidata P576.")
+    start: Date | None = Field(None, description="First year the place existed. Wikidata P571 'inception'.")
+    end: Date | None = Field(None, description="Last year it existed. Empty for a place that still does. Wikidata P576 'dissolved, abolished or demolished date'.")
     polities: tuple[Polity, ...] = Field((), description="Polities whose territory covered this place at some point, one entry per polity, empty when it matched none. Each carries its own territories, so when it covered the place is in there. From the Cliopatria dataset.")
 
 
