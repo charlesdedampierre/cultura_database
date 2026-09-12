@@ -10,6 +10,30 @@ class Origin(BaseModel):
     model: str | None = Field(None, description="For a value a language model produced, the exact model id. The prompt is in prompts/, named after the task.")
     retrieved_on: date | None = Field(None, description="The day the source was read. Wikidata is edited continuously, so a value without this cannot be reproduced.")
 
+class Individual(BaseModel):
+    wikidata_id: str = Field(..., description="The individual's Wikidata item. The key every other table joins on. Raw: IndividualWikidata.qid.")
+    name: str | None = Field(None, description="English label, unquoted — the raw file gives it as the RDF literal '\"Claus Hammel\"@en'. Raw: IndividualWikidata.label.")
+    description: str | None = Field(None, description="English one-line description, unquoted, e.g. 'German-born theoretical physicist'. Raw: IndividualWikidata.description.")
+    birth_date: str | None = Field(None, description="Date of birth as an ISO string, '1879-03-14' — Wikidata's '1879-03-14T00:00:00Z' without the stamp, which is not a time of day. Only as precise as `birth_precision` says. Raw: IndividualWikidata.date_of_birth.")
+    birth_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="How precisely Wikidata states the birth date, as a word rather than the raw code — 11 is a day, 9 a year, 7 a century. A date known only to the century still reads as a full ISO string, so this is the only way to know it is not one. Raw: IndividualWikidata.date_of_birth_precision.")
+    death_date: str | None = Field(None, description="Date of death, on the same terms. Raw: IndividualWikidata.date_of_death.")
+    death_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.date_of_death_precision.")
+    floruit_date: str | None = Field(None, description="A date Wikidata states the individual was active, P1317. Rare, and a date rather than a range — not to be confused with IndividualEnriched.peak_productivity_*, which this project computes. Raw: IndividualWikidata.floruit.")
+    floruit_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.floruit_precision.")
+    birthplace: str | None = Field(None, description="Place of birth by name. Often a city, sometimes a country, sometimes a hospital — P19 makes no promise, and EntityTypeClassification is what tells them apart. Raw: IndividualWikidata.place_of_birth resolved against PlaceWikidata.label.")
+    birthplace_wikidata_id: str | None = Field(None, description="Its qid, for joining to PlaceWikidata and to PlaceModernCountry. Raw: IndividualWikidata.place_of_birth.")
+    deathplace: str | None = Field(None, description="Place of death, on the same terms. Raw: IndividualWikidata.place_of_death resolved against PlaceWikidata.label.")
+    deathplace_wikidata_id: str | None = Field(None, description="Raw: IndividualWikidata.place_of_death.")
+    gender: str | None = Field(None, description="Sex or gender by name. A free vocabulary in practice: 48 distinct values in the data, a few of them unresolved. Raw: IndividualWikidata.sex_or_gender resolved against its own label.")
+    occupations: tuple[str, ...] = Field((), description="Occupations by name, in Wikidata's order: 'physicist', 'theoretical physicist'. Raw: IndividualWikidata.occupation resolved against OccupationWikidata.label.")
+    citizenships: tuple[str, ...] = Field((), description="Countries of citizenship by name, in Wikidata's order, historical states included — 'Kingdom of Prussia' as readily as 'Germany'. Raw: IndividualWikidata.country_of_citizenship resolved against CountryWikidata.label.")
+    writing_languages: tuple[str, ...] = Field((), description="Languages the individual wrote in, by name. Raw: IndividualWikidata.writing_language.")
+    external_ids: dict[str, str] = Field({}, description="A map of external database to identifier, keyed by the Wikidata property that carries it: {'P214': '75121530'} is VIAF. Wikidata has 10 329 such properties, and Property says what each one is. Raw: IndividualWikidata.external_id.")
+    wikipedia_articles: tuple[str, ...] = Field((), description="The URL of every Wikipedia article about the individual, one per language edition, up to 228. Raw: IndividualWikidata.sitelink.")
+    works: tuple[str, ...] = Field((), description="The qid of every work credited to the individual. The property that credits them — P50 author, P170 creator, P175 performer — is in the raw pair and not kept here. Raw: IndividualWikidata.work.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by field name. Every entry here names a raw field and carries no rule: nothing on this row was computed, only unquoted, resolved to a label, or stripped of a stamp.")
+
+
 class IndividualEnriched(BaseModel):
     wikidata_id: str = Field(..., description="The individual, and the key back to every source: IndividualWikidata, CrossVerifiedPerson and PantheonPerson in datamodel_raw.py all carry it. Nothing else on this row was read from anywhere — every field below was computed by this project, and `origins` says from what and how.")
 
