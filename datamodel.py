@@ -74,6 +74,12 @@ class Date(Model):
     year: Information[int] | None = Field(None, description="The year alone, parsed out of `iso` when there is one. Negative for BCE. A source that gives only a year fills this and leaves `iso` empty.")
 
 
+class Floruit(Model):
+    start: Date | None = Field(None, description="First date of the window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
+    mid: Date | None = Field(None, description="The single date that represents the window: its midpoint, or the only date known. This is what dating an individual relies on, since birth and death are often missing.")
+    end: Date | None = Field(None, description="Last date of the window. Empty when only one date is known.")
+
+
 class Polity(Model):
     id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
@@ -131,12 +137,8 @@ class Individual(Model):
 
     birthdates: tuple[Date, ...] = Field((), description="Every birth date known for the individual, one per source: Wikidata P569, the Wikidata description read by regex, the cross-verified database, the Wikipedia article read by a language model, or estimated from the death date against a life-expectancy table. Each Date names its own source, so which candidate is which is read off it rather than off a field name. Empty when no source gives one.")
     deathdates: tuple[Date, ...] = Field((), description="Every death date known for the individual, one per source, as for `birthdates`.")
-    declared_floruits: tuple[Date, ...] = Field((), description="Every floruit a source states outright — Wikidata P1317, the Wikidata description, the Wikipedia article read by a language model — as against `floruit_year`, the window this project resolves from all the dates it has.")
-    floruit_year: Date | None = Field(None, description="The single date that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing. Which dates fed it, and from which source, is its own `derived_from`.")
-    floruit_start: Date | None = Field(None, description="First date of the activity window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
-    floruit_end: Date | None = Field(None, description="Last date of the activity window. NULL when only one year is known.")
-    works_period_start: Date | None = Field(None, description="First date at which the individual produced works. The date of a work is its publication date, else its inception date.")
-    works_period_end: Date | None = Field(None, description="Last date at which the individual produced works.")
+    floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
+    works_period: Floruit | None = Field(None, description="The window over which the individual produced works. The date of a work is its publication date, else its inception date.")
 
     birthplace: Location | None = Field(None, description="City of birth, with its coordinates, its country and its modern country. Wikidata P19 'place of birth'.")
     deathplace: Location | None = Field(None, description="City of death, with its coordinates, its country and its modern country. Wikidata P20 'place of death'.")
