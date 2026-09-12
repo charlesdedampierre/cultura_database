@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import duckdb
-from datamodel import (AIAnswer, Dataset, Date, Derived, Floruit, Identifier, Individual,
+from datamodel import (AIAnswer, Date, Derived, Floruit, Identifier, Individual,
                        Information, Location, Notability, Occupation, PROPERTIES, SOURCES,
                        Wikidata, WikipediaLink)
 
@@ -32,15 +32,6 @@ def wikidata(value, prop, qid=None, label=None, description=None, on=READ):
     return Information(value=value, source=Wikidata(
         property=prop, property_definition=PROPERTIES.get(prop, {}).get("definition"),
         qid=qid, label_en=label, description_en=description, date_of_extraction=on))
-
-
-def dataset(value, platform, on=READ):
-    """A value taken from another dataset."""
-    if value is None:
-        return None
-    return Information(value=value, source=Dataset(
-        platform=platform, dataset_version=SOURCES["external_dataset_versions"].get(platform),
-        date_of_extraction=on))
 
 
 def derived(value, rule, *inputs, on=READ):
@@ -84,7 +75,6 @@ def birth_and_death(row, which):
     iso = row[which]
     out = [a_date(wikidata(iso, "P569" if which == "birthdate" else "P570"),
                   precision=wikidata(row[f"{which}_precision"], "P569" if which == "birthdate" else "P570"))]
-    out.append(a_date(dataset(row[f"{which}_from_CV"], "cross_verified_db")))
     out.append(a_date(answered(row[f"{which}_from_wikipedia"])))
     estimated = row[f"{which}_from_life_expectancy"]
     out.append(a_date(derived(estimated, "estimated from the other date against a median life expectancy",
@@ -153,8 +143,6 @@ def build(limit: int) -> list[Individual]:
             occupations=tuple(Occupation(
                 id=wikidata(j, "P106", qid=j, label=jobs[j]["name_en"]),
                 meta_occupation=derived(jobs[j]["meta_occupation"], "reachable from Q901 or Q483501 through P279", "Occupation.id") if jobs[j]["meta_occupation"] in ("scientist", "artist") else None,
-                cvdb_level1=dataset(jobs[j]["level1_main_occ"], "cross_verified_db") if jobs[j]["level1_main_occ"] else None,
-                cvdb_level3=dataset(jobs[j]["level3_main_occ"], "cross_verified_db") if jobs[j]["level3_main_occ"] else None,
             ) for j in occupation_ids if j in jobs),
             identifiers=tuple(Identifier(
                 value=wikidata(i["value"], i["property_id"]),
@@ -169,8 +157,6 @@ def build(limit: int) -> list[Individual]:
                 non_western=derived(r["notability_non_western"], "non-Western-language editions", "Individual.wikipedia_links"),
                 general=derived(r["notability_general"], "geometric mean of western and non_western", "Individual.notability")),
             non_human=derived(bool(r["non_human"]), "set from the Wikidata classes that are not human", "Individual.id") if r["non_human"] else None,
-            in_pantheon_2=dataset(bool(r["pantheon_2_db"]), "pantheon_2") if r["pantheon_2_db"] else None,
-            in_cross_verified_db=dataset(bool(r["cross_verified_db"]), "cross_verified_db") if r["cross_verified_db"] else None,
             number_of_works=derived(int(r["number_of_works"]), "counted over Work", "Work.creator") if r["number_of_works"] else None,
             number_of_identifiers=derived(int(r["identifiers_count"]), "counted over identifiers", "Individual.identifiers") if r["identifiers_count"] else None,
         ))
