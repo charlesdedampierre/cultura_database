@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import duckdb
 from datamodel import (AIAnswer, Date, Derived, Floruit, Identifier, Individual,
-                       Information, Location, Notability, Occupation,
+                       Information, City, Notability, Occupation,
                        Polity, Wikidata, WikidataEntity, WikidataProperty, WikipediaLink)
 
 HERE = Path(__file__).resolve().parent.parent
@@ -131,12 +131,12 @@ def build(limit: int) -> list[Individual]:
         p = places.get(place_id)
         if p is None:
             return None
-        return Location(
+        return City(
             id=entity(p["id"], label=p["name_en"]),
             lat=wikidata(p["lat"], "P625"), lon=wikidata(p["lon"], "P625"),
             entity_types=wikidata(p["entity_type"], "P31"),
             modern_polity=Polity(
-                name=derived(p["iso_country_name"], "reverse geocode on today's borders", "Location.lat", "Location.lon"),
+                name=derived(p["iso_country_name"], "reverse geocode on today's borders", "City.lat", "City.lon"),
                 id=derived(p["iso_a3_code"], "ISO 3166-1 lookup", "Polity.name")) if p["iso_country_name"] else None,
             declared_polity=Polity(name=wikidata(p["original_country_name"], "P17")) if p["original_country_name"] else None)
 
