@@ -87,17 +87,17 @@ class Polity(Model):
     id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
     method: Information[Literal["merge_with_polygon", "merge_with_url"]] | None = Field(None, description="How the match was made: the place fell inside the polity's polygon, or the two shared a Wikipedia URL.")
-    matched: Information[QID] | None = Field(None, description="The city or country that produced the match.")
+    matched: Information[str] | None = Field(None, description="The city or country that produced the match.")
     overlap_years: Information[int] | None = Field(None, description="Years of the activity window covered by this polity, summed over all of its periods. Use it to pick the dominant polity of a multi-polity individual.")
 
 
 class Location(Model):
-    qid: Information[QID] | None = None
+    qid: Information[str] | None = None
     lat: Information[float] | None = None
     lon: Information[float] | None = None
     entity_types: Information[str] | None = None
     is_urban_settlement: Information[bool] | None = Field(default_factory=urban_settlement_answer, description="True if the place counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `entity_types` is in the urban set.")
-    country: Information[QID] | None = None
+    country: Information[str] | None = None
     wikipedia_url: Information[str] | None = None
     country_wikipedia_url: Information[str] | None = None
     modern_country: Information[str] | None = Field(None, description="Modern country the place maps onto, so historical data can be aggregated on today's borders.")
@@ -109,7 +109,7 @@ class Location(Model):
 
 
 class Occupation(Model):
-    qid: Information[QID] | None = Field(None, description="The occupation item, e.g. Q169470 'physicist'. Wikidata P106 'occupation'.")
+    qid: Information[str] | None = Field(None, description="The occupation item, e.g. Q169470 'physicist'. Wikidata P106 'occupation'.")
     meta_occupation: Information[Literal["scientist", "artist"]] | None = Field(None, description="Coarse split into scientist or artist, NULL for everything that is neither. Set when the occupation is reachable from Q901 'scientist' or Q483501 'artist' through the P279 subclass closure.")
     cvdb_level1: Information[Literal["Leadership", "Culture", "Discovery/Science", "Sports/Games", "Other", "Missing"]] | None = Field(None, description="Top tier of the CVDB occupation ontology — the grouping used in the paper's figures. The modal CVDB label over the individuals sharing the occupation, not an AI classification. 'Missing' means unclassified.")
     cvdb_level2: Information[str] | None = Field(None, description="Mid tier, e.g. 'Culture-core', 'Academia', 'Politics', 'Religious', 'Military', 'Nobility'. Modal label, as above.")
@@ -165,7 +165,7 @@ class Individual(Model):
 
 class Work(Model):
     wikidata_entity: Wikidata | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
-    creator: Information[QID]
+    creator: Information[str]
     role: Information[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = None
     instance_of: Information[str] | None = None
     inception: Date | None = Field(None, description="Date the work was created. Wikidata P571.")
