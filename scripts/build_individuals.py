@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import duckdb
 from datamodel import (AIAnswer, Date, Derived, Floruit, Identifier, Individual,
                        Information, Location, Notability, Occupation,
-                       WikidataEntity, WikidataProperty, WikipediaLink)
+                       Wikidata, WikidataEntity, WikidataProperty, WikipediaLink)
 
 HERE = Path(__file__).resolve().parent.parent
 PROPERTIES = json.loads((HERE / "properties.json").read_text())
@@ -32,17 +32,18 @@ def wikidata(value, prop, qid=None, label=None, description=None, on=READ):
     """A value read from a Wikidata property."""
     if value is None:
         return None
-    return Information(value=value, source=WikidataProperty(
-        property=prop, property_definition=PROPERTIES.get(prop, {}).get("definition"),
-        label_en=label, date_of_extraction=on))
+    return Information(value=value, source=Wikidata(
+        property=WikidataProperty(id=prop, definition=PROPERTIES.get(prop, {}).get("definition")),
+        entity=WikidataEntity(qid=qid, label_en=label) if qid else None,
+        date_of_extraction=on))
 
 
 def entity(qid, label=None, description=None, on=READ):
     """A row saying which Wikidata item it is."""
     if qid is None:
         return None
-    return Information(value=qid, source=WikidataEntity(
-        qid=qid, label_en=label, description_en=description, date_of_extraction=on))
+    return Information(value=qid, source=Wikidata(
+        entity=WikidataEntity(qid=qid, label_en=label, description_en=description), date_of_extraction=on))
 
 
 def derived(value, rule, *inputs, on=READ):
@@ -150,7 +151,7 @@ def build(limit: int) -> list[Individual]:
                 Floruit(mid=Date(year=derived(r["floruit_year"], "midpoint of the activity window", "Individual.birthdates", "Individual.deathdates"))) if r["floruit_year"] else None,
             ] if f is not None),
             birthplace=a_place(r["birthcity_id"]), deathplace=a_place(r["deathcity_id"]),
-            gender=wikidata(r["gender_id"], "P21", label=r["gender"]),
+            gender=wikidata(r["gender_id"], "P21", qid=r["gender_id"], label=r["gender"]),
             occupations=tuple(Occupation(
                 id=entity(j, label=jobs[j]["name_en"]),
                 meta_occupation=derived(jobs[j]["meta_occupation"], "reachable from Q901 or Q483501 through P279", "Occupation.id") if jobs[j]["meta_occupation"] in ("scientist", "artist") else None,
@@ -177,9 +178,9 @@ def build(limit: int) -> list[Individual]:
 def demo() -> None:
     people = build(int(sys.argv[1]) if len(sys.argv) > 1 else 200)
     einstein = next((p for p in people if p.id and p.id.value == "Q937"), people[0])
-    assert einstein.id.source.label_en, "an individual carries its label in its source"
+    assert einstein.id.source.entity.label_en, "an individual carries its label in the entity of its source"
     assert einstein.birthdates, "and at least one birth date candidate"
-    assert {type(d.iso.source).__name__ for d in einstein.birthdates if d.iso} >= {"WikidataProperty"}, "one of them read from a Wikidata property"
+    assert {type(d.iso.source).__name__ for d in einstein.birthdates if d.iso} >= {"Wikidata"}, "one of them read from Wikidata"
     for p in people:
         json.dumps(p.model_dump(mode="json"))  # every one of them survives the round trip
     for p in people:
