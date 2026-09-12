@@ -1,0 +1,151 @@
+{
+  "rdfs:label": {
+    "name": "label (English)",
+    "definition": "the English label of the item"
+  },
+  "schema:description": {
+    "name": "description (English)",
+    "definition": "the English one-line description of the item"
+  },
+  "schema:about": {
+    "name": "Wikimedia sitelink",
+    "definition": "a Wikipedia article about the item, in one language edition"
+  },
+  "P17": {
+    "name": "country",
+    "definition": "sovereign state that the item is located in"
+  },
+  "P19": {
+    "name": "place of birth",
+    "definition": "most specific known birth location of a person"
+  },
+  "P20": {
+    "name": "place of death",
+    "definition": "most specific known death location of a person"
+  },
+  "P21": {
+    "name": "sex or gender",
+    "definition": "sex or gender identity of the subject"
+  },
+  "P27": {
+    "name": "country of citizenship",
+    "definition": "country that recognises the subject as its citizen"
+  },
+  "P30": {
+    "name": "continent",
+    "definition": "continent the item is part of"
+  },
+  "P31": {
+    "name": "instance of",
+    "definition": "class of which the subject is a particular example and member"
+  },
+  "P36": {
+    "name": "capital",
+    "definition": "seat of government of the country or administrative division"
+  },
+  "P106": {
+    "name": "occupation",
+    "definition": "occupation of a person"
+  },
+  "P279": {
+    "name": "subclass of",
+    "definition": "the subject is a subclass of the object; all its instances are instances of the object"
+  },
+  "P298": {
+    "name": "ISO 3166-1 alpha-3 code",
+    "definition": "three-letter country code of the modern country"
+  },
+  "P569": {
+    "name": "date of birth",
+    "definition": "date on which the subject was born"
+  },
+  "P570": {
+    "name": "date of death",
+    "definition": "date on which the subject died"
+  },
+  "P571": {
+    "name": "inception",
+    "definition": "time when the item began to exist"
+  },
+  "P576": {
+    "name": "dissolved, abolished or demolished date",
+    "definition": "date the item ceased to exist"
+  },
+  "P577": {
+    "name": "publication date",
+    "definition": "date a work was first published or released"
+  },
+  "P625": {
+    "name": "coordinate location",
+    "definition": "latitude and longitude of the item"
+  },
+  "P856": {
+    "name": "official website",
+    "definition": "URL of the official website of the item"
+  },
+  "P1317": {
+    "name": "floruit",
+    "definition": "date when the person was known to be active or alive"
+  },
+  "P1629": {
+    "name": "subject item of this property",
+    "definition": "the item that this property is about, e.g. the organization issuing an identifier"
+  },
+  "P4876": {
+    "name": "number of records",
+    "definition": "total number of records held by a database"
+  },
+  "P6886": {
+    "name": "writing language",
+    "definition": "language in which the writer has written their work"
+  },
+  "(any external-ID property)": {
+    "name": "external identifier",
+    "definition": "an identifier for the subject in an external database"
+  },
+  "P50": {
+    "name": "author",
+    "definition": "main creator of a written work",
+    "credit_role": "author"
+  },
+  "P86": {
+    "name": "composer",
+    "definition": "person who wrote the music",
+    "credit_role": "composer"
+  },
+  "P170": {
+    "name": "creator",
+    "definition": "maker of this creative work",
+    "credit_role": "creator"
+  },
+  "P57": {
+    "name": "director",
+    "definition": "director of a film or performance",
+    "credit_role": "director"
+  },
+  "P98": {
+    "name": "editor",
+    "definition": "person who edited the work",
+    "credit_role": "editor"
+  },
+  "P110": {
+    "name": "illustrator",
+    "definition": "person who drew the illustrations",
+    "credit_role": "illustrator"
+  },
+  "P175": {
+    "name": "performer",
+    "definition": "performer of the work",
+    "credit_role": "performer"
+  },
+  "P162": {
+    "name": "producer",
+    "definition": "producer of the work",
+    "credit_role": "producer"
+  },
+  "P58": {
+    "name": "screenwriter",
+    "definition": "author of the screenplay",
+    "credit_role": "screenwriter"
+  }
+}

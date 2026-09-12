@@ -29,3 +29,4 @@ nbclient==0.10.4
 
 # Progress bars (mandatory for long runs)
 tqdm==4.67.3
+pydantic>=2.9

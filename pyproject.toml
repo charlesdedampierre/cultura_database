@@ -1,0 +1,7 @@
+# One field, one line: the schema is read down the left edge, so a formatter
+# must not wrap a Field(...) across lines. Black and Ruff both read this file.
+[tool.black]
+line-length = 2000
+
+[tool.ruff]
+line-length = 2000
