@@ -45,14 +45,14 @@ class Information(BaseModel):
 
 class Date(BaseModel):
     iso: Information | None = Field(None, description="The full date, written in ISO 8601: year-month-day, e.g. '1879-03-14'. A leading minus is a date before the common era, e.g. '-0356-07-20' for Alexander the Great. Empty when the source gives only a year — then `year` alone is filled.")
-    precision: Information | None = Field(None, description="Wikidata precision code: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium. A date read from Wikidata states it; elsewhere it is inferred from how the date was written, or from the coarsest input a computed date rests on. This is how precisely a date is known — use it to exclude vague individuals from an analysis.")
     year: Information | None = Field(None, description="The year alone, parsed out of `iso` when there is one. Negative for BCE. A source that gives only a year fills this and leaves `iso` empty.")
+    precision: Information | None = Field(None, description="Wikidata precision code: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium. A date read from Wikidata states it; elsewhere it is inferred from how the date was written, or from the coarsest input a computed date rests on. This is how precisely a date is known — use it to exclude vague individuals from an analysis.")
 
 
 class Floruit(BaseModel):
     start: Date | None = Field(None, description="First date of the window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
-    end: Date | None = Field(None, description="Last date of the window. Empty when only one date is known.")
     mid: Date | None = Field(None, description="The single date that represents the range: its midpoint, or the only date known. This is what dating an individual relies on, since birth and death are often missing.")
+    end: Date | None = Field(None, description="Last date of the window. Empty when only one date is known.")
 
 
 class WikipediaLink(BaseModel):
@@ -64,17 +64,17 @@ class WikipediaLink(BaseModel):
 class Territory(BaseModel):
     start: Date | None = Field(None, description="First year the polity held this ground.")
     end: Date | None = Field(None, description="Last year it held it.")
-    area: Information | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
     geometry: Information | None = Field(None, description="The ground itself, as GeoJSON — a Polygon for a territory in one piece, a MultiPolygon when it is not, and never a Point: a polity holds an area, the smallest in Cliopatria being 87 km². This is what decides whether a place falls inside the polity, and the heaviest field in the schema.")
+    area: Information | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
     modern_polities: tuple["Polity", ...] = Field((), description="The polities holding this ground today — several, because a historical territory does not stop at modern borders. One that still exists is described by this same model, which is why the schema has no separate notion of a country at all. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
 
 
 class Polity(BaseModel):
-    start: Date | None = Field(None, description="First year the polity existed, the earliest of its territories.")
-    end: Date | None = Field(None, description="Last year it existed. Empty for one that still exists.")
     id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
     type: Information | None = Field(None, description="'POLITY' for a polity in its own right, 'RELATION' for a dependency between two of them — 329 against 29 in the sample. A relation is not a place someone can be born in, so filter on this before counting.")
+    start: Date | None = Field(None, description="First year the polity existed, the earliest of its territories.")
+    end: Date | None = Field(None, description="Last year it existed. Empty for one that still exists.")
     wikipedia_link: WikipediaLink | None = Field(None, description="The polity's English Wikipedia article. It is one of the two ways a place is matched to a polity, the other being this period's polygon.")
     territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 16 of them and one reaches 212.")
 
@@ -84,10 +84,10 @@ class City(BaseModel):
     lat: Information | None = None
     lon: Information | None = None
     is_urban_settlement: Information | None = Field(None, description="True if the place counts as a populated settlement rather than an administrative region or a building — a hospital and a district are not. A language model classified the Wikidata P31 classes rather than the places themselves, and a place is urban when any of its classes is; those classes are not kept here, so its AIAnswer source is all that remains of how the call was made.")
-    wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
-    modern_polity: Polity | None = Field(None, description="The polity that holds this place today — one that still exists, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
     start: Date | None = Field(None, description="First year the place existed. Wikidata P571 'inception'.")
     end: Date | None = Field(None, description="Last year it existed. Empty for a place that still does. Wikidata P576 'dissolved, abolished or demolished date'.")
+    wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
+    modern_polity: Polity | None = Field(None, description="The polity that holds this place today — one that still exists, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
     polities: tuple[Polity, ...] = Field((), description="Polities whose territory covered this place at some point, one entry per polity, empty when it matched none. Each carries its own territories, so when it covered the place is in there. From the Cliopatria dataset.")
 
 
@@ -114,30 +114,24 @@ class Notability(BaseModel):
 
 class Individual(BaseModel):
     id: Information | None = Field(None, description="The individual, as the qid of their Wikidata item. Their English label and description are in the source. Empty when the row was named by a source that never resolved them to Wikidata.")
-
     birthdates: tuple[Date, ...] = Field((), description="Every birth date known for the individual, one per source: Wikidata P569, the Wikidata description read by regex, the cross-verified database, or the Wikipedia article read by a language model. A date this project computes rather than reads is a candidate like any other, and its `rule` says how. Each Date names its own source, so which candidate is which is read off it rather than off a field name. Empty when no source gives one.")
     deathdates: tuple[Date, ...] = Field((), description="Every death date known for the individual, one per source, as for `birthdates`.")
-    polity_overlap_years: tuple[tuple[Polity, Information], ...] = Field((), description="How long the individual's activity window overlaps each polity of their places: one pair per polity, the polity and the number of years. Rank them to tell the polity someone lived their life in from the one they only brushed against. Each count's Derived source says how the match was made — a polygon, or a Wikipedia URL shared with the polity.")
     floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds — by convention an individual is active from age 30 to age 60, truncated by an early death. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
     works_period: Floruit | None = Field(None, description="The window over which the individual produced works — a floruit like any other, and one of the things the resolved floruit is derived from. The date of a work is its publication date, else its inception date.")
-
     birthplaces: tuple[City | Polity, ...] = Field((), description="Every birth place known for the individual, one per source — a city when a source names one, a polity when it names only a country, which Wikidata does for 229 of the 2000 in the sample. Each carries the source that gave it, so two sources naming different places sit side by side instead of one overwriting the other. Wikidata P19 'place of birth'.")
     deathplaces: tuple[City | Polity, ...] = Field((), description="Every death place known for the individual, one per source, as for `birthplaces`. Wikidata P20 'place of death'.")
     citizenships: tuple[Polity, ...] = Field((), description="Polities the individual was a citizen of, in Wikidata order, historical ones included — each carrying the ground it held and the polities holding that ground today. Wikidata P27 'country of citizenship'.")
-
+    polity_overlap_years: tuple[tuple[Polity, Information], ...] = Field((), description="How long the individual's activity window overlaps each polity of their places: one pair per polity, the polity and the number of years. Rank them to tell the polity someone lived their life in from the one they only brushed against. Each count's Derived source says how the match was made — a polygon, or a Wikipedia URL shared with the polity.")
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
     works: tuple["Work", ...] = Field((), description="The works credited to the individual, each with the role they were credited in — author, creator, performer. A prolific individual has thousands, so whoever fills this may cap it; `number_of_works` counts them all.")
     wikipedia_links: tuple[WikipediaLink, ...] = Field((), description="Wikipedia articles about the individual, one per language edition. These are what the notability scores count.")
-    identifiers: tuple[Identifier, ...] = Field((), description="The individual's records in external databases, one entry per database.")
-
     notability: Notability | None = Field(None, description="Wikipedia coverage of the individual, counted over `wikipedia_links`. Fame in this project is how many language editions carry an article, and how far that reach crosses the Western / non-Western divide.")
+    identifiers: tuple[Identifier, ...] = Field((), description="The individual's records in external databases, one entry per database.")
     gender: Information | None = Field(None, description="Gender as its source gives it: a Wikidata item id from P21, whose English label is in the source, or a plain word from a dataset that has no item for it. Free vocabulary — 48 distinct values in the data, a few of them unresolved.")
     non_human: Information | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
     writing_languages: Information | None = None
-
     in_pantheon_2: Information | None = Field(None, description="True if the individual appears in the Pantheon 2.0 dataset.")
     in_cross_verified_db: Information | None = Field(None, description="True if the individual appears in the cross-verified database.")
-
     number_of_works: Information | None = Field(None, description="Number of works credited to the individual. Counted over `Work`.")
     number_of_identifiers: Information | None = Field(None, description="Number of external-database identifiers. Counted over `identifiers`.")
 
