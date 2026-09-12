@@ -127,9 +127,9 @@ class Individual(Model):
     identifier_values: Information[str] | None = None
     identifier_urls: Information[str] | None = None
     number_of_identifiers: Information[int] | None = Field(None, description="Number of external-database identifiers. Counted over `identifier_properties`.")
-    floruit_year: Information[int] | None = Field(None, description="The single year that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing.")
-    floruit_start: Information[int] | None = Field(None, description="First year of the activity window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
-    floruit_end: Information[int] | None = Field(None, description="Last year of the activity window. NULL when only one year is known.")
+    floruit_year: Date | None = Field(None, description="The single date that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing.")
+    floruit_start: Date | None = Field(None, description="First date of the activity window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
+    floruit_end: Date | None = Field(None, description="Last date of the activity window. NULL when only one year is known.")
     floruit_label: Information[str] | None = Field(None, description="The window as written, e.g. '1892-1964', or a single year when start equals end.")
     floruit_method: Information[Literal["birth_only_property", "birth_only_description", "birth_only_cv", "birth_only_wikipedia", "birth_death_property", "birth_death_description", "birth_death_cv", "birth_death_wikipedia", "birth_death_estimated_birth", "birth_century", "birth_death_century", "death_century", "floruit_property", "floruit_property_century", "floruit_property_decade", "floruit_description", "floruit_wikipedia", "floruit_wikipedia_span", "works_span", "works_single", "under_30", "no_data"]] | None = Field(None, description="How the window was derived, as <anchor>_<evidence>: which dates were available and how they were read.")
     floruit_source: Information[Literal["wikidata_property", "wikidata_description", "works", "life_expectancy", "cv_database", "wikipedia", "none"]] | None = Field(None, description="Where the dates came from: a Wikidata property, the Wikidata description, the works, the life-expectancy model, CVDB, or Wikipedia.")
@@ -138,8 +138,8 @@ class Individual(Model):
     floruit_birthdate_used: Date | None = Field(None, description="The birth date actually used as input, whichever source it came from.")
     floruit_deathdate_used: Date | None = Field(None, description="The death date actually used as input, whichever source it came from.")
     floruit_floruit_used: Date | None = Field(None, description="The floruit date actually used as input, whichever source it came from.")
-    works_period_start: Information[int] | None = Field(None, description="First year over which the individual produced works. The year of a work is its publication date, else its inception date.")
-    works_period_end: Information[int] | None = Field(None, description="Last year over which the individual produced works.")
+    works_period_start: Date | None = Field(None, description="First date at which the individual produced works. The date of a work is its publication date, else its inception date.")
+    works_period_end: Date | None = Field(None, description="Last date at which the individual produced works.")
     number_of_works: Information[int] | None = Field(None, description="Number of works credited to the individual. Counted over `Work`.")
     description_dates_raw: Information[str] | None = Field(None, description="Raw date substring matched in the Wikidata description before parsing. Kept so the extraction can be audited.")
     description_dates_span: Information[str] | None = Field(None, description="Year span parsed out of the Wikidata description, e.g. '1937-2016'.")
