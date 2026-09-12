@@ -1,14 +1,14 @@
 {
   "rdfs:label": {
-    "name": "label (English)",
+    "name": "label",
     "definition": "the English label of the item"
   },
   "schema:description": {
-    "name": "description (English)",
+    "name": "description",
     "definition": "the English one-line description of the item"
   },
   "schema:about": {
-    "name": "Wikimedia sitelink",
+    "name": "sitelink",
     "definition": "a Wikipedia article about the item, in one language edition"
   },
   "P17": {
