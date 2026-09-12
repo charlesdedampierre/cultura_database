@@ -1,0 +1,22 @@
+{
+  "wikidata_extraction_dates": {
+    "core_individual_facts": "2026-02-13",
+    "genders_writing_languages_countries": "2026-02-14",
+    "modern_country_resolution": "2026-02-26",
+    "place_entity_types": "2026-04-23",
+    "floruit_p1317": "2026-04-28",
+    "external_identifiers": "2026-05-01",
+    "works": "2026-05-01",
+    "polity_modern_countries": "2026-05-03",
+    "work_classes": "2026-05-03",
+    "non_human_classes": "2026-05-05",
+    "work_dates": "2026-05-05",
+    "place_dates": "2026-05-08"
+  },
+  "external_dataset_versions": {
+    "pantheon_2": "Pantheon 2.0, person_2025_update.csv, extracted 2026-05-04",
+    "cross_verified_db": "CVDB, Laouenan et al. 2022, 2,291,817 rows, extracted 2026-05-04",
+    "cliopatria": "Cliopatria V3 GeoJSON, Zenodo record 13363121, downloaded 2026-04-23",
+    "wikipedia": "MediaWiki Action API, 475,514 pages downloaded 2026-05-06"
+  }
+}
