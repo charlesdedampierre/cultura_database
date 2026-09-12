@@ -1,7 +1,8 @@
 """Cultura data model — the single source of truth for the database schema.
 
 One Pydantic model per table of `data/humans_clean.duckdb`. Every field of every
-table is declared here; the DuckDB database is meant to be generated from this
+table is declared here, in the same order as the database, and every field
+carries a description. The DuckDB database is meant to be generated from this
 file, not the other way round.
 
 Verified against the live database on 2026-09-12 (DuckDB v1.5.2): all 18 tables
@@ -21,45 +22,10 @@ from typing import Annotated, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-# --------------------------------------------------------------------------- #
-# Shared types
-# --------------------------------------------------------------------------- #
-
-# Wikidata entity id, e.g. "Q937". Applied to identifier columns only — columns
-# that denormalize a *matched* or *raw* value stay plain strings, because the
-# live data contains non-QID junk there.
 QID = Annotated[str, StringConstraints(pattern=r"^Q\d+$")]
 
-# Wikidata date precision codes, as stored in the `*_precision` columns:
-# 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium.
-# Kept as plain int: the full range present in the data has not been verified,
-# and rejecting an unexpected code would block a load for no good reason.
-Precision = int
+PRECISION = "Wikidata precision code: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium."
 
-# Year span as a string, e.g. "1892-1964", or a single year "1946".
-# BCE keeps its leading minus, e.g. "-558" — which is why these are not ints.
-YearSpan = str
-
-
-class Table(BaseModel):
-    """Base for every table model.
-
-    `table_name` and `primary_key` carry the information a DDL generator needs,
-    so the schema can be rebuilt from this file alone.
-    """
-
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    table_name: ClassVar[str]
-    primary_key: ClassVar[tuple[str, ...]] = ()
-
-
-# --------------------------------------------------------------------------- #
-# Closed vocabularies (read from the live data)
-# --------------------------------------------------------------------------- #
-
-# The canonical roles. The live `works.relationship` column also holds raw
-# Wikidata property ids for the same nine roles; `Work` normalizes them.
 Relationship = Literal[
     "author",
     "composer",
@@ -84,12 +50,10 @@ RELATIONSHIP_FROM_PROPERTY: dict[str, str] = {
     "P175": "performer",
 }
 
-# How an individual was located inside a polity.
 CliopatriaOrigin = Literal["birthplace", "deathplace", "country_of_citizenship"]
+
 CliopatriaMethod = Literal["merge_with_polygon", "merge_with_url"]
 
-# How the floruit window was derived. 22 values in the live data (the schema doc
-# listed only 8). Read as <anchor>_<evidence>.
 FloruitMethod = Literal[
     "birth_only_property",
     "birth_only_description",
@@ -150,483 +114,735 @@ Level1Occupation = Literal[
 PolityType = Literal["POLITY", "RELATION"]
 
 
-# --------------------------------------------------------------------------- #
-# Core: individuals
-# --------------------------------------------------------------------------- #
+class Table(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    table_name: ClassVar[str]
+    primary_key: ClassVar[tuple[str, ...]] = ()
 
 
 class Individual(Table):
-    """One human (13,003,420 rows). The spine of the database."""
-
     table_name: ClassVar[str] = "individuals"
     primary_key: ClassVar[tuple[str, ...]] = ("wikidata_id",)
 
-    wikidata_id: QID
-    name_en: str | None = None
-    description_en: str | None = Field(None, description="Short Wikidata description")
-
-    # --- dates as held by Wikidata properties ---
-    birthdate: str | None = Field(None, description="ISO date, negative year for BCE")
-    birthdate_precision: Precision | None = None
-    deathdate: str | None = None
-    deathdate_precision: Precision | None = None
-    floruit_date: str | None = Field(None, description="Wikidata P1317, ISO date")
-    floruit_precision: Precision | None = None
-    floruit_year: int | None = Field(
-        None, description="Resolved from individuals_floruit_period"
+    wikidata_id: QID = Field(
+        ..., description="Wikidata identifier of the individual, e.g. Q937 for Albert Einstein."
     )
-
-    # --- denormalized labels, semicolon-separated when multi-valued ---
-    country_of_citizenship_en: str | None = None
-    birthcity_en: str | None = None
-    deathcity_en: str | None = None
-    occupations_en: str | None = None
-    writing_language_name_en: str | None = None
-    gender: str | None = Field(
-        None, description="Free-text Wikidata gender label; not a closed vocabulary"
-    )
-
-    # --- rollup counts ---
-    wikimedia_links_count: int | None = Field(
-        None, description="Wikipedia pages across all languages"
-    )
-    identifiers_count: int | None = None
-    number_of_works: int | None = Field(None, description="Rows in `works`")
-
-    # --- dates recovered from the Wikidata description text ---
-    dates_in_description: YearSpan | None = None
-    birthdate_in_description: int | None = None
-    deathdate_in_description: int | None = None
-    floruit_year_in_description: int | None = None
-    date_description: str | None = Field(None, description="Raw matched date string")
-
-    # --- presence in reference datasets (0/1) ---
-    pantheon_2_db: int | None = Field(None, ge=0, le=1)
-    cross_verified_db: int | None = Field(None, ge=0, le=1)
-    non_human: int | None = Field(None, ge=0, le=1, description="Misclassified entity")
-
-    works_period: YearSpan | None = Field(
+    name_en: str | None = Field(None, description="Full name of the individual in English.")
+    description_en: str | None = Field(
         None,
-        description="Span of years the individual produced works. Per-work year is "
-        "works.publication_date, else works.inception_date.",
+        description="Short Wikidata description, e.g. 'German-born theoretical physicist'.",
     )
-
-    # --- notability ---
+    birthdate: str | None = Field(
+        None,
+        description="Date of birth as an ISO string. A negative year means BCE, e.g. '-0558-01-01'.",
+    )
+    birthdate_precision: int | None = Field(
+        None, description=f"Precision of `birthdate`. {PRECISION}"
+    )
+    deathdate: str | None = Field(
+        None, description="Date of death as an ISO string. A negative year means BCE."
+    )
+    deathdate_precision: int | None = Field(
+        None, description=f"Precision of `deathdate`. {PRECISION}"
+    )
+    country_of_citizenship_en: str | None = Field(
+        None,
+        description="English labels of the countries of citizenship, semicolon-separated "
+        "when the individual holds several. Ids are in `individuals_keys`.",
+    )
+    birthcity_en: str | None = Field(
+        None, description="English name of the city of birth. Id is in `individuals_keys`."
+    )
+    deathcity_en: str | None = Field(
+        None, description="English name of the city of death. Id is in `individuals_keys`."
+    )
+    occupations_en: str | None = Field(
+        None,
+        description="English occupation labels, semicolon-separated when there are several. "
+        "Ids are in `individuals_keys`, the vocabulary in `occupations`.",
+    )
+    wikimedia_links_count: int | None = Field(
+        None,
+        description="Number of Wikipedia articles about the individual across all languages. "
+        "Rows are in `wikimedia_links`.",
+    )
+    gender: str | None = Field(
+        None,
+        description="Wikidata gender label. Free text, not a closed vocabulary: the live "
+        "column holds 48 distinct values, a few of them unresolved ids.",
+    )
+    identifiers_count: int | None = Field(
+        None,
+        description="Number of external-database identifiers held by the individual. "
+        "Rows are in `identifiers`.",
+    )
+    writing_language_name_en: str | None = Field(
+        None,
+        description="English names of the languages the individual wrote in, "
+        "semicolon-separated. Rows are in `individual_writing_languages`.",
+    )
+    number_of_works: int | None = Field(
+        None, description="Number of rows for this individual in the `works` table."
+    )
+    floruit_date: str | None = Field(
+        None,
+        description="Floruit as declared by Wikidata property P1317, ISO string. Set only "
+        "for the individuals where Wikidata carries the property.",
+    )
+    floruit_precision: int | None = Field(
+        None, description=f"Precision of `floruit_date`. {PRECISION}"
+    )
+    floruit_year: int | None = Field(
+        None,
+        description="Single floruit year, resolved in `individuals_floruit_period` from "
+        "whatever evidence exists. Populated for every individual that can be dated.",
+    )
+    dates_in_description: str | None = Field(
+        None,
+        description="Year span parsed out of `description_en`, e.g. '1937-2016'. A single "
+        "year when only one was found.",
+    )
+    birthdate_in_description: int | None = Field(
+        None, description="Birth year extracted from `description_en`. NULL when none was found."
+    )
+    deathdate_in_description: int | None = Field(
+        None, description="Death year extracted from `description_en`."
+    )
+    floruit_year_in_description: int | None = Field(
+        None, description="Floruit year extracted from `description_en`."
+    )
+    date_description: str | None = Field(
+        None,
+        description="Raw date substring matched in `description_en` before parsing, "
+        "e.g. '1937-2016'. Kept so the extraction can be audited.",
+    )
+    pantheon_2_db: int | None = Field(
+        None, ge=0, le=1, description="1 if the individual is in the Pantheon 2.0 dataset, else 0."
+    )
+    cross_verified_db: int | None = Field(
+        None,
+        ge=0,
+        le=1,
+        description="1 if the individual is in the cross-verified database (CVDB), else 0.",
+    )
+    non_human: int | None = Field(
+        None,
+        ge=0,
+        le=1,
+        description="1 if the row is not actually a human (872 rows), else 0. Filter these out.",
+    )
+    works_period: str | None = Field(
+        None,
+        description="Span of years over which the individual produced works, e.g. '1892-1964', "
+        "or a single year when first equals last. The year of a work is its "
+        "`works.publication_date`, else its `works.inception_date`. NULL when no work is dated.",
+    )
     notability_western: int | None = Field(
-        None, description="Count of Western-language Wikipedia editions (0-228)"
+        None,
+        description="Number of Western-language Wikipedia editions covering the individual "
+        "(0-228).",
     )
-    notability_non_western: int | None = None
+    notability_non_western: int | None = Field(
+        None, description="Number of non-Western-language Wikipedia editions covering them."
+    )
     notability_general: float | None = Field(
-        None, description="Geometric mean of the two — the canonical ranking metric"
+        None,
+        description="Geometric mean of `notability_western` and `notability_non_western` "
+        "(0 to ~282). The project's canonical ranking metric: it rewards fame that "
+        "crosses the Western / non-Western divide.",
     )
-
-    # --- dates from secondary sources, used to fill the gaps ---
-    birthdate_from_CV: str | None = None
-    deathdate_from_CV: str | None = None
-    birthdate_from_wikipedia: str | None = None
-    deathdate_from_wikipedia: str | None = None
-    floruit_from_wikipedia: str | None = None
-    birthdate_from_life_expectancy: str | None = None
-    deathdate_from_life_expectancy: str | None = None
-    life_expectancy_lookup_source: LifeExpectancyLookupSource | None = None
-    life_expectancy_median_used: float | None = None
-
-    # --- unpopulated flags (all NULL in the live database) ---
-    is_artist: bool | None = Field(None, description="Unpopulated; use occupations")
-    is_scientist: bool | None = Field(None, description="Unpopulated; use occupations")
+    birthdate_from_CV: str | None = Field(
+        None, description="Birth date taken from the cross-verified database (CVDB)."
+    )
+    deathdate_from_CV: str | None = Field(
+        None, description="Death date taken from the cross-verified database (CVDB)."
+    )
+    birthdate_from_life_expectancy: str | None = Field(
+        None,
+        description="Birth date estimated by the life-expectancy model, when the death date "
+        "is known but the birth date is not.",
+    )
+    deathdate_from_life_expectancy: str | None = Field(
+        None,
+        description="Death date estimated by the life-expectancy model, when the birth date "
+        "is known but the death date is not.",
+    )
+    life_expectancy_lookup_source: LifeExpectancyLookupSource | None = Field(
+        None,
+        description="Which life-expectancy table produced the estimate: the overall birth "
+        "bin, or the birth bin within an occupation category.",
+    )
+    life_expectancy_median_used: float | None = Field(
+        None, description="Median life expectancy in years applied to build the estimate."
+    )
+    birthdate_from_wikipedia: str | None = Field(
+        None, description="Birth date scraped from the individual's Wikipedia article."
+    )
+    deathdate_from_wikipedia: str | None = Field(
+        None, description="Death date scraped from the individual's Wikipedia article."
+    )
+    floruit_from_wikipedia: str | None = Field(
+        None, description="Floruit scraped from the individual's Wikipedia article."
+    )
+    is_artist: bool | None = Field(
+        None,
+        description="Artist flag. Unpopulated in the live database (all NULL) — derive it "
+        "from `occupations.level1_main_occ` instead.",
+    )
+    is_scientist: bool | None = Field(
+        None,
+        description="Scientist flag. Unpopulated in the live database (all NULL) — derive it "
+        "from `occupations.level1_main_occ` instead.",
+    )
 
 
 class IndividualKeys(Table):
-    """Wikidata ids behind the denormalized labels on `individuals` (13,002,897 rows)."""
-
     table_name: ClassVar[str] = "individuals_keys"
     primary_key: ClassVar[tuple[str, ...]] = ("wikidata_id",)
 
-    wikidata_id: QID
-    birthcity_id: str | None = None
-    deathcity_id: str | None = None
-    country_of_citizenship_ids: str | None = Field(None, description="Semicolon-separated")
-    occupations_ids: str | None = Field(None, description="Semicolon-separated")
-    gender_id: str | None = None
-    writing_language_ids: str | None = Field(None, description="Semicolon-separated")
+    wikidata_id: QID = Field(..., description="Wikidata identifier of the individual.")
+    birthcity_id: str | None = Field(
+        None, description="Wikidata id of the city of birth. Joins `places.id`."
+    )
+    deathcity_id: str | None = Field(
+        None, description="Wikidata id of the city of death. Joins `places.id`."
+    )
+    country_of_citizenship_ids: str | None = Field(
+        None,
+        description="Wikidata ids of the countries of citizenship, semicolon-separated, "
+        "index-aligned with `individuals.country_of_citizenship_en`. "
+        "Join `country_of_citizenship.wikidata_id`.",
+    )
+    occupations_ids: str | None = Field(
+        None,
+        description="Wikidata ids of the occupations, semicolon-separated, index-aligned "
+        "with `individuals.occupations_en`. Join `occupations.id`.",
+    )
+    gender_id: str | None = Field(
+        None, description="Wikidata id behind `individuals.gender`, e.g. Q6581097 for male."
+    )
+    writing_language_ids: str | None = Field(
+        None,
+        description="Wikidata ids of the writing languages, semicolon-separated. "
+        "Join `writing_languages.id`.",
+    )
 
 
 class IndividualFloruitPeriod(Table):
-    """Resolved activity window per individual (13,003,420 rows).
-
-    The window is what dating an individual actually relies on: birth/death are
-    often missing, so it is derived from whatever evidence exists (`method`) and
-    labelled with where that evidence came from (`source`).
-    """
-
     table_name: ClassVar[str] = "individuals_floruit_period"
     primary_key: ClassVar[tuple[str, ...]] = ("wikidata_id",)
 
-    wikidata_id: QID
-    name_en: str | None = None
-
-    birthdate: str | None = None
-    birthdate_precision: Precision | None = None
-    birth_year: int | None = None
-    deathdate: str | None = None
-    deathdate_precision: Precision | None = None
-    death_year: int | None = None
-    floruit_date: str | None = None
-    floruit_precision: Precision | None = None
-    floruit_year: int | None = None
-
-    floruit_period: YearSpan | None = Field(None, description='Label, e.g. "1962-1987"')
-    floruit_period_start: int | None = None
-    floruit_period_end: int | None = None
-
-    method: FloruitMethod | None = None
-    source: FloruitSource | None = None
-    precision_class: PrecisionClass | None = None
-    estimated: int | None = Field(
-        None, ge=0, le=1, description="1 if the life-expectancy model was used"
+    wikidata_id: QID = Field(..., description="Wikidata identifier of the individual.")
+    name_en: str | None = Field(None, description="Full name in English, copied from `individuals`.")
+    birthdate: str | None = Field(
+        None, description="Birth date used as input, ISO string, from any of the sources."
     )
-    works_period: YearSpan | None = Field(
-        None, description="Mirrors individuals.works_period"
+    birthdate_precision: int | None = Field(
+        None, description=f"Precision of `birthdate`. {PRECISION}"
+    )
+    birth_year: int | None = Field(
+        None, description="Birth year parsed from `birthdate`. Negative for BCE."
+    )
+    deathdate: str | None = Field(
+        None, description="Death date used as input, ISO string, from any of the sources."
+    )
+    deathdate_precision: int | None = Field(
+        None, description=f"Precision of `deathdate`. {PRECISION}"
+    )
+    death_year: int | None = Field(
+        None, description="Death year parsed from `deathdate`. Negative for BCE."
+    )
+    floruit_date: str | None = Field(
+        None, description="Floruit date used as input, ISO string."
+    )
+    floruit_precision: int | None = Field(
+        None, description=f"Precision of `floruit_date`. {PRECISION}"
+    )
+    floruit_year: int | None = Field(
+        None,
+        description="The single year that represents the individual's activity: the midpoint "
+        "of the window, or the only known year.",
+    )
+    floruit_period: str | None = Field(
+        None, description="The activity window as a label, e.g. '1962-1987'."
+    )
+    floruit_period_start: int | None = Field(
+        None,
+        description="First year of the activity window. By convention an individual is active "
+        "from age 30, or from the death year when they died before 30.",
+    )
+    floruit_period_end: int | None = Field(
+        None,
+        description="Last year of the activity window. By convention age 60, or the year "
+        "before death when they died before 60.",
+    )
+    method: FloruitMethod | None = Field(
+        None,
+        description="How the window was derived, as <anchor>_<evidence>: which dates were "
+        "available (birth only, birth and death, floruit, works) and how they were read.",
+    )
+    source: FloruitSource | None = Field(
+        None,
+        description="Where the dates came from: a Wikidata property, the Wikidata "
+        "description text, the works table, the life-expectancy model, CVDB, or Wikipedia.",
+    )
+    precision_class: PrecisionClass | None = Field(
+        None,
+        description="How precisely the window is known: to the year, the decade, or only "
+        "the century. Use it to exclude vague individuals from an analysis.",
+    )
+    estimated: int | None = Field(
+        None,
+        ge=0,
+        le=1,
+        description="1 if the window rests on the life-expectancy model rather than on "
+        "attested dates, else 0.",
+    )
+    works_period: str | None = Field(
+        None, description="Works-derived year span. Mirrors `individuals.works_period`."
     )
 
 
 class IndividualCliopatria(Table):
-    """Individual x historical polity (7,830,341 rows, 5,161,090 individuals).
-
-    Not unique on `wikidata_id`: one person can overlap several polities.
-    """
-
     table_name: ClassVar[str] = "individuals_cliopatria"
     primary_key: ClassVar[tuple[str, ...]] = ()
 
-    wikidata_id: QID
-    name_en: str | None = None
-    polity_id: int
-    polity_name: str | None = None
-
-    origin: CliopatriaOrigin | None = None
-    matched_name: str | None = Field(None, description="City or country that matched")
-    matched_wikidata_id: str | None = None
-    method: CliopatriaMethod | None = None
-
-    floruit_year: int | None = None
-    floruit_period_start: int | None = None
-    floruit_period_end: int | None = None
+    wikidata_id: QID = Field(
+        ...,
+        description="Wikidata identifier of the individual. NOT unique: one person overlapping "
+        "several polities has one row per polity.",
+    )
+    name_en: str | None = Field(None, description="Full name in English, copied from `individuals`.")
+    polity_id: int = Field(..., description="Polity the individual is attached to. Joins `polities_cliopatria.id`.")
+    polity_name: str | None = Field(
+        None, description="Name of the polity, e.g. 'Ottoman Empire'. Copied from `polities_cliopatria.name`."
+    )
+    origin: CliopatriaOrigin | None = Field(
+        None,
+        description="Which attribute of the individual placed them in the polity: their "
+        "birthplace, their deathplace, or their country of citizenship.",
+    )
+    matched_name: str | None = Field(
+        None, description="Name of the city or country that produced the match."
+    )
+    matched_wikidata_id: str | None = Field(
+        None, description="Wikidata id of the matched city or country."
+    )
+    method: CliopatriaMethod | None = Field(
+        None,
+        description="How the match was made: the place fell inside the polity's polygon, "
+        "or the two shared a Wikipedia URL.",
+    )
+    floruit_year: int | None = Field(
+        None, description="Floruit year used to test the overlap with the polity's periods."
+    )
+    floruit_period_start: int | None = Field(None, description="First year of the activity window.")
+    floruit_period_end: int | None = Field(None, description="Last year of the activity window.")
     overlap_years: int | None = Field(
-        None, description="Floruit years covered by this polity, summed over its periods"
+        None,
+        description="Number of years of the activity window covered by this polity, summed "
+        "over all of its periods. Use it to pick the dominant polity of a multi-polity individual.",
     )
 
 
 class IndividualCliopatriaPotential(Table):
-    """Which match routes were available per individual (9,721,925 rows).
-
-    Diagnostic table: it says how an individual *could* have been matched to a
-    polity, which is what makes the coverage of `individuals_cliopatria` auditable.
-    """
-
     table_name: ClassVar[str] = "individuals_cliopatria_potential"
     primary_key: ClassVar[tuple[str, ...]] = ("wikidata_id",)
 
-    wikidata_id: QID
-    floruit_year: int | None = None
-    polygon_birthplace: bool | None = None
-    polygon_deathplace: bool | None = None
-    polygon_country_of_citizenship: bool | None = None
-    url_birthplace: bool | None = None
-    url_deathplace: bool | None = None
-    url_country_of_citizenship: bool | None = None
-
-
-# --------------------------------------------------------------------------- #
-# Works
-# --------------------------------------------------------------------------- #
+    wikidata_id: QID = Field(..., description="Wikidata identifier of the individual.")
+    floruit_year: int | None = Field(
+        None, description="Floruit year used when testing the candidate matches."
+    )
+    polygon_deathplace: bool | None = Field(
+        None, description="True if the death place falls inside some polity polygon."
+    )
+    polygon_birthplace: bool | None = Field(
+        None, description="True if the birth place falls inside some polity polygon."
+    )
+    polygon_country_of_citizenship: bool | None = Field(
+        None, description="True if the country of citizenship falls inside some polity polygon."
+    )
+    url_country_of_citizenship: bool | None = Field(
+        None, description="True if the country of citizenship matched a polity by Wikipedia URL."
+    )
+    url_deathplace: bool | None = Field(
+        None, description="True if the death place matched a polity by Wikipedia URL."
+    )
+    url_birthplace: bool | None = Field(
+        None, description="True if the birth place matched a polity by Wikipedia URL."
+    )
 
 
 class Work(Table):
-    """One (individual, work, role) triple (38,555,710 rows)."""
-
     table_name: ClassVar[str] = "works"
     primary_key: ClassVar[tuple[str, ...]] = ("id",)
 
-    id: int
-    individual_id: QID
-    individual_name: str | None = None
-    work_id: str | None = None
-    work_name: str | None = None
-    relationship: Relationship | None = None
-
-    instance_of: str | None = Field(None, description="Pipe-joined P31 class ids")
-    instance_of_en: str | None = Field(
-        None, description="Pipe-joined labels, index-aligned with instance_of"
+    id: int = Field(..., description="Surrogate primary key, autoincremented.")
+    individual_id: QID = Field(
+        ..., description="Wikidata identifier of the individual. Joins `individuals.wikidata_id`."
     )
-
-    inception_date: str | None = Field(None, description="P571, ISO timestamp")
-    inception_precision: Precision | None = None
-    publication_date: str | None = Field(None, description="P577, ISO timestamp")
-    publication_precision: Precision | None = None
+    individual_name: str | None = Field(
+        None, description="Name of the individual, copied from `individuals.name_en`."
+    )
+    work_id: str | None = Field(None, description="Wikidata identifier of the work.")
+    work_name: str | None = Field(None, description="Title of the work.")
+    relationship: Relationship | None = Field(
+        None,
+        description="Role the individual played in the work. The live column mixes role "
+        "labels with the raw Wikidata property ids for the same roles; both are accepted "
+        "and normalized to the label.",
+    )
+    instance_of: str | None = Field(
+        None, description="Wikidata P31 class ids of the work, pipe-joined."
+    )
+    instance_of_en: str | None = Field(
+        None, description="English labels of the P31 classes, pipe-joined, index-aligned with `instance_of`."
+    )
+    inception_date: str | None = Field(
+        None, description="Date the work was created (Wikidata P571), ISO timestamp."
+    )
+    inception_precision: int | None = Field(
+        None, description=f"Precision of `inception_date`. {PRECISION}"
+    )
+    publication_date: str | None = Field(
+        None, description="Date the work was published (Wikidata P577), ISO timestamp."
+    )
+    publication_precision: int | None = Field(
+        None, description=f"Precision of `publication_date`. {PRECISION}"
+    )
 
     @field_validator("relationship", mode="before")
     @classmethod
     def normalize_relationship(cls, value: object) -> object:
-        """Map a raw Wikidata property id onto its role label.
-
-        The live column mixes the two spellings ("author" and "P50"); the model
-        keeps only the label.
-        """
         if isinstance(value, str):
             return RELATIONSHIP_FROM_PROPERTY.get(value, value)
         return value
 
 
-# --------------------------------------------------------------------------- #
-# Reference tables
-# --------------------------------------------------------------------------- #
-
-
 class Occupation(Table):
-    """Occupation vocabulary with its three-tier ontology (18,230 rows)."""
-
     table_name: ClassVar[str] = "occupations"
     primary_key: ClassVar[tuple[str, ...]] = ("id",)
 
-    id: QID
-    name_en: str | None = None
-    description_en: str | None = None
-    count: int | None = Field(None, description="Individuals holding this occupation")
-
+    id: QID = Field(..., description="Wikidata identifier of the occupation.")
+    name_en: str | None = Field(None, description="Name of the occupation in English.")
     meta_occupation: MetaOccupation | None = Field(
-        None, description="Coarse split; NULL for everything that is neither"
+        None,
+        description="Coarse split into scientist or artist. NULL for every occupation that "
+        "is neither.",
     )
-    level1_main_occ: Level1Occupation | None = None
+    count: int | None = Field(None, description="Number of individuals holding this occupation.")
+    description_en: str | None = Field(
+        None, description="Wikidata description of the occupation."
+    )
+    level1_main_occ: Level1Occupation | None = Field(
+        None,
+        description="Top tier of the occupation ontology — the grouping used in the paper's "
+        "figures. 'Missing' means the occupation was not classified.",
+    )
     level2_main_occ: str | None = Field(
-        None, description='Mid tier, e.g. "Culture-core", "Academia", "Politics"'
+        None,
+        description="Mid tier of the ontology, e.g. 'Culture-core', 'Academia', 'Politics', "
+        "'Religious', 'Military', 'Nobility'.",
     )
     level3_main_occ: str | None = Field(
-        None, description='Fine tier, e.g. "politician", "writer", "painter"'
+        None,
+        description="Fine tier of the ontology, e.g. 'politician', 'writer', 'actor', "
+        "'painter', 'historian'.",
     )
     ontology_n_votes: int | None = Field(
-        None, description="Observations backing the ontology assignment"
+        None,
+        description="Number of votes backing the ontology assignment. Low values mark a "
+        "weakly supported classification.",
     )
 
 
 class CountryOfCitizenship(Table):
-    """Country vocabulary, historical entities included (4,572 rows)."""
-
     table_name: ClassVar[str] = "country_of_citizenship"
     primary_key: ClassVar[tuple[str, ...]] = ("wikidata_id",)
 
-    wikidata_id: QID
-    name_en: str | None = None
-    description_en: str | None = None
-    count: int | None = None
-
-    instance_of: str | None = None
-    instance_qids: str | None = Field(None, description="Semicolon-separated P31 QIDs")
-    instance_labels: str | None = Field(None, description="Labels for instance_qids")
-
-    en_wikipedia_url: str | None = None
-    lat: float | None = None
-    lon: float | None = None
-
-    iso_country_name: str | None = Field(None, description="Mapped modern country")
-    iso_a3_code: str | None = Field(None, description="ISO 3166-1 alpha-3")
-    iso_modern_country_origin: str | None = Field(None, description="Resolution method")
-
-    inception: str | None = Field(None, description="P571")
-    dissolved: str | None = Field(None, description="P576")
+    wikidata_id: QID = Field(
+        ..., description="Wikidata identifier of the country, historical entities included."
+    )
+    name_en: str | None = Field(None, description="Name of the country in English.")
+    count: int | None = Field(
+        None, description="Number of individuals holding this country as citizenship."
+    )
+    description_en: str | None = Field(None, description="Wikidata description of the country.")
+    instance_of: str | None = Field(
+        None, description="Wikidata class of the entity, as a label, e.g. 'sovereign state'."
+    )
+    en_wikipedia_url: str | None = Field(
+        None, description="URL of the English Wikipedia article, used to match Cliopatria polities."
+    )
+    lat: float | None = Field(None, description="Latitude of the country's centroid, degrees.")
+    lon: float | None = Field(None, description="Longitude of the country's centroid, degrees.")
+    iso_country_name: str | None = Field(
+        None,
+        description="Modern country this entity maps onto, so historical citizenships can be "
+        "aggregated on today's borders.",
+    )
+    iso_a3_code: str | None = Field(
+        None, description="ISO 3166-1 alpha-3 code of `iso_country_name`, e.g. 'FRA'."
+    )
+    iso_modern_country_origin: str | None = Field(
+        None, description="How the mapping onto the modern country was resolved."
+    )
+    instance_qids: str | None = Field(
+        None, description="Wikidata P31 class ids of the entity, semicolon-separated."
+    )
+    instance_labels: str | None = Field(
+        None, description="English labels of `instance_qids`, semicolon-separated and index-aligned."
+    )
+    inception: str | None = Field(
+        None, description="Date the entity came into being (Wikidata P571)."
+    )
+    dissolved: str | None = Field(
+        None, description="Date the entity ceased to exist (Wikidata P576)."
+    )
 
 
 class Place(Table):
-    """Place vocabulary — birth and death cities (314,724 rows)."""
-
     table_name: ClassVar[str] = "places"
     primary_key: ClassVar[tuple[str, ...]] = ("id",)
 
-    id: QID
-    name_en: str | None = None
-    lat: float | None = None
-    lon: float | None = None
-
-    original_country_name: str | None = Field(None, description="Country from Wikidata")
-    original_country_name_id: str | None = None
-    en_wikipedia_url_original_country_name: str | None = None
-
-    iso_country_name: str | None = Field(None, description="Mapped modern country")
-    iso_a3_code: str | None = None
-
-    entity_type: str | None = Field(None, description='Class label, e.g. "village"')
-    entity_type_ids: str | None = Field(None, description="Semicolon-separated P31 ids")
-    is_urban_settlement: int | None = Field(None, ge=0, le=1)
-
-    inception_date: str | None = None
-    inception_precision: Precision | None = None
-    dissolution_date: str | None = None
-    dissolution_precision: Precision | None = None
+    id: QID = Field(..., description="Wikidata identifier of the place.")
+    name_en: str | None = Field(None, description="Name of the place in English.")
+    lat: float | None = Field(
+        None, description="Latitude in degrees. Used to test whether the place falls in a polity polygon."
+    )
+    lon: float | None = Field(None, description="Longitude in degrees.")
+    original_country_name: str | None = Field(
+        None, description="Country the place belongs to according to Wikidata."
+    )
+    original_country_name_id: str | None = Field(
+        None, description="Wikidata id of `original_country_name`."
+    )
+    en_wikipedia_url_original_country_name: str | None = Field(
+        None, description="English Wikipedia URL of that country."
+    )
+    iso_country_name: str | None = Field(
+        None, description="Modern country the place maps onto."
+    )
+    iso_a3_code: str | None = Field(
+        None, description="ISO 3166-1 alpha-3 code of `iso_country_name`."
+    )
+    entity_type: str | None = Field(
+        None, description="Wikidata class label, e.g. 'village', 'city in the United States'."
+    )
+    entity_type_ids: str | None = Field(
+        None, description="Wikidata P31 class ids of the place, semicolon-separated."
+    )
+    is_urban_settlement: int | None = Field(
+        None, ge=0, le=1, description="1 if the place is classified as an urban settlement, else 0."
+    )
+    inception_date: str | None = Field(
+        None, description="Date the place was founded (Wikidata P571), ISO timestamp."
+    )
+    inception_precision: int | None = Field(
+        None, description=f"Precision of `inception_date`. {PRECISION}"
+    )
+    dissolution_date: str | None = Field(
+        None, description="Date the place ceased to exist (Wikidata P576), ISO timestamp."
+    )
+    dissolution_precision: int | None = Field(
+        None, description=f"Precision of `dissolution_date`. {PRECISION}"
+    )
 
 
 class WritingLanguage(Table):
-    """Writing-language vocabulary (524 rows)."""
-
     table_name: ClassVar[str] = "writing_languages"
     primary_key: ClassVar[tuple[str, ...]] = ("id",)
 
-    id: QID
-    name: str | None = None
-    count: int | None = None
+    id: QID = Field(..., description="Wikidata identifier of the language.")
+    name: str | None = Field(None, description="Name of the language in English.")
+    count: int | None = Field(None, description="Number of individuals who wrote in it.")
 
 
 class IndividualWritingLanguage(Table):
-    """Individual x writing language (234,476 rows)."""
-
     table_name: ClassVar[str] = "individual_writing_languages"
     primary_key: ClassVar[tuple[str, ...]] = ()
 
-    wikidata_id: QID
-    individual_name: str | None = None
-    language_id: str | None = None
-    language_name: str | None = None
-
-
-# --------------------------------------------------------------------------- #
-# External identifiers
-# --------------------------------------------------------------------------- #
+    wikidata_id: QID = Field(
+        ...,
+        description="Wikidata identifier of the individual. NOT unique: one row per language "
+        "the individual wrote in.",
+    )
+    individual_name: str | None = Field(
+        None, description="Name of the individual, copied from `individuals.name_en`."
+    )
+    language_id: str | None = Field(
+        None, description="Wikidata id of the language. Joins `writing_languages.id`."
+    )
+    language_name: str | None = Field(
+        None, description="Name of the language, copied from `writing_languages.name`."
+    )
 
 
 class Identifier(Table):
-    """An individual's record in an external database (59,508,342 rows)."""
-
     table_name: ClassVar[str] = "identifiers"
     primary_key: ClassVar[tuple[str, ...]] = ()
 
-    wikidata_id: QID
-    individual_name: str | None = None
-    property_id: str | None = Field(None, description='Wikidata property, e.g. "P214"')
-    identifier_name: str | None = Field(None, description="External system name")
-    value: str | None = None
-    url: str | None = Field(None, description="Direct link to the external record")
+    wikidata_id: QID = Field(
+        ...,
+        description="Wikidata identifier of the individual. NOT unique: one row per external "
+        "database the individual appears in.",
+    )
+    individual_name: str | None = Field(
+        None, description="Name of the individual, copied from `individuals.name_en`."
+    )
+    property_id: str | None = Field(
+        None,
+        description="Wikidata property that carries the identifier, e.g. P214 for VIAF. "
+        "Joins `identifier_types.property_id`.",
+    )
+    identifier_name: str | None = Field(
+        None, description="Name of the external system, copied from `identifier_types.name_en`."
+    )
+    value: str | None = Field(None, description="The identifier itself, as issued by that system.")
+    url: str | None = Field(None, description="Direct link to the individual's external record.")
 
 
 class IdentifierType(Table):
-    """The external databases themselves (5,169 rows)."""
-
     table_name: ClassVar[str] = "identifier_types"
     primary_key: ClassVar[tuple[str, ...]] = ("property_id",)
 
-    property_id: str
-    name_en: str | None = None
-    description: str | None = None
-    count: int | None = Field(None, description="Individuals carrying this identifier")
-
-    issuer_name: str | None = None
-    issuer_id: str | None = None
-    issuer_instance: str | None = Field(None, description="Type of the issuer")
-    country_name: str | None = None
-    country_id: str | None = None
-
-    inception: str | None = Field(None, description="Year the database was created")
-    database_records: str | None = Field(None, description="Record count, as text")
-    website: str | None = None
-
-
-# --------------------------------------------------------------------------- #
-# Wikipedia coverage
-# --------------------------------------------------------------------------- #
+    property_id: str = Field(
+        ..., description="Wikidata property that carries this identifier, e.g. P214."
+    )
+    name_en: str | None = Field(None, description="Name of the external database in English.")
+    count: int | None = Field(
+        None, description="Number of individuals carrying an identifier from this database."
+    )
+    description: str | None = Field(None, description="Wikidata description of the property.")
+    issuer_name: str | None = Field(
+        None, description="Organization that issues the identifiers, e.g. a national library."
+    )
+    issuer_id: str | None = Field(None, description="Wikidata id of the issuer.")
+    issuer_instance: str | None = Field(
+        None, description="Wikidata class of the issuer, e.g. 'national library'."
+    )
+    country_name: str | None = Field(
+        None,
+        description="Country of the issuer. Use it to weigh how national the coverage of a "
+        "database is.",
+    )
+    country_id: str | None = Field(None, description="Wikidata id of that country.")
+    inception: str | None = Field(None, description="Year the external database was created.")
+    database_records: str | None = Field(
+        None, description="Total number of records in the external database, stored as text."
+    )
+    website: str | None = Field(None, description="Official URL of the external database.")
 
 
 class WikimediaLink(Table):
-    """One Wikipedia article about an individual, in one language (15,551,839 rows).
-
-    The base of the notability scores on `individuals`.
-    """
-
     table_name: ClassVar[str] = "wikimedia_links"
     primary_key: ClassVar[tuple[str, ...]] = ("id",)
 
-    id: int
-    wikidata_id: QID
-    individual_name: str | None = None
-    site: str | None = Field(None, description='Wikipedia language code, e.g. "frwiki"')
-    title: str | None = None
-    url: str | None = None
-
-
-# --------------------------------------------------------------------------- #
-# Cliopatria polities
-# --------------------------------------------------------------------------- #
+    id: int = Field(..., description="Surrogate primary key.")
+    wikidata_id: QID = Field(
+        ...,
+        description="Wikidata identifier of the individual. NOT unique: one row per language "
+        "edition. These rows are what the notability scores count.",
+    )
+    individual_name: str | None = Field(
+        None, description="Name of the individual, copied from `individuals.name_en`."
+    )
+    site: str | None = Field(
+        None, description="Wikipedia edition code, e.g. 'frwiki' for the French Wikipedia."
+    )
+    title: str | None = Field(None, description="Title of the article in that edition.")
+    url: str | None = Field(None, description="Full URL of the article.")
 
 
 class PolityCliopatria(Table):
-    """A historical polity (1,604 rows)."""
-
     table_name: ClassVar[str] = "polities_cliopatria"
     primary_key: ClassVar[tuple[str, ...]] = ("id",)
 
-    id: int
-    name: str | None = None
-    type: PolityType | None = None
-    wikipedia_url: str | None = None
-    wikidata_id: str | None = None
-    number_individuals: int | None = Field(None, description="Matched individuals")
+    id: int = Field(..., description="Polity identifier, from the Cliopatria dataset.")
+    name: str | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
+    type: PolityType | None = Field(
+        None,
+        description="POLITY for a state, RELATION for a dependency link between two polities.",
+    )
+    wikipedia_url: str | None = Field(
+        None, description="English Wikipedia URL, used to match Wikidata places and countries."
+    )
+    wikidata_id: str | None = Field(None, description="Wikidata id of the polity, when known.")
+    number_individuals: int | None = Field(
+        None, description="Number of individuals matched to this polity in `individuals_cliopatria`."
+    )
 
 
 class PolityPeriodCliopatria(Table):
-    """One polity's territory during one time span (13,755 rows).
-
-    A polity has many periods; the geometry is what places an individual inside it.
-    """
-
     table_name: ClassVar[str] = "polities_periods_cliopatria"
     primary_key: ClassVar[tuple[str, ...]] = ("id",)
 
-    id: int
-    polity_id: int
-    polity_name: str | None = None
-    from_year: int | None = None
-    to_year: int | None = None
-    area: float | None = Field(None, description="Polygon area in km2")
-    geometry: str | None = Field(None, description="GeoJSON polygon")
+    id: int = Field(..., description="Surrogate primary key of the period.")
+    polity_id: int = Field(
+        ...,
+        description="Polity this period belongs to. Joins `polities_cliopatria.id`. A polity "
+        "has many periods, one per territorial change.",
+    )
+    polity_name: str | None = Field(
+        None, description="Name of the polity, copied from `polities_cliopatria.name`."
+    )
+    from_year: int | None = Field(
+        None, description="First year of the period. Negative for BCE."
+    )
+    to_year: int | None = Field(None, description="Last year of the period. Negative for BCE.")
+    area: float | None = Field(None, description="Area of the territory in square kilometres.")
+    geometry: str | None = Field(
+        None,
+        description="Territory as a GeoJSON polygon. This is what decides whether a birth or "
+        "death place falls inside the polity.",
+    )
 
 
 class PolityModernCountryCliopatria(Table):
-    """Historical polity -> modern country, for mapping onto today's borders (1,531 rows)."""
-
     table_name: ClassVar[str] = "polities_modern_countries_cliopatria"
     primary_key: ClassVar[tuple[str, ...]] = ()
 
-    polity_id: int
-    polity_name: str | None = None
-    country_qid: str | None = None
-    country_name: str | None = None
-    iso_a3_code: str | None = None
-    continent: str | None = Field(None, description="From Wikidata P30")
-    sources: str | None = Field(
-        None, description="Pipe-joined patterns: P17, P36/P17, P1366/P17, P131/P17"
+    polity_id: int = Field(
+        ...,
+        description="Historical polity. Joins `polities_cliopatria.id`. NOT unique: a polity "
+        "spanning several modern countries has one row per country.",
     )
-
-
-# --------------------------------------------------------------------------- #
-# Metadata
-# --------------------------------------------------------------------------- #
+    polity_name: str | None = Field(
+        None, description="Name of the polity, copied from `polities_cliopatria.name`."
+    )
+    country_qid: str | None = Field(None, description="Wikidata id of the modern country.")
+    country_name: str | None = Field(None, description="English name of the modern country.")
+    iso_a3_code: str | None = Field(
+        None, description="ISO 3166-1 alpha-3 code of the modern country."
+    )
+    continent: str | None = Field(
+        None, description="Continent of the modern country, from Wikidata P30."
+    )
+    sources: str | None = Field(
+        None,
+        description="Wikidata property paths that produced the mapping, pipe-joined: "
+        "P17, P36/P17, P1366/P17, P131/P17.",
+    )
 
 
 class WikidataPropertyDefinition(Table):
-    """Which Wikidata property produced which column (49 rows) — the provenance map."""
-
     table_name: ClassVar[str] = "wikidata_properties_definition"
     primary_key: ClassVar[tuple[str, ...]] = ()
 
-    property_id: str
-    property_name: str | None = None
-    description: str | None = None
-    table_name_: str | None = Field(
-        None, alias="table_name", description="Target table in the database"
+    property_id: str = Field(
+        ..., description="Wikidata property the data was extracted from, e.g. P569 for date of birth."
     )
-    column_name: str | None = None
+    property_name: str | None = Field(None, description="Label of the property.")
+    description: str | None = Field(None, description="Wikidata description of the property.")
+    table_name_: str | None = Field(
+        None,
+        alias="table_name",
+        description="Table the property feeds. Aliased in Python because `table_name` is "
+        "reserved on the model.",
+    )
+    column_name: str | None = Field(None, description="Column the property feeds in that table.")
 
-
-# --------------------------------------------------------------------------- #
-# Registry
-# --------------------------------------------------------------------------- #
 
 MODELS: tuple[type[Table], ...] = (
     Individual,
@@ -652,14 +868,16 @@ MODELS: tuple[type[Table], ...] = (
 TABLES: dict[str, type[Table]] = {model.table_name: model for model in MODELS}
 
 
-# --------------------------------------------------------------------------- #
-# Self-check
-# --------------------------------------------------------------------------- #
-
-
 def demo() -> None:
-    """Validate the model against rows taken from the live database."""
     assert len(TABLES) == len(MODELS) == 18, "table names must be unique"
+
+    undescribed = [
+        f"{model.table_name}.{name}"
+        for model in MODELS
+        for name, field in model.model_fields.items()
+        if not field.description
+    ]
+    assert not undescribed, f"fields without a description: {undescribed}"
 
     einstein = Individual(
         wikidata_id="Q937",
@@ -672,16 +890,15 @@ def demo() -> None:
     assert einstein.deathdate is None
     assert einstein.wikidata_id == "Q937"
 
-    # A raw Wikidata property id is normalized onto its role label.
     assert Work(id=1, individual_id="Q937", relationship="P50").relationship == "author"
     assert Work(id=2, individual_id="Q937", relationship="author").relationship == "author"
 
-    # A closed vocabulary rejects a value that is not in the data.
     for model, kwargs in [
         (Work, {"id": 3, "individual_id": "Q937", "relationship": "sculptor"}),
         (IndividualFloruitPeriod, {"wikidata_id": "Q937", "source": "guesswork"}),
         (Individual, {"wikidata_id": "not-a-qid"}),
         (Individual, {"wikidata_id": "Q937", "unknown_column": 1}),
+        (Individual, {"wikidata_id": "Q937", "non_human": 2}),
     ]:
         try:
             model(**kwargs)
@@ -690,16 +907,9 @@ def demo() -> None:
         else:
             raise AssertionError(f"{model.__name__} accepted {kwargs}")
 
-    # BCE years survive as strings, and 0/1 flags stay bounded.
     assert IndividualFloruitPeriod(wikidata_id="Q859", works_period="-558").works_period
-    try:
-        Individual(wikidata_id="Q937", non_human=2)
-    except Exception:
-        pass
-    else:
-        raise AssertionError("non_human accepted 2")
 
-    print(f"OK — {len(TABLES)} tables, {sum(len(m.model_fields) for m in MODELS)} columns")
+    print(f"OK — {len(TABLES)} tables, {sum(len(m.model_fields) for m in MODELS)} columns, all described")
 
 
 if __name__ == "__main__":
