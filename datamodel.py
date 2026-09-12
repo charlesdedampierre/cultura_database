@@ -83,6 +83,12 @@ class Floruit(DateRange):
     mid: Date | None = Field(None, description="The single date that represents the range: its midpoint, or the only date known. This is what dating an individual relies on, since birth and death are often missing.")
 
 
+class WikipediaLink(Model):
+    language: Information[str] | None = Field(None, description="Language edition the article is in, as a Wikipedia site code, e.g. 'enwiki' for English. This is what the Western / non-Western notability split counts.")
+    title: Information[str] | None = Field(None, description="Title of the article in that edition.")
+    url: Information[str] | None = Field(None, description="URL of the article.")
+
+
 class Polity(Model):
     id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
@@ -98,8 +104,8 @@ class Location(Model):
     entity_types: Information[str] | None = None
     is_urban_settlement: Information[bool] | None = Field(default_factory=urban_settlement_answer, description="True if the place counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `entity_types` is in the urban set.")
     country: Information[str] | None = None
-    wikipedia_url: Information[str] | None = None
-    country_wikipedia_url: Information[str] | None = None
+    wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
+    country_wikipedia_link: WikipediaLink | None = Field(None, description="The Wikipedia article of the country the place belongs to.")
     modern_country: Information[str] | None = Field(None, description="Modern country the place maps onto, so historical data can be aggregated on today's borders.")
     modern_country_iso_a3: Information[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
     modern_country_resolved_by: Information[str] | None = Field(None, description="How the mapping was resolved: 'reverse_geocode' (point-in-polygon on the coordinates), 'capital_city', 'qlever_relation', 'qlever_replaced_by', or 'unknown_legacy'.")
@@ -120,12 +126,6 @@ class Occupation(Model):
 class Identifier(Model):
     value: Information[str] | None = Field(None, description="The identifier as issued by an external database. Which database it is, is the Wikidata property its source names — P214 for VIAF, P227 for GND — so it is not repeated here.")
     url: Information[str] | None = Field(None, description="URL of the individual's record in that database.")
-
-
-class WikipediaLink(Model):
-    language: Information[str] | None = Field(None, description="Language edition the article is in, as a Wikipedia site code, e.g. 'enwiki' for English. This is what the Western / non-Western notability split counts.")
-    title: Information[str] | None = Field(None, description="Title of the article in that edition.")
-    url: Information[str] | None = Field(None, description="URL of the article.")
 
 
 class Notability(Model):
