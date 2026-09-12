@@ -23,7 +23,8 @@ to its own table later is a one-line change to `TABLES`.
     Derived[T]    a value computed from other fields — carries those fields and
                   the rule.
     AIAnswer[T]   a value produced by a language model — carries the exact model
-                  id and the exact prompt, both mandatory.
+                  id and the exact prompt, both mandatory. Prompt texts live in
+                  `prompts/`, one file per prompt.
 
 What the restructuring removes: every `*_en` / `*_id` twin (one `Entity` instead),
 the `individuals_keys` table (it held only the ids of labels on `individuals`),
@@ -38,9 +39,12 @@ Self-check: `python datamodel.py`
 """
 
 from datetime import date
+from pathlib import Path
 from typing import Annotated, Generic, Literal, TypeVar, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+
+PROMPTS = Path(__file__).parent / "prompts"
 
 T = TypeVar("T")
 
@@ -203,192 +207,15 @@ EXTERNAL_DATASET_VERSIONS: dict[ExternalPlatform, str] = {
 }
 
 URBAN_SETTLEMENT_MODEL = "google/gemini-3-flash-preview"
-
-URBAN_SETTLEMENT_PROMPT = """You classify Wikidata P31 (instance-of) classes.
-For each class you receive (id + English label), decide whether it denotes
-an URBAN SETTLEMENT: a populated place (any size) that a researcher studying
-urbanisation would count as a "city-like" location on a map.
-
-urban_settlement = true  ->  city, town, village, hamlet, borough, suburb,
-    neighborhood, metropolis, megacity, commune, municipality, comune,
-    frazione, Ortsteil, human settlement, populated place, locality,
-    census-designated place, unincorporated community, etc.
-    Anything that is fundamentally "a place where people live as a settlement"
-    including small/rural ones, and sub-city units like districts/quarters.
-
-urban_settlement = false ->  country, sovereign state, U.S. state,
-    federal subject, region, province, county, district-as-admin-division
-    (when it is the whole admin unit, not a settlement), island without a
-    settlement focus, building type (hospital, castle, château, station),
-    street, road, bridge, square, park, monument, cemetery, natural
-    feature, event, organization, company, ethnic group, geopolitical
-    entity, etc. Also false for things like "former country", "historical
-    state", "dissolved municipality" (dissolved => no longer a place on
-    today's map) UNLESS the label clearly still refers to a settlement.
-
-If a label is ambiguous (e.g. contains "settlement" + "administrative"),
-prefer true if it is primarily a populated place, false if primarily an
-admin region. When in doubt for mixed admin/settlement classes that CONTAIN
-a settlement (e.g. "commune of France", "municipality of X"), return true.
-
-Return STRICT JSON with the exact schema:
-{
-  "results": [
-    {"id": "Q...", "urban_settlement": true, "reason": "short phrase"},
-    ...
-  ]
-}
-No prose outside the JSON. Include every id you were given, in the same order."""
-
 WIKIPEDIA_DATES_MODEL = "google/gemini-2.5-flash-lite"
-
-WIKIPEDIA_DATES_PROMPT = """You are an expert historian extracting biographical dates.
-
-Given an English (or foreign-language) Wikipedia article about a person,
-extract the following information ONLY when it is explicitly stated in
-the article:
- - Birthdate
- - DeathDate
- - Floruit_date — the years during which the person was active in their
-   primary occupation (career, public life, scholarly work, reign, etc.)
- - Dates — additional years from events the INDIVIDUAL personally
-   participated in DURING THEIR LIFETIME (works they published, offices
-   they held, battles they fought, awards they received, marriages,
-   education, appointments, relocations, etc.).
-
-==============================================================
-CRITICAL RULES (from recent annotation feedback — read carefully)
-==============================================================
-
-A. STATED, NOT INFERRED.
-   Every date you return must be present in the article text (in the
-   prose, an infobox, a category, a dated section header, etc.).
-   Do NOT invent a Floruit_date.start by guessing when a career
-   "probably" began. Do NOT extrapolate from phrases like "in her
-   teenage years", "in recent years", "since the early days", or
-   future plans. If you cannot point to the exact year in the text,
-   do NOT emit it.
-
-B. SINGLE-DATE FLORUIT.
-   If only ONE active-life year is mentioned, set
-     Floruit_date.start = that year
-     Floruit_date.end   = null
-   Do NOT duplicate the same year as both start and end
-   (i.e. NEVER return 1898–1898).
-
-C. CENTURY-LEVEL FLORUIT IS ACCEPTABLE.
-   If the article only places the person in a century (e.g. "18th
-   century scholar", "fl. 12th century"), still emit the floruit.
-   Use the canonical bucket bounds:
-     18th century → start=1701, end=1800
-     12th century → start=1101, end=1200
-     5th century BCE → start=-500, end=-401
-   AND set `precision`: "century". The `precision` field MUST be
-   "century" — never label a century-level inference as "year"
-   precision. The same applies to "decade" and "millennium".
-
-D. PRESERVE THE STATED GRANULARITY.
-   If the article literally says "18th century", return
-   precision="century"; do NOT silently rewrite it into a year-precision
-   1700–1799 range. The precision tag is what conveys the bucket.
-
-E. STATED ANCHOR DATES COUNT.
-   If the article gives stated years that anchor the individual's
-   career (e.g. "played in the club's 2004 season", "served under
-   President X 2010-2015"), include them — both in `Dates` and as
-   evidence for Floruit_date. Do NOT return all-null when stated
-   year anchors exist in the text. Stated years tied to the
-   individual are extraction targets, even if the article does not
-   spell out "X was active from Y to Z".
-
-==============================================================
-
-Return JSON with EXACTLY this shape. `precision` is ALWAYS one of the
-strings "year", "decade", "century", "millennium", or null — never a
-combination, never an ordinal like "15th".
-
-{
-  "Birthdate":    { "year": <int or null>, "precision": "year"|"decade"|"century"|"millennium"|null },
-  "DeathDate":    { "year": <int or null>, "precision": "year"|"decade"|"century"|"millennium"|null },
-  "Floruit_date": { "start": <int or null>, "end": <int or null>, "precision": "year"|"decade"|"century"|"millennium"|null },
-  "Dates":        [ { "year": <int>, "label": "<what it refers to>" }, ... ]
-}
-
-Worked example — Leonardo da Vinci (year-precision):
-{
-  "Birthdate":    { "year": 1452, "precision": "year" },
-  "DeathDate":    { "year": 1519, "precision": "year" },
-  "Floruit_date": { "start": 1472, "end": 1519, "precision": "year" },
-  "Dates": [
-    { "year": 1472, "label": "admitted to the Florentine painters' guild" },
-    { "year": 1482, "label": "moved to Milan to serve Ludovico Sforza" },
-    { "year": 1503, "label": "began the Mona Lisa" },
-    { "year": 1516, "label": "moved to France at the invitation of Francis I" }
-  ]
-}
-
-Worked example — century-only article (rule C/D):
-{
-  "Birthdate":    { "year": null, "precision": null },
-  "DeathDate":    { "year": null, "precision": null },
-  "Floruit_date": { "start": 1701, "end": 1800, "precision": "century" },
-  "Dates": []
-}
-
-Worked example — single-year activity (rule B):
-{
-  "Birthdate":    { "year": null, "precision": null },
-  "DeathDate":    { "year": null, "precision": null },
-  "Floruit_date": { "start": 1898, "end": null, "precision": "year" },
-  "Dates": [
-    { "year": 1898, "label": "ranked 69th in the Guangxu Wuxu imperial examination" },
-    { "year": 1898, "label": "assigned as a county magistrate" }
-  ]
-}
-
-INCLUSION RULES — a date belongs in `Dates` only if ALL three hold:
-1. It is a SPECIFIC YEAR (4-digit integer, or negative for BCE). Never
-   extract a day-of-month or month-of-year as a year. Century-only
-   information (e.g. "14th century") goes into Floruit_date with
-   precision="century", NOT into the Dates list.
-2. The event directly involves THE INDIVIDUAL as participant, agent,
-   author, honoree, or subject — not events about institutions, places,
-   ancestors, descendants, colleagues, or general historical context.
-3. The year falls within the individual's lifetime (between Birthdate
-   and DeathDate when known; otherwise plausibly within their active
-   life).
-
-Reject (do NOT add to `Dates`) — common pitfalls:
-- "commemorated on August 30" → "30" is a calendar day, NOT year 30 / -30.
-- "retrieved 2020", "accessed 2024-01", "archive date 2023" → source-metadata.
-- Article publication / "as of" / last-updated timestamps from the
-  Wikipedia text itself.
-- Events BEFORE the person was born (founding of an institution they
-  later joined, prior history of a town/diocese/title).
-- Events AFTER the person died (descendant deaths, posthumous
-  destruction, later commemorations).
-- Achievements of OTHER named people mentioned in the article.
-- Awards / honors / activities of relatives, students, employer, or
-  organisation that don't directly involve the individual.
-
-Birthdate / DeathDate guards:
-- A "birth year" you can't reconcile with the floruit (e.g. floruit
-  starts in 1788 but you read birth=1955) is almost certainly NOT a
-  birth date — most likely a citation/edit/retrieval year. Drop it.
-- A "death year" in the future (after the article's apparent writing
-  date) is almost certainly NOT a death date — drop it.
-- Before returning null for Birthdate, scan the article for explicit
-  birth cues: "born <year>", "(<year>–", "b. <year>", parenthetical
-  (1942–), infobox birth fields, or non-English equivalents (né,
-  geboren, 生, nacido, родился)."""
 
 
 def urban_settlement_answer() -> "AIAnswer[bool]":
-    return AIAnswer[bool](model=URBAN_SETTLEMENT_MODEL, prompt=URBAN_SETTLEMENT_PROMPT, answered_on=date(2026, 4, 23))
+    return AIAnswer[bool](model=URBAN_SETTLEMENT_MODEL, prompt=(PROMPTS / "urban_settlement.txt").read_text().strip(), answered_on=date(2026, 4, 23))
 
 
 def wikipedia_dates_answer() -> "AIAnswer[str]":
-    return AIAnswer[str](model=WIKIPEDIA_DATES_MODEL, prompt=WIKIPEDIA_DATES_PROMPT, answered_on=date(2026, 5, 6))
+    return AIAnswer[str](model=WIKIPEDIA_DATES_MODEL, prompt=(PROMPTS / "wikipedia_dates.txt").read_text().strip(), answered_on=date(2026, 5, 6))
 
 
 class HistoricalDate(Model):
