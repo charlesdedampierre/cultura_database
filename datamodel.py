@@ -74,10 +74,6 @@ class Date(Model):
     year: Information[int] | None = Field(None, description="The year alone, parsed out of `iso` when there is one. Negative for BCE. A source that gives only a year fills this and leaves `iso` empty.")
 
 
-def wikipedia_date() -> "Date":
-    return Date(iso=wikipedia_dates_answer())
-
-
 class Polity(Model):
     id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
@@ -134,9 +130,9 @@ class Individual(Model):
     wikidata_entity: Wikidata | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
     gender: Information[QID] | None = None
     non_human: Information[bool] | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
-    birthdate: Date | None = Field(None, description="Date of birth. Wikidata P569.")
-    deathdate: Date | None = Field(None, description="Date of death. Wikidata P570.")
-    floruit_declared: Date | None = Field(None, description="Floruit as stated by Wikidata, rather than the window this project resolves. Wikidata P1317.")
+    birthdates: tuple[Date, ...] = Field((), description="Every birth date known for the individual, one per source: Wikidata P569, the Wikidata description read by regex, the cross-verified database, the Wikipedia article read by a language model, or estimated from the death date against a life-expectancy table. Each Date names its own source, so which candidate is which is read off it rather than off a field name. Empty when no source gives one.")
+    deathdates: tuple[Date, ...] = Field((), description="Every death date known for the individual, one per source, as for `birthdates`.")
+    declared_floruits: tuple[Date, ...] = Field((), description="Every floruit a source states outright — Wikidata P1317, the Wikidata description, the Wikipedia article read by a language model — as against `floruit_year`, the window this project resolves from all the dates it has.")
     birthplace: Location | None = Field(None, description="City of birth, with its coordinates, its country and its modern country. Wikidata P19 'place of birth'.")
     deathplace: Location | None = Field(None, description="City of death, with its coordinates, its country and its modern country. Wikidata P20 'place of death'.")
     citizenships: tuple[Location, ...] = Field((), description="Countries of citizenship, in Wikidata order, historical entities included — each a place, with its modern country and the polities it falls in. Wikidata P27 'country of citizenship'.")
@@ -152,19 +148,7 @@ class Individual(Model):
     works_period_start: Date | None = Field(None, description="First date at which the individual produced works. The date of a work is its publication date, else its inception date.")
     works_period_end: Date | None = Field(None, description="Last date at which the individual produced works.")
     number_of_works: Information[int] | None = Field(None, description="Number of works credited to the individual. Counted over `Work`.")
-    description_dates_raw: Information[str] | None = Field(None, description="Raw date substring matched in the Wikidata description before parsing. Kept so the extraction can be audited.")
-    description_dates_span: Information[str] | None = Field(None, description="Year span parsed out of the Wikidata description, e.g. '1937-2016'.")
-    description_birthdate: Date | None = Field(None, description="Birth date recovered by regex from the Wikidata description, for individuals Wikidata leaves undated.")
-    description_deathdate: Date | None = Field(None, description="Death date recovered by regex from the Wikidata description.")
-    description_floruit: Date | None = Field(None, description="Floruit recovered by regex from the Wikidata description.")
-    birthdate_from_cv: Date | None = Field(None, description="Birth date from the cross-verified database, used where Wikidata has none.")
-    deathdate_from_cv: Date | None = Field(None, description="Death date from the cross-verified database, used where Wikidata has none.")
-    birthdate_from_wikipedia: Date | None = Field(default_factory=wikipedia_date, description="Birth date read out of the Wikipedia article by a language model. Model and prompt travel with the value.")
-    deathdate_from_wikipedia: Date | None = Field(default_factory=wikipedia_date, description="Death date read out of the Wikipedia article by a language model. Model and prompt travel with the value.")
-    floruit_from_wikipedia: Date | None = Field(default_factory=wikipedia_date, description="Floruit read out of the Wikipedia article by a language model. Model and prompt travel with the value.")
-    estimated_birthdate: Date | None = Field(None, description="Birth date estimated from the death date, iterating from birth = death - 70 against the birth-bin table to avoid the survivorship bias of a death-bin lookup.")
-    estimated_deathdate: Date | None = Field(None, description="Death date estimated from the birth date. Never set when the estimate would fall in the last 5 years, or when the birth year would exceed 1950.")
-    life_expectancy_lookup_source: Information[Literal["birth_bin", "category+birth_bin:Leadership", "category+birth_bin:Culture", "category+birth_bin:Sports/Games", "category+birth_bin:Discovery/Science", "category+birth_bin:Other"]] | None = Field(None, description="Which lookup produced the estimate: the 50-year birth bin within a CVDB occupation category, or the birth bin alone as a fallback.")
+    life_expectancy_lookup_source: Information[Literal["birth_bin", "category+birth_bin:Leadership", "category+birth_bin:Culture", "category+birth_bin:Sports/Games", "category+birth_bin:Discovery/Science", "category+birth_bin:Other"]] | None = Field(None, description="Which lookup produced the estimated date in `birthdates` or `deathdates`: the 50-year birth bin within a CVDB occupation category, or the birth bin alone as a fallback.")
     life_expectancy_median_used: Information[float] | None = Field(None, description="Median life expectancy in years applied. The medians are estimated in-sample from Cultura individuals that have both dates at year precision — they are not a published life table.")
     in_pantheon_2: Information[bool] | None = Field(None, description="True if the individual appears in the Pantheon 2.0 dataset.")
     in_cross_verified_db: Information[bool] | None = Field(None, description="True if the individual appears in the cross-verified database.")
