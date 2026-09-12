@@ -60,6 +60,12 @@ def wikipedia_dates_answer() -> "AIAnswer[str]":
     return AIAnswer[str](model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip(), answered_on=date(2026, 5, 6))
 
 
+class Date(Model):
+    iso: Wikidata[str] | None = None
+    precision: Wikidata[int] | None = Field(None, description="Wikidata precision code: 11=day, 10=month, 9=year, 8=decade, 7=century, 6=millennium.")
+    year: Derived[int] | None = Field(None, description="The year alone, parsed out of `iso`. Negative for BCE.")
+
+
 class Polity(Model):
     id: External[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: External[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
@@ -79,8 +85,8 @@ class Location(Model):
     modern_country: Derived[str] | None = Field(None, description="Modern country the place maps onto, so historical data can be aggregated on today's borders.")
     modern_country_iso_a3: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
     modern_country_resolved_by: Derived[str] | None = Field(None, description="How the mapping was resolved: 'reverse_geocode' (point-in-polygon on the coordinates), 'capital_city', 'qlever_relation', 'qlever_replaced_by', or 'unknown_legacy'.")
-    inception: Wikidata[str] | None = None
-    dissolution: Wikidata[str] | None = None
+    inception: Date | None = Field(None, description="Date the place began to exist. Wikidata P571.")
+    dissolution: Date | None = Field(None, description="Date the place ceased to exist. Wikidata P576.")
     polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity, empty when the place matched none. From the Cliopatria dataset.")
 
 
@@ -90,15 +96,9 @@ class Individual(Model):
     description_en: Wikidata[str] | None = None
     gender: Wikidata[QID] | None = None
     non_human: Derived[bool] | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
-    birth: Wikidata[str] | None = None
-    birth_precision: Wikidata[int] | None = None
-    birth_year: Derived[int] | None = Field(None, description="Birth year alone, parsed out of `birth`. Negative for BCE.")
-    death: Wikidata[str] | None = None
-    death_precision: Wikidata[int] | None = None
-    death_year: Derived[int] | None = Field(None, description="Death year alone, parsed out of `death`. Negative for BCE.")
-    floruit_declared: Wikidata[str] | None = None
-    floruit_declared_precision: Wikidata[int] | None = None
-    floruit_declared_year: Derived[int] | None = Field(None, description="Floruit year alone, parsed out of `floruit_declared`.")
+    birth: Date | None = Field(None, description="Date of birth. Wikidata P569.")
+    death: Date | None = Field(None, description="Date of death. Wikidata P570.")
+    floruit_declared: Date | None = Field(None, description="Floruit as stated by Wikidata, rather than the window this project resolves. Wikidata P1317.")
     birthplace: Location | None = Field(None, description="City of birth, with its coordinates, its country and its modern country. Wikidata P19 'place of birth'.")
     deathplace: Location | None = Field(None, description="City of death, with its coordinates, its country and its modern country. Wikidata P20 'place of death'.")
     citizenships: Wikidata[str] | None = None
@@ -162,10 +162,8 @@ class Work(Model):
     creator: Wikidata[QID]
     role: Wikidata[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = None
     instance_of: Wikidata[str] | None = None
-    inception: Wikidata[str] | None = None
-    inception_year: Derived[int] | None = Field(None, description="Inception year alone, parsed out of `inception`. Negative for BCE.")
-    publication: Wikidata[str] | None = None
-    publication_year: Derived[int] | None = Field(None, description="Publication year alone, parsed out of `publication`. Negative for BCE.")
+    inception: Date | None = Field(None, description="Date the work was created. Wikidata P571.")
+    publication: Date | None = Field(None, description="Date the work was first published or released. Wikidata P577.")
 
     @field_validator("role", mode="before")
     @classmethod
