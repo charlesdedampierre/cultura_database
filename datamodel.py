@@ -89,16 +89,12 @@ class WikipediaLink(Model):
     url: Information[str] | None = Field(None, description="URL of the article.")
 
 
-class PolityPeriod(DateRange):
+class Polity(DateRange):
+    id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset. A polity holds different ground at different times, so it appears once per period of its borders and several entries can share an id.")
+    name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
     geometry: Information[str] | None = Field(None, description="The territory held over this period, as a GeoJSON polygon. This is what decides whether a place falls inside the polity.")
     area: Information[float] | None = Field(None, description="Area of that territory in square kilometres.")
-
-
-class Polity(Model):
-    id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
-    name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
-    periods: tuple[PolityPeriod, ...] = Field((), description="Territorial periods of the polity, one per change of borders — a polity holds different ground at different times, and a place falls inside it only for the periods whose polygon contains it. From the Cliopatria dataset.")
-    overlap_years: Information[int] | None = Field(None, description="Years of the individual's activity window covered by this polity, summed over all of its periods. Use it to pick the dominant polity of a multi-polity individual. Its Derived source says how the place was matched to the polity — a polygon or a shared Wikipedia URL — and the place itself is the Location this polity hangs from.")
+    overlap_years: Information[int] | None = Field(None, description="Years of the individual's activity window covered by this period. Sum them over the entries that share an id to rank the polities of a multi-polity individual. The Derived source says how the place was matched — a polygon or a shared Wikipedia URL — and the place itself is the Location this entry hangs from.")
 
 
 class Location(Model):
@@ -114,7 +110,7 @@ class Location(Model):
     modern_country_iso_a3: Information[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
     inception: Date | None = Field(None, description="Date the place began to exist. Wikidata P571.")
     dissolution: Date | None = Field(None, description="Date the place ceased to exist. Wikidata P576.")
-    polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity, empty when the place matched none. From the Cliopatria dataset.")
+    polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity and per period of its borders, empty when the place matched none. From the Cliopatria dataset.")
 
 
 class Occupation(Model):
