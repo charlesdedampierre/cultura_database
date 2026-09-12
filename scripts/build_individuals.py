@@ -18,10 +18,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import duckdb
 from datamodel import (AIAnswer, Date, Derived, Floruit, Identifier, Individual,
-                       Information, Location, Notability, Occupation, PROPERTIES, SOURCES,
-                       Wikidata, WikipediaLink)
+                       Information, Location, Notability, Occupation,
+                       WikidataEntity, WikidataProperty, WikipediaLink)
 
-DB = Path(__file__).resolve().parent.parent.parent.parent / "data/sample/sample.duckdb"
+HERE = Path(__file__).resolve().parent.parent
+PROPERTIES = json.loads((HERE / "properties.json").read_text())
+SOURCES = json.loads((HERE / "sources.json").read_text())
+DB = HERE.parent.parent / "data/sample/sample.duckdb"
 READ = date(2026, 2, 13)
 
 
@@ -29,8 +32,16 @@ def wikidata(value, prop, qid=None, label=None, description=None, on=READ):
     """A value read from a Wikidata property."""
     if value is None:
         return None
-    return Information(value=value, source=Wikidata(
+    return Information(value=value, source=WikidataProperty(
         property=prop, property_definition=PROPERTIES.get(prop, {}).get("definition"),
+        label_en=label, date_of_extraction=on))
+
+
+def entity(qid, label=None, description=None, on=READ):
+    """A row saying which Wikidata item it is."""
+    if qid is None:
+        return None
+    return Information(value=qid, source=WikidataEntity(
         qid=qid, label_en=label, description_en=description, date_of_extraction=on))
 
 
@@ -120,7 +131,7 @@ def build(limit: int) -> list[Individual]:
         if p is None:
             return None
         return Location(
-            id=wikidata(p["id"], "P19", qid=p["id"], label=p["name_en"]),
+            id=entity(p["id"], label=p["name_en"]),
             lat=wikidata(p["lat"], "P625"), lon=wikidata(p["lon"], "P625"),
             entity_types=wikidata(p["entity_type"], "P31"),
             modern_country=derived(p["iso_country_name"], "reverse geocode on today's borders", "Location.lat", "Location.lon"),
@@ -131,7 +142,7 @@ def build(limit: int) -> list[Individual]:
         qid = r["wikidata_id"]
         occupation_ids = (jobs_by.get(qid, [{}])[0].get("occupations_ids") or "").split(",")
         out.append(Individual(
-            id=wikidata(qid, "rdfs:label", qid=qid, label=r["name_en"], description=r["description_en"]),
+            id=entity(qid, label=r["name_en"], description=r["description_en"]),
             birthdates=birth_and_death(r, "birthdate"),
             deathdates=birth_and_death(r, "deathdate"),
             floruits=tuple(f for f in [
@@ -139,9 +150,9 @@ def build(limit: int) -> list[Individual]:
                 Floruit(mid=Date(year=derived(r["floruit_year"], "midpoint of the activity window", "Individual.birthdates", "Individual.deathdates"))) if r["floruit_year"] else None,
             ] if f is not None),
             birthplace=a_place(r["birthcity_id"]), deathplace=a_place(r["deathcity_id"]),
-            gender=wikidata(r["gender"], "P21", qid=r["gender_id"], label=r["gender"]),
+            gender=wikidata(r["gender_id"], "P21", label=r["gender"]),
             occupations=tuple(Occupation(
-                id=wikidata(j, "P106", qid=j, label=jobs[j]["name_en"]),
+                id=entity(j, label=jobs[j]["name_en"]),
                 meta_occupation=derived(jobs[j]["meta_occupation"], "reachable from Q901 or Q483501 through P279", "Occupation.id") if jobs[j]["meta_occupation"] in ("scientist", "artist") else None,
             ) for j in occupation_ids if j in jobs),
             identifiers=tuple(Identifier(
@@ -168,7 +179,7 @@ def demo() -> None:
     einstein = next((p for p in people if p.id and p.id.value == "Q937"), people[0])
     assert einstein.id.source.label_en, "an individual carries its label in its source"
     assert einstein.birthdates, "and at least one birth date candidate"
-    assert {type(d.iso.source).__name__ for d in einstein.birthdates if d.iso} >= {"Wikidata"}, "one of them read from Wikidata"
+    assert {type(d.iso.source).__name__ for d in einstein.birthdates if d.iso} >= {"WikidataProperty"}, "one of them read from a Wikidata property"
     for p in people:
         json.dumps(p.model_dump(mode="json"))  # every one of them survives the round trip
     for p in people:
