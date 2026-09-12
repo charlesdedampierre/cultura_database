@@ -23,6 +23,28 @@ property rather than values of one.
 The extraction date is not on these rows either. A raw file is one query run, so
 the date belongs to the run: sources.json records it, and the curated model puts
 it back on each value once several sources start disagreeing.
+
+A field that joins to a property carries no description: the property says what
+it means. What the property cannot say is how this project received it, and
+these are the seven places where the two differ.
+
+    date_of_birth, date_of_death, floruit
+        arrive as '1860-02-21T00:00:00Z'. The stamp is Wikidata's, not a time
+        of day, and the precision that qualifies it comes in its own file, so a
+        date and its precision can be present without each other.
+    label, description
+        arrive as RDF literals, '"Claus Hammel"@en', quotes and language tag
+        included — but only on the individual files. place_locations and
+        work_labels give them already unquoted.
+    description
+        some carry mojibake: an en dash decoded twice.
+    sex_or_gender
+        a free vocabulary in practice, 48 distinct values in the data, a few of
+        them unresolved.
+    occupation, country_of_citizenship, writing_language, instance_of
+        arrive as lists, in the order Wikidata listed them, and kept as lists.
+    sitelink
+        up to 228 per individual.
 """
 
 from pydantic import BaseModel, Field
@@ -47,56 +69,56 @@ class WorkCredit(BaseModel):
 
 class IndividualWikidata(BaseModel):
     qid: str = Field(..., description="The individual's Wikidata item. It is the key every raw file is indexed by.")
-    label: str | None = Field(None, description="rdfs:label, as the literal '\"Claus Hammel\"@en'.")
-    description: str | None = Field(None, description="schema:description, as a literal. Some carry mojibake from the extraction — an en dash decoded twice — which is the kind of thing this layer exists to keep visible.")
-    date_of_birth: str | None = Field(None, description="P569, as '1860-02-21T00:00:00Z'. The stamp is Wikidata's, not a real time of day.")
+    label: str | None = None
+    description: str | None = None
+    date_of_birth: str | None = None
     date_of_birth_precision: int | None = Field(None, description="Precision of P569's time value: 11 for a day, 9 for a year, 7 for a century. Not a property of its own — it is part of the time value — and it arrives in its own file, so a date and its precision can be present without each other.")
-    date_of_death: str | None = Field(None, description="P570, in the same form.")
+    date_of_death: str | None = None
     date_of_death_precision: int | None = Field(None, description="Precision of P570's time value.")
-    floruit: str | None = Field(None, description="P1317, in the same form.")
+    floruit: str | None = None
     floruit_precision: int | None = Field(None, description="Precision of P1317's time value.")
-    place_of_birth: str | None = Field(None, description="P19, as the place's bare qid. Resolve it against PlaceWikidata.")
-    place_of_death: str | None = Field(None, description="P20, in the same form.")
-    sex_or_gender: str | None = Field(None, description="P21, as a qid. Free vocabulary: 48 distinct values in the data.")
-    occupation: tuple[str, ...] = Field((), description="P106, a list of qids in the order Wikidata listed them. Resolve them against OccupationWikidata.")
-    country_of_citizenship: tuple[str, ...] = Field((), description="P27, a list of qids. Resolve them against CountryWikidata.")
-    writing_language: tuple[str, ...] = Field((), description="P6886, a list of qids.")
+    place_of_birth: str | None = None
+    place_of_death: str | None = None
+    sex_or_gender: str | None = None
+    occupation: tuple[str, ...] = ()
+    country_of_citizenship: tuple[str, ...] = ()
+    writing_language: tuple[str, ...] = ()
     external_id: dict[str, str] = Field({}, description="A map of property to identifier, exactly as the raw file gives it: {'P214': '7007870'}. Which database it is, is the property and nothing else — Wikidata has 10 329 external-id properties, and Property holds what each one is.")
-    sitelink: tuple[Sitelink, ...] = Field((), description="schema:about — every Wikipedia article about the individual, one per language edition, up to 228 per person.")
+    sitelink: tuple[Sitelink, ...] = ()
     work: tuple[WorkCredit, ...] = Field((), description="Every work credited to the individual, as a pair of the work's qid and the property that credits them. Neither is resolved here; the labels are in WorkWikidata.")
 
 
 class PlaceWikidata(BaseModel):
     qid: str = Field(..., description="The place's Wikidata item, as P19 and P20 name it.")
-    label: str | None = Field(None, description="rdfs:label. Unlike the individual files, place_locations gives it already unquoted.")
+    label: str | None = None
     latitude: float | None = Field(None, description="The latitude half of P625 'coordinate location'. The property has two components and the extraction splits them, which is why this field cannot carry the property's own name.")
     longitude: float | None = Field(None, description="The longitude half of P625.")
-    country: str | None = Field(None, description="P17, as a qid. This is what Wikidata declares — for a historical place, often a historical country.")
-    instance_of: tuple[str, ...] = Field((), description="P31, the classes of the place, as qids — 'seaside resort', 'quarter', 'hospital'. This is what a language model later reads to decide whether the place is a settlement at all.")
+    country: str | None = None
+    instance_of: tuple[str, ...] = ()
 
 
 class CountryWikidata(BaseModel):
     qid: str = Field(..., description="The country's Wikidata item, as P27 names it.")
-    label: str | None = Field(None, description="rdfs:label.")
+    label: str | None = None
     latitude: float | None = Field(None, description="The latitude half of P625.")
     longitude: float | None = Field(None, description="The longitude half of P625.")
-    country: str | None = Field(None, description="P17, for an entity that is inside another country rather than one itself.")
-    continent: str | None = Field(None, description="P30, as a qid.")
-    iso_3166_1_alpha_3_code: str | None = Field(None, description="P298. Only a country that exists today has one, which is how a historical entity is told apart from a modern one without asking a geocoder.")
-    sitelink: tuple[Sitelink, ...] = Field((), description="schema:about. The English one is what matches a country to a historical polity.")
+    country: str | None = None
+    continent: str | None = None
+    iso_3166_1_alpha_3_code: str | None = None
+    sitelink: tuple[Sitelink, ...] = ()
 
 
 class OccupationWikidata(BaseModel):
     qid: str = Field(..., description="The occupation's Wikidata item, as P106 names it.")
-    label: str | None = Field(None, description="rdfs:label, as the literal '\"insurance expert\"@en'.")
-    subclass_of: tuple[str, ...] = Field((), description="P279, as qids. The closure over this is what decides whether an occupation is reachable from Q901 'scientist' or Q483501 'artist'.")
+    label: str | None = None
+    subclass_of: tuple[str, ...] = ()
 
 
 class WorkWikidata(BaseModel):
     qid: str = Field(..., description="The work's Wikidata item, as the credit properties name it. A few keys in the raw file are lexeme URIs rather than qids.")
-    label: str | None = Field(None, description="rdfs:label. The work labels file gives it already unquoted, unlike the individual labels.")
-    instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work, as qids — 'painting', 'film', 'novel'.")
-    inception: str | None = Field(None, description="P571, as a Wikidata time stamp.")
+    label: str | None = None
+    instance_of: tuple[str, ...] = ()
+    inception: str | None = None
     inception_precision: int | None = Field(None, description="Precision of P571's time value.")
-    publication_date: str | None = Field(None, description="P577, as a Wikidata time stamp.")
+    publication_date: str | None = None
     publication_date_precision: int | None = Field(None, description="Precision of P577's time value.")
