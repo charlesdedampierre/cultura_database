@@ -10,16 +10,28 @@ class Origin(BaseModel):
     model: str | None = Field(None, description="For a value a language model produced, the exact model id. The prompt is in prompts/, named after the task.")
     retrieved_on: date | None = Field(None, description="The day the source was read. Wikidata is edited continuously, so a value without this cannot be reproduced.")
 
+class Date(BaseModel):
+    iso: str | None = Field(None, description="The date as an ISO string, '1879-03-14'. Wikidata's own stamp, '1879-03-14T00:00:00Z', is removed: it is not a time of day. A leading minus is a date before the common era, '-0356-07-20'.")
+    year: int | None = Field(None, description="The year alone, read off `iso`. Negative before the common era. It is what nearly every analysis uses, and reading it off the string each time is a needless step.")
+    precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="How precisely the source states the date, as a word rather than Wikidata's numeric code. A date known only to the century still reads as a full ISO string, so this is the only way to know it is not one.")
+
+
+class Polity(BaseModel):
+    name: str | None = Field(None, description="The polity's name as Cliopatria spells it — 'Ottoman Empire', 'Magadha - Shaishunaga dynasty'. Its own spelling, not Wikidata's.")
+    type: Literal["POLITY", "RELATION"] | None = Field(None, description="'POLITY' for a polity in its own right, 'RELATION' for a dependency between two of them. A relation is not somewhere a person can be born, so filter on it before counting.")
+    start: int | None = Field(None, description="First year the polity held ground, the earliest of its territories.")
+    end: int | None = Field(None, description="Last year it held any. Empty for one that still exists.")
+    wikidata_id: str | None = Field(None, description="The qid Cliopatria resolved for the polity, where it resolved one — the join out to Wikidata and to this project's other tables.")
+    wikipedia_url: str | None = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it.")
+
+
 class Individual(BaseModel):
     wikidata_id: str = Field(..., description="The individual's Wikidata item. The key every other table joins on. Raw: IndividualWikidata.qid.")
     name: str | None = Field(None, description="English label, unquoted — the raw file gives it as the RDF literal '\"Claus Hammel\"@en'. Raw: IndividualWikidata.label.")
     description: str | None = Field(None, description="English one-line description, unquoted, e.g. 'German-born theoretical physicist'. Raw: IndividualWikidata.description.")
-    birth_date: str | None = Field(None, description="Date of birth as an ISO string, '1879-03-14' — Wikidata's '1879-03-14T00:00:00Z' without the stamp, which is not a time of day. Only as precise as `birth_precision` says. Raw: IndividualWikidata.date_of_birth.")
-    birth_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="How precisely Wikidata states the birth date, as a word rather than the raw code — 11 is a day, 9 a year, 7 a century. A date known only to the century still reads as a full ISO string, so this is the only way to know it is not one. Raw: IndividualWikidata.date_of_birth_precision.")
-    death_date: str | None = Field(None, description="Date of death, on the same terms. Raw: IndividualWikidata.date_of_death.")
-    death_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.date_of_death_precision.")
-    floruit_date: str | None = Field(None, description="A date Wikidata states the individual was active, P1317. Rare, and a date rather than a range — not to be confused with IndividualEnriched.peak_productivity_*, which this project computes. Raw: IndividualWikidata.floruit.")
-    floruit_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.floruit_precision.")
+    birth: Date | None = Field(None, description="Date of birth. Raw: IndividualWikidata.date_of_birth and .date_of_birth_precision.")
+    death: Date | None = Field(None, description="Date of death. Raw: IndividualWikidata.date_of_death and .date_of_death_precision.")
+    floruit: Date | None = Field(None, description="A date Wikidata states the individual was active, P1317. Rare, and a date rather than a range — not to be confused with IndividualEnriched.peak_productivity_*, which this project computes. Raw: IndividualWikidata.floruit and .floruit_precision.")
     birthplace: str | None = Field(None, description="Place of birth by name. Often a city, sometimes a country, sometimes a hospital — P19 makes no promise, and EntityTypeClassification is what tells them apart. Raw: IndividualWikidata.place_of_birth resolved against PlaceWikidata.label.")
     birthplace_wikidata_id: str | None = Field(None, description="Its qid, for joining to PlaceWikidata and to PlaceModernCountry. Raw: IndividualWikidata.place_of_birth.")
     deathplace: str | None = Field(None, description="Place of death, on the same terms. Raw: IndividualWikidata.place_of_death resolved against PlaceWikidata.label.")
@@ -42,7 +54,7 @@ class IndividualEnriched(BaseModel):
     peak_productivity_end: int | None = Field(None, description="Last year of the range.")
     peak_productivity_is_estimated: bool | None = Field(None, description="True when the range rests on an estimated birth or death year rather than an attested one. The range is still usable; it is simply softer, and this says so rather than leaving it to be discovered.")
 
-    polity: str | None = Field(None, description="The historical polity the individual most belonged to. A place is matched to a polity when it falls inside the ground that polity held while the individual was active, and the one with the longest overlap is published here. CVDB and Pantheon answer this question too, by other methods, on their own rows.")
+    polity: Polity | None = Field(None, description="The historical polity the individual most belonged to. A place is matched to a polity when it falls inside the ground that polity held while the individual was active, and the one with the longest overlap is published here. CVDB and Pantheon answer this question too, by other methods — theirs are in datamodel_raw.py.")
     polity_years: int | None = Field(None, description="Years of the peak-productivity range spent inside that polity. A small number means the match is incidental — someone who died abroad.")
     polity_count: int | None = Field(None, description="How many polities the individual overlaps at all. More than one is normal for a long life in a contested region.")
 
