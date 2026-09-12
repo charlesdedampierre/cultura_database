@@ -22,8 +22,8 @@ class Source(Model):
 
 class Wikidata(Source):
     property: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'.")
-    description: str | None = Field(None, description="What the property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field in this schema describes itself: the description is data, not schema.")
-    label_en: str | None = Field(None, description="English label of the value when the value is a qid, pipe-joined in the same order when it is several. Wikidata rdfs:label — only an item read from Wikidata has one, which is why it sits here and not on the Information.")
+    property_definition: str | None = Field(None, description="What that property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field in this schema describes itself: the definition is data, not schema.")
+    value_label_en: str | None = Field(None, description="English label of the item the value refers to, when the value is a qid — pipe-joined in the same order when it is several. Wikidata rdfs:label. It saves every qid-valued field an id / label twin; it is not the label of the row this field belongs to.")
 
 
 class Dataset(Source):
@@ -112,8 +112,8 @@ class Identifier(Model):
 
 class Individual(Model):
     qid: QID | None = Field(None, description="Wikidata item id, e.g. 'Q937'. NULL when the item was named in a source but never resolved to Wikidata.")
-    label_en: Information[str] | None = None
-    description_en: Information[str] | None = None
+    label_en: Information[str] | None = Field(None, description="Name of the row itself. Usually Wikidata rdfs:label, but an individual never resolved to Wikidata is named by the dataset that knew them, so it carries a source like any other value.")
+    description_en: Information[str] | None = Field(None, description="One-line description of the row itself. Usually Wikidata schema:description.")
     gender: Information[QID] | None = None
     non_human: Information[bool] | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
     birthdate: Date | None = Field(None, description="Date of birth. Wikidata P569.")
@@ -160,8 +160,8 @@ class Individual(Model):
 
 class Work(Model):
     qid: QID | None = Field(None, description="Wikidata item id of the work, e.g. 'Q12418'.")
-    label_en: Information[str] | None = None
-    description_en: Information[str] | None = None
+    label_en: Information[str] | None = Field(None, description="Name of the work itself. Usually Wikidata rdfs:label, but a work known only to another dataset is named by that dataset, so it carries a source like any other value.")
+    description_en: Information[str] | None = Field(None, description="One-line description of the row itself. Usually Wikidata schema:description.")
     creator: Information[QID]
     role: Information[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = None
     instance_of: Information[str] | None = None
