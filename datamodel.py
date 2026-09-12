@@ -86,9 +86,8 @@ class Location(Model):
 
 class Individual(Model):
     qid: QID | None = Field(None, description="Wikidata item id, e.g. 'Q937'. NULL when the item was named in a source but never resolved to Wikidata.")
-    label_en: str | None = Field(None, description="English label of the individual. Wikidata rdfs:label.")
-    description_en: str | None = Field(None, description="English one-line description of the individual. Wikidata schema:description.")
-    date_of_extraction: date = Field(..., description="Day the individual was read from Wikidata.")
+    label_en: Wikidata[str] | None = None
+    description_en: Wikidata[str] | None = None
     gender: Wikidata[QID] | None = None
     non_human: Derived[bool] | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
     birth: Wikidata[str] | None = None
@@ -158,9 +157,8 @@ class Individual(Model):
 
 class Work(Model):
     qid: QID | None = Field(None, description="Wikidata item id of the work, e.g. 'Q12418'.")
-    label_en: str | None = Field(None, description="English label of the work. Wikidata rdfs:label.")
-    description_en: str | None = Field(None, description="English one-line description of the work. Wikidata schema:description.")
-    date_of_extraction: date = Field(..., description="Day the work was read from Wikidata.")
+    label_en: Wikidata[str] | None = None
+    description_en: Wikidata[str] | None = None
     creator: Wikidata[QID]
     role: Wikidata[Literal["author", "composer", "creator", "director", "editor", "illustrator", "performer", "producer", "screenwriter"]] | None = None
     instance_of: Wikidata[str] | None = None
