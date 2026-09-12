@@ -79,8 +79,8 @@ class Polity(BaseModel):
     territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 16 of them and one reaches 212.")
 
 
-class Location(BaseModel):
-    id: Information | None = Field(None, description="The place, as the qid of its Wikidata item. Its English label and description are in the source.")
+class City(BaseModel):
+    id: Information | None = Field(None, description="The city, as the qid of its Wikidata item. Its English label and description are in the source.")
     lat: Information | None = None
     lon: Information | None = None
     entity_types: Information | None = None
@@ -123,9 +123,9 @@ class Individual(BaseModel):
     floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds — by convention an individual is active from age 30 to age 60, truncated by an early death. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
     works_period: Floruit | None = Field(None, description="The window over which the individual produced works — a floruit like any other, and one of the things the resolved floruit is derived from. The date of a work is its publication date, else its inception date.")
 
-    birthplace: Location | None = Field(None, description="Place of birth, with its coordinates and the polities it sits in. Wikidata P19 'place of birth'.")
-    deathplace: Location | None = Field(None, description="Place of death, with its coordinates and the polities it sits in. Wikidata P20 'place of death'.")
-    citizenships: tuple[Location, ...] = Field((), description="Polities of citizenship, in Wikidata order, historical ones included — each a place, with the polity that holds it today and the polities it has fallen in. Wikidata P27 'country of citizenship'.")
+    birthplace: City | None = Field(None, description="Place of birth, with its coordinates and the polities it sits in. Wikidata P19 'place of birth'.")
+    deathplace: City | None = Field(None, description="Place of death, with its coordinates and the polities it sits in. Wikidata P20 'place of death'.")
+    citizenships: tuple[Polity, ...] = Field((), description="Polities the individual was a citizen of, in Wikidata order, historical ones included — each carrying the ground it held and the polities holding that ground today. Wikidata P27 'country of citizenship'.")
 
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
     wikipedia_links: tuple[WikipediaLink, ...] = Field((), description="Wikipedia articles about the individual, one per language edition. These are what the notability scores count.")
