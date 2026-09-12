@@ -48,7 +48,7 @@ class Individual(BaseModel):
 
 
 class IndividualEnriched(BaseModel):
-    wikidata_id: str = Field(..., description="The individual, and the key back to every source: IndividualWikidata, CrossVerifiedPerson and PantheonPerson in datamodel_raw.py all carry it. Nothing else on this row was read from anywhere — every field below was computed by this project, and `origins` says from what and how.")
+    qid: str = Field(..., description="The individual's Wikidata item, the same key Individual uses, and the join out to CrossVerifiedPerson and PantheonPerson in datamodel_raw.py. Nothing else on this row was read from anywhere — every field below was computed by this project, and `origins` says from what and how.")
 
     birth_date: Date | None = Field(None, description="Date of birth as one value: the ISO string, the year read off it, and the precision. Built from IndividualWikidata.date_of_birth and .date_of_birth_precision, which arrive as two separate files and are one fact.")
     death_date: Date | None = Field(None, description="Date of death, on the same terms.")
