@@ -138,8 +138,8 @@ class Individual(BaseModel):
 
 
 class Work(BaseModel):
-    wikidata_entity: Wikidata | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
-    creator: Information
+    id: Information | None = Field(None, description="The work, as the qid of its Wikidata item. Its English label and description are in the source. Empty when the row was named by a source that never resolved it to Wikidata.")
+    creator: Information = Field(..., description="The individual credited for the work; joins `Individual` by qid.")
     role: Information | None = None
     instance_of: Information | None = None
     inception: Date | None = Field(None, description="Date the work was created. Wikidata P571.")
