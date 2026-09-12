@@ -117,6 +117,12 @@ class Identifier(Model):
     url: Information[str] | None = Field(None, description="URL of the individual's record in that database.")
 
 
+class WikipediaLink(Model):
+    site: Information[str] | None = Field(None, description="Wikipedia edition the article is in, as a site code, e.g. 'enwiki'.")
+    title: Information[str] | None = Field(None, description="Title of the article in that edition.")
+    url: Information[str] | None = Field(None, description="URL of the article.")
+
+
 class Individual(Model):
     wikidata_entity: Wikidata | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
     gender: Information[QID] | None = None
@@ -129,10 +135,8 @@ class Individual(Model):
     citizenships: tuple[Location, ...] = Field((), description="Countries of citizenship, in Wikidata order, historical entities included — each a place, with its modern country and the polities it falls in. Wikidata P27 'country of citizenship'.")
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
     writing_languages: Information[str] | None = None
-    wikipedia_sites: Information[str] | None = None
-    wikipedia_titles: Information[str] | None = None
-    wikipedia_urls: Information[str] | None = None
-    number_of_wikipedia_articles: Information[int] | None = Field(None, description="Number of Wikipedia articles across all languages. Counted over `wikipedia_sites`.")
+    wikipedia_links: tuple[WikipediaLink, ...] = Field((), description="Wikipedia articles about the individual, one per language edition. These are what the notability scores count.")
+    number_of_wikipedia_articles: Information[int] | None = Field(None, description="Number of Wikipedia articles across all languages. Counted over `wikipedia_links`.")
     notability_western: Information[int] | None = Field(None, description="Number of Western-language Wikipedia editions covering the individual (0-228).")
     notability_non_western: Information[int] | None = Field(None, description="Number of non-Western-language Wikipedia editions covering the individual.")
     notability_general: Information[float] | None = Field(None, description="Geometric mean of the two (0 to ~282). The project's canonical ranking metric: it rewards fame that crosses the Western / non-Western divide.")
