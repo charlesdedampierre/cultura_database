@@ -15,7 +15,8 @@ class WikidataEntity(BaseModel):
 
 
 class WikidataProperty(BaseModel):
-    id: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'.")
+    pid: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'.")
+    label_en: str | None = Field(None, description="English label of that property, e.g. 'date of birth'. Wikidata rdfs:label, as for an item.")
     definition: str | None = Field(None, description="What that property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field in this schema describes itself: the definition is data, not schema.")
 
 
