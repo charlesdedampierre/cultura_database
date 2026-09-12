@@ -123,6 +123,13 @@ class WikipediaLink(Model):
     url: Information[str] | None = Field(None, description="URL of the article.")
 
 
+class Notability(Model):
+    total: Information[int] | None = Field(None, description="Number of Wikipedia articles across all languages, western plus non-western. Counted over `wikipedia_links`.")
+    western: Information[int] | None = Field(None, description="Number of Western-language Wikipedia editions covering the individual (0-228).")
+    non_western: Information[int] | None = Field(None, description="Number of non-Western-language Wikipedia editions covering the individual.")
+    general: Information[float] | None = Field(None, description="Geometric mean of the two (0 to ~282). The project's canonical ranking metric: it rewards fame that crosses the Western / non-Western divide.")
+
+
 class Individual(Model):
     wikidata_entity: Wikidata | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
     gender: Information[QID] | None = None
@@ -136,10 +143,7 @@ class Individual(Model):
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
     writing_languages: Information[str] | None = None
     wikipedia_links: tuple[WikipediaLink, ...] = Field((), description="Wikipedia articles about the individual, one per language edition. These are what the notability scores count.")
-    number_of_wikipedia_articles: Information[int] | None = Field(None, description="Number of Wikipedia articles across all languages. Counted over `wikipedia_links`.")
-    notability_western: Information[int] | None = Field(None, description="Number of Western-language Wikipedia editions covering the individual (0-228).")
-    notability_non_western: Information[int] | None = Field(None, description="Number of non-Western-language Wikipedia editions covering the individual.")
-    notability_general: Information[float] | None = Field(None, description="Geometric mean of the two (0 to ~282). The project's canonical ranking metric: it rewards fame that crosses the Western / non-Western divide.")
+    notability: Notability | None = Field(None, description="Wikipedia coverage of the individual, counted over `wikipedia_links`. Fame in this project is how many language editions carry an article, and how far that reach crosses the Western / non-Western divide.")
     identifiers: tuple[Identifier, ...] = Field((), description="The individual's records in external databases, one entry per database.")
     number_of_identifiers: Information[int] | None = Field(None, description="Number of external-database identifiers. Counted over `identifiers`.")
     floruit_year: Date | None = Field(None, description="The single date that represents the individual's activity: the midpoint of the window, or the only known year. This is what dating an individual relies on, since birth and death are often missing. Which dates fed it, and from which source, is its own `derived_from`.")
