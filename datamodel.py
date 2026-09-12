@@ -61,17 +61,22 @@ class WikipediaLink(BaseModel):
     url: str | None = Field(None, description="URL of the article.")
 
 
+class Territory(BaseModel):
+    start: Date | None = Field(None, description="First year the polity held this ground.")
+    end: Date | None = Field(None, description="Last year it held it.")
+    area: Information | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
+    geometry: Information | None = Field(None, description="The ground itself, as a GeoJSON MultiPolygon. It is what decides whether a place falls inside the polity, and the heaviest field in the schema.")
+    modern_polities: tuple["Polity", ...] = Field((), description="The polities holding this ground today — several, because a historical territory does not stop at modern borders. A modern country is a polity that still exists, so it is described by that same model. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same countries on every entry; only recomputing them from this polygon makes the breakdown real.")
+
+
 class Polity(BaseModel):
-    start: Date | None = Field(None, description="First year the polity existed, the earliest of its periods.")
+    start: Date | None = Field(None, description="First year the polity existed, the earliest of its territories.")
     end: Date | None = Field(None, description="Last year it existed. Empty for one that still exists.")
     id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
     type: Information | None = Field(None, description="'POLITY' for a state in its own right, 'RELATION' for a dependency between two of them — 329 against 29 in the sample. A relation is not a place someone can be born in, so filter on this before counting.")
     wikipedia_link: WikipediaLink | None = Field(None, description="The polity's English Wikipedia article. It is one of the two ways a place is matched to a polity, the other being this period's polygon.")
-    periods: tuple[Floruit, ...] = Field((), description="The spans over which the polity held different ground, oldest first. A polity averages 16 of them and one reaches 212.")
-    areas_per_period: tuple[Information, ...] = Field((), description="Area in square kilometres, one per entry of `periods` and in the same order. This is what shows an empire moving: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
-    geometries_per_period: tuple[Information, ...] = Field((), description="The ground held, as a GeoJSON MultiPolygon, one per entry of `periods` and in the same order. It is what decides whether a place falls inside the polity, and the heaviest field in the schema.")
-    modern_polities_per_period: tuple[tuple["Polity", ...], ...] = Field((), description="The polities holding that ground today, one group per entry of `periods` and in the same order — several per period, because a historical polity does not stop at modern borders. A modern country is a polity that still exists, so it is described by this same model, with empty periods of its own. Cliopatria resolves these per polity rather than per period, so every group repeats the same countries until they are recomputed from each period's polygon.")
+    territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and modern countries. A polity averages 16 of them and one reaches 212.")
 
 
 class Location(BaseModel):
