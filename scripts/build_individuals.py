@@ -150,7 +150,8 @@ def build(limit: int) -> list[Individual]:
                 Floruit(mid=a_date(wikidata(r["floruit_date"], "P1317"), precision=wikidata(r["floruit_precision"], "P1317"))) if r["floruit_date"] else None,
                 Floruit(mid=Date(year=derived(r["floruit_year"], "midpoint of the activity window", "Individual.birthdates", "Individual.deathdates"))) if r["floruit_year"] else None,
             ] if f is not None),
-            birthplace=a_place(r["birthcity_id"]), deathplace=a_place(r["deathcity_id"]),
+            birthplaces=tuple(p for p in [a_place(r["birthcity_id"])] if p),
+            deathplaces=tuple(p for p in [a_place(r["deathcity_id"])] if p),
             gender=wikidata(r["gender_id"], "P21", qid=r["gender_id"], label=r["gender"]),
             occupations=tuple(Occupation(
                 id=entity(j, label=jobs[j]["name_en"]),
