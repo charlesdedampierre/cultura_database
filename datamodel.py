@@ -74,10 +74,13 @@ class Date(Model):
     year: Information[int] | None = Field(None, description="The year alone, parsed out of `iso` when there is one. Negative for BCE. A source that gives only a year fills this and leaves `iso` empty.")
 
 
-class Floruit(Model):
-    start: Date | None = Field(None, description="First date of the window. By convention an individual is active from age 30 to age 60, truncated by an early death.")
-    mid: Date | None = Field(None, description="The single date that represents the window: its midpoint, or the only date known. This is what dating an individual relies on, since birth and death are often missing.")
-    end: Date | None = Field(None, description="Last date of the window. Empty when only one date is known.")
+class DateRange(Model):
+    start: Date | None = Field(None, description="First date of the range.")
+    end: Date | None = Field(None, description="Last date of the range. Empty when only one date is known.")
+
+
+class Floruit(DateRange):
+    mid: Date | None = Field(None, description="The single date that represents the range: its midpoint, or the only date known. This is what dating an individual relies on, since birth and death are often missing.")
 
 
 class Polity(Model):
@@ -137,8 +140,8 @@ class Individual(Model):
 
     birthdates: tuple[Date, ...] = Field((), description="Every birth date known for the individual, one per source: Wikidata P569, the Wikidata description read by regex, the cross-verified database, or the Wikipedia article read by a language model. A date this project computes rather than reads is a candidate like any other, and its `rule` says how. Each Date names its own source, so which candidate is which is read off it rather than off a field name. Empty when no source gives one.")
     deathdates: tuple[Date, ...] = Field((), description="Every death date known for the individual, one per source, as for `birthdates`.")
-    floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
-    works_period: Floruit | None = Field(None, description="The window over which the individual produced works. The date of a work is its publication date, else its inception date.")
+    floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds — by convention an individual is active from age 30 to age 60, truncated by an early death. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
+    works_period: DateRange | None = Field(None, description="The range over which the individual produced works. The date of a work is its publication date, else its inception date.")
 
     birthplace: Location | None = Field(None, description="City of birth, with its coordinates, its country and its modern country. Wikidata P19 'place of birth'.")
     deathplace: Location | None = Field(None, description="City of death, with its coordinates, its country and its modern country. Wikidata P20 'place of death'.")
