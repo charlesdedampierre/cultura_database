@@ -66,7 +66,7 @@ class Territory(BaseModel):
     end: Date | None = Field(None, description="Last year it held it.")
     area: Information | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
     geometry: Information | None = Field(None, description="The ground itself, as a GeoJSON MultiPolygon. It is what decides whether a place falls inside the polity, and the heaviest field in the schema.")
-    modern_polities: tuple["Polity", ...] = Field((), description="The polities holding this ground today — several, because a historical territory does not stop at modern borders. A modern country is a polity that still exists, so it is described by that same model. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same countries on every entry; only recomputing them from this polygon makes the breakdown real.")
+    modern_polities: tuple["Polity", ...] = Field((), description="The polities holding this ground today — several, because a historical territory does not stop at modern borders. One that still exists is described by this same model, which is why the schema has no separate notion of a country at all. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
 
 
 class Polity(BaseModel):
@@ -74,9 +74,9 @@ class Polity(BaseModel):
     end: Date | None = Field(None, description="Last year it existed. Empty for one that still exists.")
     id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
-    type: Information | None = Field(None, description="'POLITY' for a state in its own right, 'RELATION' for a dependency between two of them — 329 against 29 in the sample. A relation is not a place someone can be born in, so filter on this before counting.")
+    type: Information | None = Field(None, description="'POLITY' for a polity in its own right, 'RELATION' for a dependency between two of them — 329 against 29 in the sample. A relation is not a place someone can be born in, so filter on this before counting.")
     wikipedia_link: WikipediaLink | None = Field(None, description="The polity's English Wikipedia article. It is one of the two ways a place is matched to a polity, the other being this period's polygon.")
-    territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and modern countries. A polity averages 16 of them and one reaches 212.")
+    territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 16 of them and one reaches 212.")
 
 
 class Location(BaseModel):
@@ -85,13 +85,12 @@ class Location(BaseModel):
     lon: Information | None = None
     entity_types: Information | None = None
     is_urban_settlement: Information | None = Field(None, description="True if the place counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `entity_types` is in the urban set.")
-    country: Information | None = None
     wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
-    country_wikipedia_link: WikipediaLink | None = Field(None, description="The Wikipedia article of the country the place belongs to.")
-    modern_polity: Polity | None = Field(None, description="The polity that holds this place today — a modern country, which is a polity that still exists, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
+    declared_polity: Polity | None = Field(None, description="The polity Wikidata declares this place to be in, which for a historical place is often a historical one — the Kingdom of Prussia rather than Germany. Wikidata P17. Its name and its Wikipedia article are on the polity itself.")
+    modern_polity: Polity | None = Field(None, description="The polity that holds this place today — one that still exists, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
     inception: Date | None = Field(None, description="Date the place began to exist. Wikidata P571.")
     dissolution: Date | None = Field(None, description="Date the place ceased to exist. Wikidata P576.")
-    polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity and per period of its borders, empty when the place matched none. From the Cliopatria dataset.")
+    polities: tuple[Polity, ...] = Field((), description="Polities whose territory covered this place at some point, one entry per polity, empty when it matched none. Each carries its own territories, so when it covered the place is in there. From the Cliopatria dataset.")
 
 
 class Occupation(BaseModel):
@@ -124,9 +123,9 @@ class Individual(BaseModel):
     floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds — by convention an individual is active from age 30 to age 60, truncated by an early death. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
     works_period: Floruit | None = Field(None, description="The window over which the individual produced works — a floruit like any other, and one of the things the resolved floruit is derived from. The date of a work is its publication date, else its inception date.")
 
-    birthplace: Location | None = Field(None, description="City of birth, with its coordinates, its country and its modern country. Wikidata P19 'place of birth'.")
-    deathplace: Location | None = Field(None, description="City of death, with its coordinates, its country and its modern country. Wikidata P20 'place of death'.")
-    citizenships: tuple[Location, ...] = Field((), description="Countries of citizenship, in Wikidata order, historical entities included — each a place, with its modern country and the polities it falls in. Wikidata P27 'country of citizenship'.")
+    birthplace: Location | None = Field(None, description="Place of birth, with its coordinates and the polities it sits in. Wikidata P19 'place of birth'.")
+    deathplace: Location | None = Field(None, description="Place of death, with its coordinates and the polities it sits in. Wikidata P20 'place of death'.")
+    citizenships: tuple[Location, ...] = Field((), description="Polities of citizenship, in Wikidata order, historical ones included — each a place, with the polity that holds it today and the polities it has fallen in. Wikidata P27 'country of citizenship'.")
 
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
     wikipedia_links: tuple[WikipediaLink, ...] = Field((), description="Wikipedia articles about the individual, one per language edition. These are what the notability scores count.")
