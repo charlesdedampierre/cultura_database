@@ -126,6 +126,7 @@ class Individual(BaseModel):
     citizenships: tuple[Polity, ...] = Field((), description="Polities the individual was a citizen of, in Wikidata order, historical ones included — each carrying the ground it held and the polities holding that ground today. Wikidata P27 'country of citizenship'.")
 
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
+    works: tuple["Work", ...] = Field((), description="The works credited to the individual, each with the role they were credited in — author, creator, performer. A prolific individual has thousands, so whoever fills this may cap it; `number_of_works` counts them all.")
     wikipedia_links: tuple[WikipediaLink, ...] = Field((), description="Wikipedia articles about the individual, one per language edition. These are what the notability scores count.")
     identifiers: tuple[Identifier, ...] = Field((), description="The individual's records in external databases, one entry per database.")
 
