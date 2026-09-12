@@ -65,7 +65,7 @@ class Territory(BaseModel):
     start: Date | None = Field(None, description="First year the polity held this ground.")
     end: Date | None = Field(None, description="Last year it held it.")
     area: Information | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
-    geometry: Information | None = Field(None, description="The ground itself, as a GeoJSON MultiPolygon. It is what decides whether a place falls inside the polity, and the heaviest field in the schema.")
+    geometry: Information | None = Field(None, description="The ground itself, as GeoJSON — a Polygon for a territory in one piece, a MultiPolygon when it is not, and never a Point: a polity holds an area, the smallest in Cliopatria being 87 km². This is what decides whether a place falls inside the polity, and the heaviest field in the schema.")
     modern_polities: tuple["Polity", ...] = Field((), description="The polities holding this ground today — several, because a historical territory does not stop at modern borders. One that still exists is described by this same model, which is why the schema has no separate notion of a country at all. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
 
 
