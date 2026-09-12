@@ -33,7 +33,7 @@ def wikidata(value, prop, qid=None, label=None, description=None, on=READ):
     if value is None:
         return None
     return Information(value=value, source=Wikidata(
-        property=WikidataProperty(id=prop, definition=PROPERTIES.get(prop, {}).get("definition")),
+        property=WikidataProperty(pid=prop, label_en=PROPERTIES.get(prop, {}).get("name"), definition=PROPERTIES.get(prop, {}).get("definition")),
         entity=WikidataEntity(qid=qid, label_en=label) if qid else None,
         date_of_extraction=on))
 
