@@ -62,14 +62,15 @@ class WikipediaLink(BaseModel):
 
 
 class Polity(BaseModel):
-    start: Date | None = Field(None, description="First year the polity held this ground.")
-    end: Date | None = Field(None, description="Last year it held it. Empty for a polity that still exists.")
-    id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset. A polity held different ground at different times, so it appears once per period of its borders and several entries share an id.")
+    start: Date | None = Field(None, description="First year of this span. Empty on the polity itself, filled on each of its periods.")
+    end: Date | None = Field(None, description="Last year of this span. Empty on a polity that still exists, and on the polity itself.")
+    id: Information | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
     type: Information | None = Field(None, description="'POLITY' for a state in its own right, 'RELATION' for a dependency between two of them — 329 against 29 in the sample. A relation is not a place someone can be born in, so filter on this before counting.")
     wikipedia_link: WikipediaLink | None = Field(None, description="The polity's English Wikipedia article. It is one of the two ways a place is matched to a polity, the other being this period's polygon.")
-    geometry: Information | None = Field(None, description="The territory held over these years, as a GeoJSON MultiPolygon. This is what decides whether a place falls inside the polity, and it is the heaviest field in the schema — a polity averages 16 periods and one reaches 212.")
-    area: Information | None = Field(None, description="Area of that territory in square kilometres.")
+    geometry: Information | None = Field(None, description="The ground held over this span, as a GeoJSON MultiPolygon. This is what decides whether a place falls inside the polity, and it is the heaviest field in the schema — a polity averages 16 periods and one reaches 212.")
+    area: Information | None = Field(None, description="Area of that ground in square kilometres. It is the field that shows an empire growing and shrinking: Cliopatria records the Greek City-States at 64 106 km² around 750 BCE and Carthage at 129 112 km² by 480 BCE.")
+    periods: tuple["Polity", ...] = Field((), description="The same polity as its borders moved, one entry per change — each with its own years, its own polygon and its own area. A polity is one thing that held different ground at different times, so the identity stays here and only the ground repeats. An entry inside this tuple carries no periods of its own.")
     modern_polities: tuple["Polity", ...] = Field((), description="The polities that hold this ground today, several because a historical polity does not stop at modern borders. A modern country is a polity that still exists, so it is described by this same model — with an empty `modern_polities` of its own.")
 
 
