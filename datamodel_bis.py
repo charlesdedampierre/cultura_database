@@ -3,15 +3,20 @@
 Four tables, all joined on `wikidata_id`:
 
     IndividualWikidata    what Wikidata says
-    IndividualCV          what the cross-verified database of Laouenan et al. (2022) says
-    IndividualPantheon    what Pantheon 2.0 says
+    IndividualCV          what the cross-verified database of Laouenan et al. (2022) adds to it
+    IndividualPantheon    what Pantheon 2.0 adds to it
     IndividualEnriched    what this project computed from them
 
-The three source tables are cleaned, not corrected. A date is an ISO string
-rather than Wikidata's '1879-03-14T00:00:00Z', a place is its English name
-rather than a bare qid — but nothing is chosen, reconciled or filled in. Where
-two of them disagree, both rows keep their answer, and the disagreement is
-visible by joining them.
+Wikidata is the backbone, so it carries the names, the dates, the places, the
+occupations. The other two carry only what it does not have: CVDB the
+uncertainty windows around a year and its own occupation ontology, Pantheon the
+GeoNames identifiers and its popularity index. Nothing is repeated across the
+three, which is what makes the question "where does this come from" answerable
+by looking at which table a column is in.
+
+The source tables are cleaned, not corrected. A date is an ISO string rather
+than Wikidata's '1879-03-14T00:00:00Z', a place is its English name rather than
+a bare qid — but nothing is chosen, reconciled or filled in.
 
 The fourth table is where this project's judgement lives, and nowhere else. It
 holds the floruit, the polity, the notability score, the modern country under a
@@ -68,56 +73,30 @@ class IndividualWikidata(BaseModel):
 
 
 class IndividualCV(BaseModel):
-    wikidata_id: str = Field(..., description="The qid this dataset resolved, and the key it joins on.")
-    name: str | None = Field(None, description="Display name as the dataset spells it, underscores instead of spaces.")
-    birth: int | None = Field(None, description="Best-estimate birth year, negative before the common era. The dataset's own estimate, not a reading — see `approx_birth` and the bounds.")
-    death: int | None = Field(None, description="Best-estimate death year.")
+    wikidata_id: str = Field(..., description="The qid this dataset resolved, and the key it joins on. Only what this dataset adds is here: its name, gender, dates, occupations and citizenships are on IndividualWikidata already.")
     birth_min: int | None = Field(None, description="Lower bound of the birth-year uncertainty window. Cultura's own model has a precision code but no window, so this is something only this source carries.")
     birth_max: int | None = Field(None, description="Upper bound.")
     death_min: int | None = Field(None, description="Lower bound of the death-year window.")
     death_max: int | None = Field(None, description="Upper bound.")
     approx_birth: str | None = Field(None, description="Approximation flag — circa, decade, century.")
     approx_death: str | None = None
-    gender: str | None = Field(None, description="Male, Female or Other. A closed vocabulary, unlike Wikidata's.")
     occupation_domain: Literal["Culture", "Discovery/Science", "Leadership", "Sports/Games", "Other", "Missing"] | None = Field(None, description="Top-level occupation domain. The grouping this literature uses, which is why it is worth carrying even though Wikidata has its own occupations.")
     occupation_field: str | None = Field(None, description="Sub-domain — 'Culture-core', 'Politics', 'Academia'.")
-    occupation: str | None = Field(None, description="Fine-grained occupation — 'playwright', 'footballer', 'painter'.")
-    citizenship_1: str | None = Field(None, description="Primary citizenship, as a cleaned country name.")
-    citizenship_2: str | None = None
     polity_1: str | None = Field(None, description="Primary historical-state attachment. This dataset's own answer to the question Cliopatria answers for Cultura: two independent methods, comparable row by row.")
     polity_2: str | None = None
-    wikipedia_editions: int | None = Field(None, description="Number of language editions covering the person, as this dataset counted them.")
     visibility: float | None = Field(None, description="Composite log-visibility score over five criteria. This dataset's ranking metric, as Pantheon's hpi and Cultura's notability are theirs — three answers to the same question.")
     visibility_rank: int | None = Field(None, description="Rank on that score; lower is more visible.")
-    birthplace_latitude: float | None = None
-    birthplace_longitude: float | None = None
-    deathplace_latitude: float | None = None
-    deathplace_longitude: float | None = None
     origins: dict[str, Origin] = Field({}, description="Which column of CrossVerifiedPerson each value came from, keyed by field name.")
 
 
 class IndividualPantheon(BaseModel):
-    wikidata_id: str = Field(..., description="The qid this dataset resolved, and the key it joins on.")
-    name: str | None = None
-    occupation: str | None = Field(None, description="Pantheon's own occupation label, uppercased — 'RELIGIOUS FIGURE'. A third vocabulary, neither Wikidata's nor CVDB's.")
-    gender: str | None = Field(None, description="'M' or 'F'.")
-    birth_year: int | None = Field(None, description="Year of birth, negative before the common era.")
-    birth_date: str | None = Field(None, description="Full date where the dataset has one, zero-padded: '0632-06-08'.")
-    death_year: int | None = None
-    death_date: str | None = None
-    birthplace: str | None = Field(None, description="Birthplace by name, resolved against GeoNames rather than Wikidata.")
-    birthplace_latitude: float | None = None
-    birthplace_longitude: float | None = None
+    wikidata_id: str = Field(..., description="The qid this dataset resolved, and the key it joins on. Only what this dataset adds is here: its name, gender, dates and place names are on IndividualWikidata already.")
     birthplace_geonames_id: int | None = Field(None, description="The GeoNames identifier. The one place in the published set where a place is identified outside Wikidata, which makes it useful for checking the Wikidata resolution.")
     birthplace_country: str | None = Field(None, description="Modern country of the birthplace, by name.")
     birthplace_polity: str | None = Field(None, description="The historical polity holding the birthplace, from GeaCron — a third answer to the polity question, after Cliopatria and CVDB.")
-    deathplace: str | None = None
-    deathplace_latitude: float | None = None
-    deathplace_longitude: float | None = None
     deathplace_geonames_id: int | None = None
     deathplace_country: str | None = None
     deathplace_polity: str | None = None
-    wikipedia_editions: int | None = Field(None, description="Number of language editions carrying an article, as Pantheon counted them.")
     effective_editions: float | None = Field(None, description="An effective number of editions: always smaller than the count and never whole — 223 editions give 26.6 — because it discounts editions that carry little. Pantheon's answer to the problem Cultura's geometric mean addresses.")
     hpi: float | None = Field(None, description="Historical Popularity Index, Pantheon's ranking metric.")
     is_group: bool | None = Field(None, description="True when the row is not one person. Filter these out.")
