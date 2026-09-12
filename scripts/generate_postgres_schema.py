@@ -49,10 +49,9 @@ def is_model(t) -> bool:
     return isinstance(t, type) and issubclass(t, BaseModel)
 
 
-def value_type(information: type[BaseModel]) -> str:
-    """Pydantic makes each Information[T] a real class, so read T off its field."""
-    inner, _ = unwrap(information.model_fields["value"].annotation)
-    return "text" if get_origin(inner) is Literal else SQL_TYPE.get(inner, "text")
+def value_type(_information: type[BaseModel]) -> str:
+    """An Information holds any scalar, so the column takes the widest of them."""
+    return "text"
 
 
 def ddl() -> str:

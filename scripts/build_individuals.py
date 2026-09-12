@@ -29,7 +29,7 @@ def wikidata(value, prop, qid=None, label=None, description=None, on=READ):
     """A value read from a Wikidata property."""
     if value is None:
         return None
-    return Information[type(value)](value=value, source=Wikidata(
+    return Information(value=value, source=Wikidata(
         property=prop, property_definition=PROPERTIES.get(prop, {}).get("definition"),
         qid=qid, label_en=label, description_en=description, date_of_extraction=on))
 
@@ -38,7 +38,7 @@ def dataset(value, platform, on=READ):
     """A value taken from another dataset."""
     if value is None:
         return None
-    return Information[type(value)](value=value, source=Dataset(
+    return Information(value=value, source=Dataset(
         platform=platform, dataset_version=SOURCES["external_dataset_versions"].get(platform),
         date_of_extraction=on))
 
@@ -47,7 +47,7 @@ def derived(value, rule, *inputs, on=READ):
     """A value this project computed."""
     if value is None:
         return None
-    return Information[type(value)](value=value, source=Derived(
+    return Information(value=value, source=Derived(
         derived_from=inputs, rule=rule, date_of_extraction=on))
 
 
@@ -55,7 +55,7 @@ def answered(value, on=date(2026, 5, 6)):
     """A value a language model read out of a Wikipedia article."""
     if value is None:
         return None
-    return Information[type(value)](value=value, source=AIAnswer(
+    return Information(value=value, source=AIAnswer(
         model="google/gemini-2.5-flash-lite",
         prompt=(Path(__file__).resolve().parent.parent / "prompts/wikipedia_dates.txt").read_text().strip(),
         date_of_extraction=on))
