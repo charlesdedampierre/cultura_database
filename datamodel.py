@@ -89,9 +89,15 @@ class WikipediaLink(Model):
     url: Information[str] | None = Field(None, description="URL of the article.")
 
 
+class PolityPeriod(DateRange):
+    geometry: Information[str] | None = Field(None, description="The territory held over this period, as a GeoJSON polygon. This is what decides whether a place falls inside the polity.")
+    area: Information[float] | None = Field(None, description="Area of that territory in square kilometres.")
+
+
 class Polity(Model):
     id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
+    periods: tuple[PolityPeriod, ...] = Field((), description="Territorial periods of the polity, one per change of borders — a polity holds different ground at different times, and a place falls inside it only for the periods whose polygon contains it. From the Cliopatria dataset.")
     overlap_years: Information[int] | None = Field(None, description="Years of the individual's activity window covered by this polity, summed over all of its periods. Use it to pick the dominant polity of a multi-polity individual. Its Derived source says how the place was matched to the polity — a polygon or a shared Wikipedia URL — and the place itself is the Location this polity hangs from.")
 
 
