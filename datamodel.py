@@ -16,31 +16,34 @@ class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
-class Wikidata(Model):
+class Source(Model):
+    date_of_extraction: date = Field(..., description="Day the value was obtained from this source. Mandatory whatever the source: one that is edited continuously — Wikidata above all — cannot be reproduced without it.")
+
+
+class Wikidata(Source):
     property: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'.")
     description: str | None = Field(None, description="What the property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field in this schema describes itself: the description is data, not schema.")
     label_en: str | None = Field(None, description="English label of the value when the value is a qid, pipe-joined in the same order when it is several. Wikidata rdfs:label — only an item read from Wikidata has one, which is why it sits here and not on the Information.")
 
 
-class Dataset(Model):
+class Dataset(Source):
     platform: Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"] = Field(..., description="Dataset the value was taken from.")
     dataset_version: str | None = Field(None, description="Version or release of the dataset, as listed in sources.json.")
 
 
-class Derived(Model):
+class Derived(Source):
     derived_from: tuple[str, ...] = Field(..., min_length=1, description="Fields the value was computed from, as 'Model.field'.")
     rule: str = Field(..., description="The rule applied to those fields, in one sentence.")
 
 
-class AIAnswer(Model):
+class AIAnswer(Source):
     model: str = Field(..., description="Exact model id that produced the value.")
     prompt: str = Field(..., description="Exact prompt sent to the model, verbatim.")
 
 
 class Information(Model, Generic[T]):
     value: T | None = Field(None, description="The value itself. Multi-valued fields are pipe-joined in the source's order.")
-    source: Wikidata | Dataset | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among four — no field in this schema is tied to it.")
-    date_of_extraction: date = Field(..., description="Day the value was obtained from its source, whichever source that is. Mandatory, because a source edited continuously — Wikidata above all — cannot be reproduced without it.")
+    source: Wikidata | Dataset | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among four — no field in this schema is tied to it.")
 
 
 PROPERTIES: dict[str, dict[str, str]] = json.loads((HERE / "properties.json").read_text())
@@ -51,11 +54,11 @@ SOURCES: dict[str, dict[str, str]] = json.loads((HERE / "sources.json").read_tex
 
 
 def urban_settlement_answer() -> "Information[bool]":
-    return Information[bool](source=AIAnswer(model="google/gemini-3-flash-preview", prompt=(HERE / "prompts/urban_settlement.txt").read_text().strip()), date_of_extraction=date(2026, 4, 23))
+    return Information[bool](source=AIAnswer(model="google/gemini-3-flash-preview", prompt=(HERE / "prompts/urban_settlement.txt").read_text().strip(), date_of_extraction=date(2026, 4, 23)))
 
 
 def wikipedia_dates_answer() -> "Information[str]":
-    return Information[str](source=AIAnswer(model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip()), date_of_extraction=date(2026, 5, 6))
+    return Information[str](source=AIAnswer(model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip(), date_of_extraction=date(2026, 5, 6)))
 
 
 class Date(Model):
