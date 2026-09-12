@@ -106,9 +106,8 @@ class Location(Model):
     country: Information[str] | None = None
     wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
     country_wikipedia_link: WikipediaLink | None = Field(None, description="The Wikipedia article of the country the place belongs to.")
-    modern_country: Information[str] | None = Field(None, description="Modern country the place maps onto, so historical data can be aggregated on today's borders.")
+    modern_country: Information[str] | None = Field(None, description="Modern country the place maps onto, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
     modern_country_iso_a3: Information[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
-    modern_country_resolved_by: Information[str] | None = Field(None, description="How the mapping was resolved: 'reverse_geocode' (point-in-polygon on the coordinates), 'capital_city', 'qlever_relation', 'qlever_replaced_by', or 'unknown_legacy'.")
     inception: Date | None = Field(None, description="Date the place began to exist. Wikidata P571.")
     dissolution: Date | None = Field(None, description="Date the place ceased to exist. Wikidata P576.")
     polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity, empty when the place matched none. From the Cliopatria dataset.")
