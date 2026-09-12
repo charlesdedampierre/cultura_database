@@ -1,9 +1,8 @@
 import json
 from datetime import date
 from pathlib import Path
-from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field
 
 HERE = Path(__file__).parent
 
@@ -20,11 +19,6 @@ class Wikidata(Source):
     description_en: str | None = Field(None, description="English one-line description of that item. Wikidata schema:description.")
     property: str | None = Field(None, description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'. Empty when this stands as a row's identity rather than as the source of a value.")
     property_definition: str | None = Field(None, description="What that property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field in this schema describes itself: the definition is data, not schema.")
-
-    @model_validator(mode="after")
-    def name_the_item_or_the_property(self) -> "Wikidata":
-        assert self.qid or self.property, "a Wikidata source must name the item it read, the property it read, or both"
-        return self
 
 
 class Derived(Source):
@@ -49,14 +43,6 @@ PROPERTIES: dict[str, dict[str, str]] = json.loads((HERE / "properties.json").re
 ROLE_FROM_PROPERTY: dict[str, str] = {pid: p["credit_role"] for pid, p in PROPERTIES.items() if "credit_role" in p}
 
 SOURCES: dict[str, dict[str, str]] = json.loads((HERE / "sources.json").read_text())
-
-
-def urban_settlement_answer() -> "Information":
-    return Information(source=AIAnswer(model="google/gemini-3-flash-preview", prompt=(HERE / "prompts/urban_settlement.txt").read_text().strip(), date_of_extraction=date(2026, 4, 23)))
-
-
-def wikipedia_dates_answer() -> "Information":
-    return Information(source=AIAnswer(model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip(), date_of_extraction=date(2026, 5, 6)))
 
 
 class Date(BaseModel):
@@ -93,7 +79,7 @@ class Location(BaseModel):
     lat: Information | None = None
     lon: Information | None = None
     entity_types: Information | None = None
-    is_urban_settlement: Information | None = Field(default_factory=urban_settlement_answer, description="True if the place counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `entity_types` is in the urban set.")
+    is_urban_settlement: Information | None = Field(None, description="True if the place counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `entity_types` is in the urban set.")
     country: Information | None = None
     wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
     country_wikipedia_link: WikipediaLink | None = Field(None, description="The Wikipedia article of the country the place belongs to.")
