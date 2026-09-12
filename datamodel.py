@@ -71,7 +71,6 @@ class Polity(BaseModel):
     geometry: Information | None = Field(None, description="The territory held over these years, as a GeoJSON MultiPolygon. This is what decides whether a place falls inside the polity, and it is the heaviest field in the schema — a polity averages 16 periods and one reaches 212.")
     area: Information | None = Field(None, description="Area of that territory in square kilometres.")
     modern_polities: tuple["Polity", ...] = Field((), description="The polities that hold this ground today, several because a historical polity does not stop at modern borders. A modern country is a polity that still exists, so it is described by this same model — with an empty `modern_polities` of its own.")
-    overlap_years: Information | None = Field(None, description="Years of the individual's activity window covered by this period. Sum them over the entries that share an id to rank the polities of a multi-polity individual. Its Derived source says how the place was matched — a polygon or a shared Wikipedia URL — and the place itself is the Location this entry hangs from.")
 
 
 class Location(BaseModel):
@@ -115,6 +114,7 @@ class Individual(BaseModel):
 
     birthdates: tuple[Date, ...] = Field((), description="Every birth date known for the individual, one per source: Wikidata P569, the Wikidata description read by regex, the cross-verified database, or the Wikipedia article read by a language model. A date this project computes rather than reads is a candidate like any other, and its `rule` says how. Each Date names its own source, so which candidate is which is read off it rather than off a field name. Empty when no source gives one.")
     deathdates: tuple[Date, ...] = Field((), description="Every death date known for the individual, one per source, as for `birthdates`.")
+    polity_overlap_years: Information | None = Field(None, description="Years of the individual's activity window covered by the polities of their places, summed. Use it to tell someone who spent a life inside one polity from someone who only brushed against it. Its Derived source names the places it was computed over and says how each match was made — a polygon, or a Wikipedia URL shared with the polity.")
     floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds — by convention an individual is active from age 30 to age 60, truncated by an early death. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
     works_period: Floruit | None = Field(None, description="The window over which the individual produced works — a floruit like any other, and one of the things the resolved floruit is derived from. The date of a work is its publication date, else its inception date.")
 
