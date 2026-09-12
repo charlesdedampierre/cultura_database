@@ -1,24 +1,25 @@
-import json
 from datetime import date
-from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-HERE = Path(__file__).parent
-
 
 class Source(BaseModel):
-    name: str = Field(..., description="Which of the three shapes this source is: Wikidata, Derived or AIAnswer. Each one sets it, so it rides with the value and a store that flattens the union — DuckDB collapses it to one struct, PostgreSQL to one table — can still tell them apart.")
+    name: str = Field(..., description="Which of the four shapes this source is: WikidataEntity, WikidataProperty, Derived or AIAnswer. Each one sets it, so it rides with the value and a store that flattens the union — DuckDB collapses it to one struct, PostgreSQL to one table — can still tell them apart.")
     date_of_extraction: date = Field(..., description="Day the value was obtained from this source. Mandatory whatever the source: one that is edited continuously — Wikidata above all — cannot be reproduced without it.")
 
 
-class Wikidata(Source):
-    name: str = "Wikidata"
-    qid: str | None = Field(None, description="The Wikidata item in question, e.g. 'Q937': the item the value points at when the value is a qid, or the item the row is when this stands as a row's wikidata_entity.")
-    label_en: str | None = Field(None, description="English label of that item, pipe-joined in the same order when the value is several qids. Wikidata rdfs:label. It saves every qid-valued field an id / label twin.")
+class WikidataEntity(Source):
+    name: str = "WikidataEntity"
+    qid: str = Field(..., description="The Wikidata item this value is, e.g. 'Q937'. Use it when a row says which item it is, rather than when a value was read from one of its properties.")
+    label_en: str | None = Field(None, description="English label of that item. Wikidata rdfs:label.")
     description_en: str | None = Field(None, description="English one-line description of that item. Wikidata schema:description.")
-    property: str | None = Field(None, description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'. Empty when this stands as a row's identity rather than as the source of a value.")
+
+
+class WikidataProperty(Source):
+    name: str = "WikidataProperty"
+    property: str = Field(..., description="Wikidata property the value was read from, e.g. 'P569'. Non-property Wikidata sources keep their RDF term, e.g. 'rdfs:label'.")
     property_definition: str | None = Field(None, description="What that property means, e.g. 'date on which the subject was born'. Read from properties.json and carried with the value, which is why no field in this schema describes itself: the definition is data, not schema.")
+    label_en: str | None = Field(None, description="English label of the item the value points at, when the value is a qid — pipe-joined in the same order when it is several. It saves every qid-valued field an id / label twin.")
 
 
 class Derived(Source):
@@ -35,14 +36,7 @@ class AIAnswer(Source):
 
 class Information(BaseModel):
     value: str | int | float | bool | None = Field(None, description="The value itself. Multi-valued fields are pipe-joined in the source's order.")
-    source: Wikidata | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among three — no field in this schema is tied to it.")
-
-
-PROPERTIES: dict[str, dict[str, str]] = json.loads((HERE / "properties.json").read_text())
-
-ROLE_FROM_PROPERTY: dict[str, str] = {pid: p["credit_role"] for pid, p in PROPERTIES.items() if "credit_role" in p}
-
-SOURCES: dict[str, dict[str, str]] = json.loads((HERE / "sources.json").read_text())
+    source: WikidataEntity | WikidataProperty | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among four — no field in this schema is tied to it.")
 
 
 class Date(BaseModel):
@@ -140,7 +134,7 @@ class Individual(BaseModel):
 
 
 class Work(BaseModel):
-    wikidata_entity: Wikidata | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
+    wikidata_entity: WikidataEntity | None = Field(None, description="The Wikidata item this row is: its qid, its English label and description, and the day it was read. NULL when the row was named in a source but never resolved to Wikidata.")
     creator: Information
     role: Information | None = None
     instance_of: Information | None = None
