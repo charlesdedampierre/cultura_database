@@ -121,8 +121,8 @@ class Individual(BaseModel):
     floruits: tuple[Floruit, ...] = Field((), description="Every activity window known for the individual, one per source: stated outright by Wikidata P1317, recovered by regex from the Wikidata description, read out of the Wikipedia article by a language model, or resolved by this project from the birth and death dates it holds — by convention an individual is active from age 30 to age 60, truncated by an early death. Each Date inside names its own source, so which window is which is read off it rather than off a field name.")
     works_period: Floruit | None = Field(None, description="The window over which the individual produced works — a floruit like any other, and one of the things the resolved floruit is derived from. The date of a work is its publication date, else its inception date.")
 
-    birthplace: City | None = Field(None, description="Place of birth, with its coordinates and the polities it sits in. Wikidata P19 'place of birth'.")
-    deathplace: City | None = Field(None, description="Place of death, with its coordinates and the polities it sits in. Wikidata P20 'place of death'.")
+    birthplace: City | Polity | None = Field(None, description="Place of birth: a city when Wikidata names one, a polity when it names only a country — which it does for 229 of the 2000 individuals in the sample, and for a hospital or an oratory it names neither. Wikidata P19 'place of birth'.")
+    deathplace: City | Polity | None = Field(None, description="Place of death, a city or a polity as for `birthplace`. Wikidata P20 'place of death'.")
     citizenships: tuple[Polity, ...] = Field((), description="Polities the individual was a citizen of, in Wikidata order, historical ones included — each carrying the ground it held and the polities holding that ground today. Wikidata P27 'country of citizenship'.")
 
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
