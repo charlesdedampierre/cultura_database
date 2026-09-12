@@ -75,6 +75,15 @@ class Location(Model):
     dissolution: Wikidata[str] | None = None
 
 
+class Polity(Model):
+    id: External[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
+    name: External[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
+    origin: Derived[Literal["birthplace", "deathplace", "country_of_citizenship"]] | None = Field(None, description="Which attribute placed the individual in the polity.")
+    method: Derived[Literal["merge_with_polygon", "merge_with_url"]] | None = Field(None, description="How the match was made: the place fell inside the polity's polygon, or the two shared a Wikipedia URL.")
+    matched: Derived[QID] | None = Field(None, description="The city or country that produced the match.")
+    overlap_years: Derived[int] | None = Field(None, description="Years of the activity window covered by this polity, summed over all of its periods. Use it to pick the dominant polity of a multi-polity individual.")
+
+
 class Individual(Model):
     qid: QID | None = Field(None, description="Wikidata item id, e.g. 'Q937'. NULL when the item was named in a source but never resolved to Wikidata.")
     label_en: str | None = Field(None, description="English label of the individual. Wikidata rdfs:label.")
@@ -144,14 +153,9 @@ class Individual(Model):
     life_expectancy_median_used: Derived[float] | None = Field(None, description="Median life expectancy in years applied. The medians are estimated in-sample from Cultura individuals that have both dates at year precision — they are not a published life table.")
     in_pantheon_2: External[bool] | None = Field(None, description="True if the individual appears in the Pantheon 2.0 dataset.")
     in_cross_verified_db: External[bool] | None = Field(None, description="True if the individual appears in the cross-verified database.")
-    polity_ids: External[str] | None = Field(None, description="Historical polities the individual overlaps, pipe-joined Cliopatria ids.")
-    polity_names: External[str] | None = Field(None, description="Names of those polities, e.g. 'Ottoman Empire', pipe-joined in the same order.")
-    polity_origins: Derived[str] | None = Field(None, description="Which attribute placed the individual in each polity — 'birthplace', 'deathplace' or 'country_of_citizenship' — pipe-joined in the same order.")
-    polity_methods: Derived[str] | None = Field(None, description="How each match was made — 'merge_with_polygon' (the place fell inside the polity's polygon) or 'merge_with_url' (the two shared a Wikipedia URL) — pipe-joined in the same order.")
-    polity_matched_qids: Derived[str] | None = Field(None, description="The city or country that produced each match, pipe-joined qids in the same order.")
-    polity_overlap_years: Derived[str] | None = Field(None, description="Years of the activity window covered by each polity, pipe-joined in the same order. Use it to pick the dominant polity of a multi-polity individual.")
+    polities: tuple[Polity, ...] = Field((), description="Historical polities the individual overlaps, one entry per polity, from the Cliopatria dataset.")
     polity_floruit_year: Derived[int] | None = Field(None, description="Floruit year used to test the overlap with the polities' periods.")
-    polity_route_polygon_birthplace: Derived[bool] | None = Field(None, description="True if the birth place falls inside some polity polygon. The route flags say which matches were available, so the coverage of `polity_ids` can be audited.")
+    polity_route_polygon_birthplace: Derived[bool] | None = Field(None, description="True if the birth place falls inside some polity polygon. The route flags say which matches were available, so the coverage of `polities` can be audited.")
     polity_route_polygon_deathplace: Derived[bool] | None = Field(None, description="True if the death place falls inside some polity polygon.")
     polity_route_polygon_citizenship: Derived[bool] | None = Field(None, description="True if the country of citizenship falls inside some polity polygon.")
     polity_route_url_birthplace: Derived[bool] | None = Field(None, description="True if the birth place matched a polity by Wikipedia URL.")
