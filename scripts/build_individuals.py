@@ -197,7 +197,7 @@ def build(limit: int) -> list[Individual]:
         if p is None:
             return None
         return City(
-            id=entity(p["id"], label=p["name_en"]),
+            id=entity(p["id"], label=p["name_en"]), name=wikidata(p["name_en"], "rdfs:label"),
             lat=wikidata(p["lat"], "P625"), lon=wikidata(p["lon"], "P625"),
             modern_polity=Polity(
                 name=derived(p["iso_country_name"], "reverse geocode on today's borders", "City.lat", "City.lon"),
