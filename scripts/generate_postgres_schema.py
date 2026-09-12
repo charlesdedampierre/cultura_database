@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import datamodel as dm
 from pydantic import BaseModel
 
-SOURCES = (dm.Wikidata, dm.Dataset, dm.Derived, dm.AIAnswer)
+SOURCES = (dm.Wikidata, dm.Derived, dm.AIAnswer)
 
 SQL_TYPE = {str: "text", int: "bigint", float: "double precision", bool: "boolean", dm.date: "date"}
 
@@ -69,10 +69,9 @@ def ddl() -> str:
             cols[name] = "text[]" if is_tuple else SQL_TYPE.get(inner, "text")
     out += ["create table source (", "    id bigserial primary key,"]
     out += [f"    {n} {t}," for n, t in cols.items()]
-    out += [f"    constraint source_is_one_of_the_four check (name in ({', '.join(repr(s.__name__) for s in SOURCES)})),",
+    out += [f"    constraint source_is_one_of_the_three check (name in ({', '.join(repr(s.__name__) for s in SOURCES)})),",
             "    -- and each shape must carry what that shape requires",
             "    constraint wikidata_names_an_item_or_a_property check (name <> 'Wikidata' or qid is not null or property is not null),",
-            "    constraint dataset_names_a_platform check (name <> 'Dataset' or platform is not null),",
             "    constraint derived_names_its_inputs_and_rule check (name <> 'Derived' or (derived_from is not null and rule is not null)),",
             "    constraint ai_names_its_model_and_prompt check (name <> 'AIAnswer' or (model is not null and prompt is not null))",
             ");", ""]

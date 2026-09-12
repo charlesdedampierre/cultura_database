@@ -9,7 +9,7 @@ HERE = Path(__file__).parent
 
 
 class Source(BaseModel):
-    name: str = Field(..., description="Which of the four shapes this source is: Wikidata, Dataset, Derived or AIAnswer. Each one sets it, so it rides with the value and a store that flattens the union — DuckDB collapses it to one struct, PostgreSQL to one table — can still tell them apart.")
+    name: str = Field(..., description="Which of the three shapes this source is: Wikidata, Derived or AIAnswer. Each one sets it, so it rides with the value and a store that flattens the union — DuckDB collapses it to one struct, PostgreSQL to one table — can still tell them apart.")
     date_of_extraction: date = Field(..., description="Day the value was obtained from this source. Mandatory whatever the source: one that is edited continuously — Wikidata above all — cannot be reproduced without it.")
 
 
@@ -27,12 +27,6 @@ class Wikidata(Source):
         return self
 
 
-class Dataset(Source):
-    name: str = "Dataset"
-    platform: Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"] = Field(..., description="Dataset the value was taken from.")
-    dataset_version: str | None = Field(None, description="Version or release of the dataset, as listed in sources.json.")
-
-
 class Derived(Source):
     name: str = "Derived"
     derived_from: tuple[str, ...] = Field(..., min_length=1, description="Fields the value was computed from, as 'Model.field'.")
@@ -47,7 +41,7 @@ class AIAnswer(Source):
 
 class Information(BaseModel):
     value: str | int | float | bool | None = Field(None, description="The value itself. Multi-valued fields are pipe-joined in the source's order.")
-    source: Wikidata | Dataset | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among four — no field in this schema is tied to it.")
+    source: Wikidata | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among three — no field in this schema is tied to it.")
 
 
 PROPERTIES: dict[str, dict[str, str]] = json.loads((HERE / "properties.json").read_text())
