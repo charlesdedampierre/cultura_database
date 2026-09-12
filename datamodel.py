@@ -92,8 +92,7 @@ class WikipediaLink(Model):
 class Polity(Model):
     id: Information[int] | None = Field(None, description="Polity identifier, from the Cliopatria dataset.")
     name: Information[str] | None = Field(None, description="Name of the polity, e.g. 'Ottoman Empire'.")
-    matched: Information[str] | None = Field(None, description="The city or country that produced the match. How it was made — the place fell inside the polity's polygon, or the two shared a Wikipedia URL — is the `rule` of its Derived source.")
-    overlap_years: Information[int] | None = Field(None, description="Years of the activity window covered by this polity, summed over all of its periods. Use it to pick the dominant polity of a multi-polity individual.")
+    overlap_years: Information[int] | None = Field(None, description="Years of the individual's activity window covered by this polity, summed over all of its periods. Use it to pick the dominant polity of a multi-polity individual. Its Derived source says how the place was matched to the polity — a polygon or a shared Wikipedia URL — and the place itself is the Location this polity hangs from.")
 
 
 class Location(Model):
