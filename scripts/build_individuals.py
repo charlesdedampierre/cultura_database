@@ -137,8 +137,7 @@ def build(limit: int) -> list[Individual]:
             entity_types=wikidata(p["entity_type"], "P31"),
             modern_polity=Polity(
                 name=derived(p["iso_country_name"], "reverse geocode on today's borders", "City.lat", "City.lon"),
-                id=derived(p["iso_a3_code"], "ISO 3166-1 lookup", "Polity.name")) if p["iso_country_name"] else None,
-            declared_polity=Polity(name=wikidata(p["original_country_name"], "P17")) if p["original_country_name"] else None)
+                id=derived(p["iso_a3_code"], "ISO 3166-1 lookup", "Polity.name")) if p["iso_country_name"] else None)
 
     out = []
     for r in rows:
