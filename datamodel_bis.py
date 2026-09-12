@@ -5,16 +5,22 @@ a wrapper you have to unpack. Where a value came from lives beside it, in
 `origins`, keyed by the field name:
 
     einstein.birth_year            1879
-    einstein.origins["birth_year"] Origin(dataset='wikidata', reference='P569', …)
+    einstein.origins["birth_year"] Origin(dataset='wikidata', raw=('IndividualWikidata.date_of_birth',), …)
 
     einstein.floruit               1919
     einstein.origins["floruit"]    Origin(dataset='cultura', inputs=('birth_year', 'death_year'),
                                           rule='midpoint of the window an individual is active over…')
 
 Nothing in this file is taken on trust. Every field is either read from a named
-dataset or computed here, and `origins` says which for every one of them, with
-the property or column it was read from, or the inputs and the rule it was
-computed with. A field with no entry in `origins` is a field with no value.
+dataset or computed here, and `origins` says which for every one of them: a read
+value names the fields of datamodel_raw.py it came from, a computed one names
+the fields of this row it was computed from and the rule. A field with no entry
+in `origins` is a field with no value.
+
+The chain is complete in both directions. From a published field you reach the
+raw field it was read from; a raw field is named after its Wikidata property;
+and Property holds that property's definition in Wikidata's own words. From a
+raw field you can find every published field that used it.
 
 Five datasets feed it. Wikidata is the backbone; the cross-verified database of
 Laouenan et al. (2022) and Pantheon 2.0 supply dates and occupations Wikidata
@@ -36,7 +42,7 @@ from pydantic import BaseModel, Field
 
 class Origin(BaseModel):
     dataset: Literal["wikidata", "cross_verified_database", "pantheon_2", "wikipedia", "cliopatria", "cultura"] = Field(..., description="Which dataset the value was read from, or 'cultura' when this project computed it. sources.json records the release of each one and the day it was read.")
-    reference: str | None = Field(None, description="What it was read from inside that dataset: a Wikidata property id such as 'P569', a column name such as 'level1_main_occ', or a Cliopatria field. Empty for a computed value.")
+    raw: tuple[str, ...] = Field((), description="The fields of datamodel_raw.py this value was read from, as 'Model.field' — 'IndividualWikidata.date_of_birth', 'CrossVerifiedPerson.death', 'PolityCliopatria.name'. That is the link back to the data as it arrived, and from there to what the field means: a raw field is named after its Wikidata property, and Property holds the definition. Empty for a value computed here.")
     inputs: tuple[str, ...] = Field((), description="For a computed value, the fields of this row it was computed from, so the computation can be checked against the row that carries it. Empty for a value that was read.")
     rule: str | None = Field(None, description="For a computed value, what was done to those inputs, in one sentence. This is the whole method: there is no step recorded elsewhere.")
     model: str | None = Field(None, description="For a value a language model produced, the exact model id. The prompt is in prompts/, named after the task.")
