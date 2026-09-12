@@ -146,12 +146,13 @@ class Individual(Model):
 
     occupations: tuple[Occupation, ...] = Field((), description="Occupations, in Wikidata order, each with its meta-occupation and its CVDB ontology. Wikidata P106 'occupation'.")
     wikipedia_links: tuple[WikipediaLink, ...] = Field((), description="Wikipedia articles about the individual, one per language edition. These are what the notability scores count.")
-    notability: Notability | None = Field(None, description="Wikipedia coverage of the individual, counted over `wikipedia_links`. Fame in this project is how many language editions carry an article, and how far that reach crosses the Western / non-Western divide.")
     identifiers: tuple[Identifier, ...] = Field((), description="The individual's records in external databases, one entry per database.")
 
-    gender: Information[QID] | None = None
+    notability: Notability | None = Field(None, description="Wikipedia coverage of the individual, counted over `wikipedia_links`. Fame in this project is how many language editions carry an article, and how far that reach crosses the Western / non-Western divide.")
+    gender: Information[str] | None = Field(None, description="Gender as its source gives it: a Wikidata item id from P21, whose English label is in the source, or a plain word from a dataset that has no item for it. Free vocabulary — 48 distinct values in the data, a few of them unresolved.")
     non_human: Information[bool] | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
     writing_languages: Information[str] | None = None
+
     in_pantheon_2: Information[bool] | None = Field(None, description="True if the individual appears in the Pantheon 2.0 dataset.")
     in_cross_verified_db: Information[bool] | None = Field(None, description="True if the individual appears in the cross-verified database.")
 
@@ -166,11 +167,6 @@ class Work(Model):
     instance_of: Information[str] | None = None
     inception: Date | None = Field(None, description="Date the work was created. Wikidata P571.")
     publication: Date | None = Field(None, description="Date the work was first published or released. Wikidata P577.")
-
-    @field_validator("role", mode="before")
-    @classmethod
-    def normalize_role(cls, value: object) -> object:
-        return value | {"value": ROLE_FROM_PROPERTY.get(value["value"], value["value"])} if isinstance(value, dict) and isinstance(value.get("value"), str) else value
 
 
 TABLES: dict[str, type[Model]] = {"individuals": Individual, "works": Work}
