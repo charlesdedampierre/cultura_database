@@ -71,7 +71,7 @@ class Polity(DateRange):
     wikipedia_link: WikipediaLink | None = Field(None, description="The polity's English Wikipedia article. It is one of the two ways a place is matched to a polity, the other being this period's polygon.")
     geometry: Information | None = Field(None, description="The territory held over these years, as a GeoJSON MultiPolygon. This is what decides whether a place falls inside the polity, and it is the heaviest field in the schema — a polity averages 16 periods and one reaches 212.")
     area: Information | None = Field(None, description="Area of that territory in square kilometres.")
-    modern_countries: Information | None = Field(None, description="Modern countries the polity's territory overlaps, as pipe-joined ISO 3166-1 alpha-3 codes, e.g. 'GRC|TUR'. This is how a historical polity is aggregated onto today's borders; each code's label and continent are a lookup away.")
+    modern_polities: tuple["Polity", ...] = Field((), description="The polities that hold this ground today, several because a historical polity does not stop at modern borders. A modern country is a polity that still exists, so it is described by this same model — with an empty `modern_polities` of its own.")
     overlap_years: Information | None = Field(None, description="Years of the individual's activity window covered by this period. Sum them over the entries that share an id to rank the polities of a multi-polity individual. Its Derived source says how the place was matched — a polygon or a shared Wikipedia URL — and the place itself is the Location this entry hangs from.")
 
 
@@ -84,8 +84,7 @@ class Location(BaseModel):
     country: Information | None = None
     wikipedia_link: WikipediaLink | None = Field(None, description="The place's own Wikipedia article. It is what the polity URL match reads.")
     country_wikipedia_link: WikipediaLink | None = Field(None, description="The Wikipedia article of the country the place belongs to.")
-    modern_country: Information | None = Field(None, description="Modern country the place maps onto, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
-    modern_country_iso_a3: Information | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
+    modern_polity: Polity | None = Field(None, description="The polity that holds this place today — a modern country, which is a polity that still exists, so historical data can be aggregated on today's borders. How the mapping was resolved — point-in-polygon on the coordinates, the capital city, a QLever relation, a replaced-by link, or a legacy value of unknown provenance — is the `rule` of its Derived source.")
     inception: Date | None = Field(None, description="Date the place began to exist. Wikidata P571.")
     dissolution: Date | None = Field(None, description="Date the place ceased to exist. Wikidata P576.")
     polities: tuple[Polity, ...] = Field((), description="Historical polities whose territory covers this place, one entry per polity and per period of its borders, empty when the place matched none. From the Cliopatria dataset.")
