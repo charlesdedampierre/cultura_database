@@ -61,21 +61,21 @@ def ddl() -> str:
            "drop schema if exists public cascade;", "create schema public;", "set search_path to public;", ""]
 
     # where every value in the database points
-    cols = {"kind": "text not null", "date_of_extraction": "date not null"}
+    cols = {"name": "text not null", "date_of_extraction": "date not null"}  # `name` is the model's own discriminator
     for src in SOURCES:
         for name, field in src.model_fields.items():
-            if name == "date_of_extraction":
+            if name in ("name", "date_of_extraction"):  # already seeded, and `name` must stay not null
                 continue
             inner, is_tuple = unwrap(field.annotation)
             cols[name] = "text[]" if is_tuple else SQL_TYPE.get(inner, "text")
     out += ["create table source (", "    id bigserial primary key,"]
     out += [f"    {n} {t}," for n, t in cols.items()]
-    out += [f"    constraint source_is_one_of_the_four check (kind in ({', '.join(repr(s.__name__) for s in SOURCES)})),",
-            "    -- and each kind must carry what that kind requires",
-            "    constraint wikidata_names_an_item_or_a_property check (kind <> 'Wikidata' or qid is not null or property is not null),",
-            "    constraint dataset_names_a_platform check (kind <> 'Dataset' or platform is not null),",
-            "    constraint derived_names_its_inputs_and_rule check (kind <> 'Derived' or (derived_from is not null and rule is not null)),",
-            "    constraint ai_names_its_model_and_prompt check (kind <> 'AIAnswer' or (model is not null and prompt is not null))",
+    out += [f"    constraint source_is_one_of_the_four check (name in ({', '.join(repr(s.__name__) for s in SOURCES)})),",
+            "    -- and each shape must carry what that shape requires",
+            "    constraint wikidata_names_an_item_or_a_property check (name <> 'Wikidata' or qid is not null or property is not null),",
+            "    constraint dataset_names_a_platform check (name <> 'Dataset' or platform is not null),",
+            "    constraint derived_names_its_inputs_and_rule check (name <> 'Derived' or (derived_from is not null and rule is not null)),",
+            "    constraint ai_names_its_model_and_prompt check (name <> 'AIAnswer' or (model is not null and prompt is not null))",
             ");", ""]
 
     joins = []
@@ -106,7 +106,7 @@ def ddl() -> str:
                 f"    primary key ({parent}_pk, ordinal)",
                 ");", ""]
 
-    out += ["create index on source (kind);", "create index on source (property);",
+    out += ["create index on source (name);", "create index on source (property);",
             "create index on individual (id);", "create index on location (id);", ""]
     return "\n".join(out)
 
