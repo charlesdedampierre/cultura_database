@@ -56,8 +56,9 @@ def value_type(information: type[BaseModel]) -> str:
 
 
 def ddl() -> str:
+    # public, because several tools assume it and a second schema buys nothing here
     out = ["-- Generated from datamodel.py by scripts/generate_postgres_schema.py — do not edit by hand.", "",
-           "drop schema if exists cultura cascade;", "create schema cultura;", "set search_path to cultura;", ""]
+           "drop schema if exists public cascade;", "create schema public;", "set search_path to public;", ""]
 
     # where every value in the database points
     cols = {"kind": "text not null", "date_of_extraction": "date not null"}
