@@ -118,7 +118,7 @@ class Identifier(Model):
 
 
 class WikipediaLink(Model):
-    site: Information[str] | None = Field(None, description="Wikipedia edition the article is in, as a site code, e.g. 'enwiki'.")
+    language: Information[str] | None = Field(None, description="Language edition the article is in, as a Wikipedia site code, e.g. 'enwiki' for English. This is what the Western / non-Western notability split counts.")
     title: Information[str] | None = Field(None, description="Title of the article in that edition.")
     url: Information[str] | None = Field(None, description="URL of the article.")
 
