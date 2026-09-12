@@ -59,9 +59,9 @@ class Floruit(DateRange):
 
 
 class WikipediaLink(BaseModel):
-    language: Information | None = Field(None, description="Language edition the article is in, as a Wikipedia site code, e.g. 'enwiki' for English. This is what the Western / non-Western notability split counts.")
-    title: Information | None = Field(None, description="Title of the article in that edition.")
-    url: Information | None = Field(None, description="URL of the article.")
+    language: str | None = Field(None, description="Language edition the article is in, as the edition's host, e.g. 'fr.wikipedia.org'. This is what the Western / non-Western notability split counts.")
+    title: str | None = Field(None, description="Title of the article in that edition.")
+    url: str | None = Field(None, description="URL of the article.")
 
 
 class Polity(DateRange):

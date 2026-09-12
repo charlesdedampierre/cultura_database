@@ -159,10 +159,8 @@ def build(limit: int) -> list[Individual]:
             identifiers=tuple(Identifier(
                 value=wikidata(i["value"], i["property_id"]),
                 url=wikidata(i["url"], i["property_id"])) for i in ids_by.get(qid, [])[:40]),
-            wikipedia_links=tuple(WikipediaLink(
-                language=wikidata(w["site"], "schema:about"),
-                title=wikidata(w["title"], "schema:about"),
-                url=wikidata(w["url"], "schema:about")) for w in links_by.get(qid, [])[:40]),
+            wikipedia_links=tuple(WikipediaLink(language=w["site"], title=w["title"], url=w["url"])
+                                  for w in links_by.get(qid, [])[:40]),
             notability=Notability(
                 total=derived(r["wikimedia_links_count"], "one per language edition", "Individual.wikipedia_links"),
                 western=derived(r["notability_western"], "Western-language editions", "Individual.wikipedia_links"),
