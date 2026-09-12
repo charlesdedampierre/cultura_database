@@ -3,7 +3,7 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 HERE = Path(__file__).parent
 
@@ -11,9 +11,13 @@ HERE = Path(__file__).parent
 class Source(BaseModel):
     date_of_extraction: date = Field(..., description="Day the value was obtained from this source. Mandatory whatever the source: one that is edited continuously — Wikidata above all — cannot be reproduced without it.")
 
+    @computed_field(description="Which of the four shapes this source is. It rides with the value, so a store that flattens the union — DuckDB collapses it to one struct, PostgreSQL to one table — can still tell them apart.")
+    @property
+    def name(self) -> str:
+        return type(self).__name__
+
 
 class Wikidata(Source):
-    name: Literal["Wikidata"] = "Wikidata"
     qid: str | None = Field(None, description="The Wikidata item in question, e.g. 'Q937': the item the value points at when the value is a qid, or the item the row is when this stands as a row's wikidata_entity.")
     label_en: str | None = Field(None, description="English label of that item, pipe-joined in the same order when the value is several qids. Wikidata rdfs:label. It saves every qid-valued field an id / label twin.")
     description_en: str | None = Field(None, description="English one-line description of that item. Wikidata schema:description.")
@@ -27,26 +31,23 @@ class Wikidata(Source):
 
 
 class Dataset(Source):
-    name: Literal["Dataset"] = "Dataset"
     platform: Literal["pantheon_2", "cross_verified_db", "cliopatria", "wikipedia"] = Field(..., description="Dataset the value was taken from.")
     dataset_version: str | None = Field(None, description="Version or release of the dataset, as listed in sources.json.")
 
 
 class Derived(Source):
-    name: Literal["Derived"] = "Derived"
     derived_from: tuple[str, ...] = Field(..., min_length=1, description="Fields the value was computed from, as 'Model.field'.")
     rule: str = Field(..., description="The rule applied to those fields, in one sentence.")
 
 
 class AIAnswer(Source):
-    name: Literal["AIAnswer"] = "AIAnswer"
     model: str = Field(..., description="Exact model id that produced the value.")
     prompt: str = Field(..., description="Exact prompt sent to the model, verbatim.")
 
 
 class Information(BaseModel):
     value: str | int | float | bool | None = Field(None, description="The value itself. Multi-valued fields are pipe-joined in the source's order.")
-    source: Wikidata | Dataset | Derived | AIAnswer = Field(..., discriminator="name", description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among four — no field in this schema is tied to it.")
+    source: Wikidata | Dataset | Derived | AIAnswer = Field(..., description="Where the value came from, in the shape that source requires, and the day it was obtained. When it is Wikidata it also carries the property, what that property means, and the English label of the item. Wikidata is one source among four — no field in this schema is tied to it.")
 
 
 PROPERTIES: dict[str, dict[str, str]] = json.loads((HERE / "properties.json").read_text())
