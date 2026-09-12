@@ -152,7 +152,6 @@ class Individual(Model):
     gender: Information[QID] | None = None
     non_human: Information[bool] | None = Field(None, description="True if the row is not actually a human (872 rows). Set from the Wikidata classes fictional character Q95074, mythical character Q4271324, deity Q178885, fictional human Q15632617, human biblical figure Q21070568, legendary creature Q24334685. Filter these out.")
     writing_languages: Information[str] | None = None
-    life_expectancy: Information[float] | None = Field(None, description="Median life expectancy in years applied to estimate a missing birth or death date. The medians are estimated in-sample from Cultura individuals that have both dates at year precision — they are not a published life table. Which lookup produced this one, the 50-year birth bin within a CVDB occupation category or the birth bin alone, is the `rule` of the estimated date in `birthdates` or `deathdates`.")
     in_pantheon_2: Information[bool] | None = Field(None, description="True if the individual appears in the Pantheon 2.0 dataset.")
     in_cross_verified_db: Information[bool] | None = Field(None, description="True if the individual appears in the cross-verified database.")
 
