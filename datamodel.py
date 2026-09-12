@@ -59,6 +59,23 @@ def wikipedia_dates_answer() -> "AIAnswer[str]":
     return AIAnswer[str](model="google/gemini-2.5-flash-lite", prompt=(HERE / "prompts/wikipedia_dates.txt").read_text().strip(), answered_on=date(2026, 5, 6))
 
 
+class Location(Model):
+    qid: Wikidata[QID] | None = None
+    label_en: Wikidata[str] | None = None
+    lat: Wikidata[float] | None = None
+    lon: Wikidata[float] | None = None
+    entity_types: Wikidata[str] | None = None
+    is_urban_settlement: AIAnswer[bool] | None = Field(default_factory=urban_settlement_answer, description="True if the place counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `entity_types` is in the urban set.")
+    country: Wikidata[QID] | None = None
+    country_label_en: Wikidata[str] | None = None
+    country_wikipedia_url: Wikidata[str] | None = None
+    modern_country: Derived[str] | None = Field(None, description="Modern country the place maps onto, so historical data can be aggregated on today's borders.")
+    modern_country_iso_a3: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
+    modern_country_resolved_by: Derived[str] | None = Field(None, description="How the mapping was resolved: 'reverse_geocode' (point-in-polygon on the coordinates), 'capital_city', 'qlever_relation', 'qlever_replaced_by', or 'unknown_legacy'.")
+    inception: Wikidata[str] | None = None
+    dissolution: Wikidata[str] | None = None
+
+
 class Individual(Model):
     qid: QID | None = Field(None, description="Wikidata item id, e.g. 'Q937'. NULL when the item was named in a source but never resolved to Wikidata.")
     label_en: str | None = Field(None, description="English label of the individual. Wikidata rdfs:label.")
@@ -76,34 +93,8 @@ class Individual(Model):
     floruit_declared: Wikidata[str] | None = None
     floruit_declared_precision: Wikidata[int] | None = None
     floruit_declared_year: Derived[int] | None = Field(None, description="Floruit year alone, parsed out of `floruit_declared`.")
-    birthplace: Wikidata[QID] | None = None
-    birthplace_label_en: Wikidata[str] | None = None
-    birthplace_lat: Wikidata[float] | None = None
-    birthplace_lon: Wikidata[float] | None = None
-    birthplace_entity_types: Wikidata[str] | None = None
-    birthplace_is_urban_settlement: AIAnswer[bool] | None = Field(default_factory=urban_settlement_answer, description="True if the birthplace counts as a populated settlement rather than an administrative region or a building. A language model classified the Wikidata classes, not the places; a place is urban when any of its `birthplace_entity_types` is in the urban set.")
-    birthplace_country: Wikidata[QID] | None = None
-    birthplace_country_label_en: Wikidata[str] | None = None
-    birthplace_country_wikipedia_url: Wikidata[str] | None = None
-    birthplace_modern_country: Derived[str] | None = Field(None, description="Modern country the birthplace maps onto, so historical data can be aggregated on today's borders.")
-    birthplace_modern_country_iso_a3: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country, e.g. 'FRA'.")
-    birthplace_modern_country_resolved_by: Derived[str] | None = Field(None, description="How the mapping was resolved: 'reverse_geocode' (point-in-polygon on the coordinates), 'capital_city', 'qlever_relation', 'qlever_replaced_by', or 'unknown_legacy'.")
-    birthplace_inception: Wikidata[str] | None = None
-    birthplace_dissolution: Wikidata[str] | None = None
-    deathplace: Wikidata[QID] | None = None
-    deathplace_label_en: Wikidata[str] | None = None
-    deathplace_lat: Wikidata[float] | None = None
-    deathplace_lon: Wikidata[float] | None = None
-    deathplace_entity_types: Wikidata[str] | None = None
-    deathplace_is_urban_settlement: AIAnswer[bool] | None = Field(default_factory=urban_settlement_answer, description="True if the deathplace counts as a populated settlement rather than an administrative region or a building.")
-    deathplace_country: Wikidata[QID] | None = None
-    deathplace_country_label_en: Wikidata[str] | None = None
-    deathplace_country_wikipedia_url: Wikidata[str] | None = None
-    deathplace_modern_country: Derived[str] | None = Field(None, description="Modern country the deathplace maps onto.")
-    deathplace_modern_country_iso_a3: Derived[str] | None = Field(None, description="ISO 3166-1 alpha-3 code of that country.")
-    deathplace_modern_country_resolved_by: Derived[str] | None = Field(None, description="How the mapping was resolved, as for the birthplace.")
-    deathplace_inception: Wikidata[str] | None = None
-    deathplace_dissolution: Wikidata[str] | None = None
+    birthplace: Location | None = Field(None, description="City of birth, with its coordinates, its country and its modern country. Wikidata P19 'place of birth'.")
+    deathplace: Location | None = Field(None, description="City of death, with its coordinates, its country and its modern country. Wikidata P20 'place of death'.")
     citizenships: Wikidata[str] | None = None
     citizenship_labels_en: Wikidata[str] | None = None
     citizenship_modern_countries: Derived[str] | None = Field(None, description="Modern countries those citizenships map onto, pipe-joined in the same order.")
