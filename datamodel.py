@@ -71,7 +71,7 @@ class Polity(BaseModel):
     periods: tuple[Floruit, ...] = Field((), description="The spans over which the polity held different ground, oldest first. A polity averages 16 of them and one reaches 212.")
     areas_per_period: tuple[Information, ...] = Field((), description="Area in square kilometres, one per entry of `periods` and in the same order. This is what shows an empire moving: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
     geometries_per_period: tuple[Information, ...] = Field((), description="The ground held, as a GeoJSON MultiPolygon, one per entry of `periods` and in the same order. It is what decides whether a place falls inside the polity, and the heaviest field in the schema.")
-    modern_polities: tuple["Polity", ...] = Field((), description="The polities that hold this ground today, several because a historical polity does not stop at modern borders. A modern country is a polity that still exists, so it is described by this same model — with an empty `modern_polities` of its own.")
+    modern_polities_per_period: tuple[tuple["Polity", ...], ...] = Field((), description="The polities holding that ground today, one group per entry of `periods` and in the same order — several per period, because a historical polity does not stop at modern borders. A modern country is a polity that still exists, so it is described by this same model, with empty periods of its own. Cliopatria resolves these per polity rather than per period, so every group repeats the same countries until they are recomputed from each period's polygon.")
 
 
 class Location(BaseModel):
