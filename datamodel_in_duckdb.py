@@ -52,7 +52,7 @@ class Sitelink(BaseModel):
     language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
     is_western: bool | None = Field(None, description="Whether the edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 208 editions are Western, 204 are not, and 200 are on neither list — 9.4 per cent of all pages — so a split computed from this column leaves a residue.")
     number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class PeakProductivity(BaseModel):
@@ -69,7 +69,7 @@ class Territory(BaseModel):
     area: float | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
     geometry: str | None = Field(None, description="The ground itself, as GeoJSON — a Polygon for a territory in one piece, a MultiPolygon when it is not, and never a Point: a polity holds an area, the smallest in Cliopatria being 87 km². This is what decides whether a place falls inside the polity, and the heaviest column in the published set.")
     present_day_states: tuple[PresentDayState, ...] = Field((), description="The states holding this ground today — several, because a historical territory does not stop at present-day borders. The same model Place and CountryOfCitizenship carry, so a birthplace, a citizenship and a territory all land on comparable ground. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class Polity(BaseModel):
@@ -80,7 +80,7 @@ class Polity(BaseModel):
     entity: WikidataEntity | None = Field(None, description="The Wikidata item Cliopatria resolved for the polity, where it resolved one — the join out to Wikidata and to the other tables here. Empty for a polity it could not resolve, which is why cliopatria_id and not a qid is this table's key.")
     sitelink: Sitelink | None = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it; matching a place to a polity by URL is one of the two ways it is done, the other being a territory's polygon.")
     territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 8.4 of them and one reaches 212.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class WorksPeriod(BaseModel):
@@ -109,7 +109,7 @@ class Place(BaseModel):
     existence: ExistencePeriod | None = Field(None, description="The years the place existed. A birthplace with an end has since been razed or absorbed.")
     present_day_state: PresentDayState | None = Field(None, description="The state holding this ground today, from a reverse geocoder on the coordinates — not what Wikidata declares. Königsberg is declared in Prussia and geocodes to Russia. Computed, unlike everything above it.")
     is_settlement: bool | None = Field(None, description="True when the place is a populated place rather than a hospital, a building or an administrative region. A language model read the P31 classes, not the places, so a place is a settlement when any of its classes is. Computed.")
-    provenance: dict[str, Provenance] = Field({}, description="Where each value came from, keyed by column. An entry with a rule was computed — the last three columns — and one without was read.")
+    field_provenance: dict[str, Provenance] = Field({}, description="Where each value came from, keyed by column. An entry with a rule was computed — the last three columns — and one without was read.")
 
 
 class CountryOfCitizenship(BaseModel):
@@ -119,13 +119,13 @@ class CountryOfCitizenship(BaseModel):
     present_day_state: PresentDayState | None = Field(None, description="The state holding this ground today, reverse-geocoded from the coordinates — the Ottoman Empire gives Turkey, the Kingdom of Prussia gives Germany, and a state that still exists gives itself. Computed, unlike everything above it, and the reason no column here carries a historical state's own ISO code: it has none.")
     sitelink: Sitelink | None = Field(None, description="Its English Wikipedia article, which is how a state is matched to a Cliopatria polity when the polygons do not settle it.")
     existence: ExistencePeriod | None = Field(None, description="The years the state existed. An empty dissolution is the only thing that says it still does — present_day_state is filled either way.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class Occupation(BaseModel):
     entity: WikidataEntity = Field(..., description="The occupation's Wikidata item, as Individual.occupation names it.")
     subclass_of: tuple[str, ...] = Field((), description="P279, as qids. This is the tree Individual.is_scientist and .is_artist walk, so it is here rather than left implicit in the flags.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class Identifier(BaseModel):
@@ -136,7 +136,7 @@ class Identifier(BaseModel):
     official_website: str | None = Field(None, description="P856 of the database.")
     number_of_records: int | None = Field(None, description="P4876, how many records it holds. Together with the count of individuals carrying one of its identifiers, this says what share of the database Cultura reaches.")
     inception: Date | None = Field(None, description="When the database was founded, P571.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class IndividualIdentifier(BaseModel):
@@ -144,7 +144,7 @@ class IndividualIdentifier(BaseModel):
     pid: str = Field(..., description="Which database, joining to Identifier.pid. The pair is the key: an individual has at most one identifier per database.")
     value: str | None = Field(None, description="The identifier as that database issued it, '75121530'. A string, never a number: many carry leading zeros or letters.")
     url: str | None = Field(None, description="The record's URL where Wikidata gives one. It is otherwise Identifier.formatter_url with the value substituted, so this column is mostly empty by design.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class IndividualSitelink(BaseModel):
@@ -152,7 +152,7 @@ class IndividualSitelink(BaseModel):
     url: str = Field(..., description="The page's URL, percent-encoded as Wikidata gives it. With the qid it is the key, and on its own it identifies the article across the whole set — an individual has at most one per edition.")
     site_url: str | None = Field(None, description="Which edition, joining to Sitelink.url. It is the host of `url` and could be cut from it, but a join that needs string surgery is a join most people get wrong, so it is a column.")
     title: str | None = Field(None, description="The article's title in that edition, unescaped — 'هانز-ايكارت شايفر'.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class Work(BaseModel):
@@ -160,14 +160,14 @@ class Work(BaseModel):
     instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work as qids — 'painting', 'film', 'novel'.")
     inception: Date | None = Field(None, description="When the work was made, P571.")
     publication_date: Date | None = Field(None, description="When it was first published or released, P577. The year of a work is this where there is one and the inception otherwise, which is how Individual.works_period is built.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class IndividualWork(BaseModel):
     qid: str = Field(..., description="The individual credited, joining to Individual.qid.")
     work_qid: str = Field(..., description="The work, joining to Work.qid. The pair is the key: a work with several creators has one row per creator.")
     credit_property: WikidataProperty | None = Field(None, description="The property that credits them — 'P50' author, 'P170' creator, 'P175' performer. It is what stops an actor and a director counting as having written the same film.")
-    provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
 class Individual(BaseModel):
@@ -188,11 +188,11 @@ class Individual(BaseModel):
     is_human: bool | None = Field(None, description="False for the rows that are not people — fictional characters, deities, legendary creatures. Wikidata classes them among humans, so filter on this before counting.")
     is_scientist: bool | None = Field(None, description="True when any occupation descends from 'scientist' (Q901) through Wikidata's subclass tree.")
     is_artist: bool | None = Field(None, description="True when any occupation descends from 'artist' (Q483501).")
-    provenance: dict[str, Provenance] = Field({}, description="Where each value came from, keyed by field name. Every entry names a raw field and carries no rule: the values here are the raw ones unquoted and stripped of their stamps, nothing more. Any change of shape — a date joined to its precision, a qid resolved to a label — is on IndividualEnriched.")
+    field_provenance: dict[str, Provenance] = Field({}, description="Where each value came from, keyed by field name. Every entry names a raw field and carries no rule: the values here are the raw ones unquoted and stripped of their stamps, nothing more. Any change of shape — a date joined to its precision, a qid resolved to a label — is on IndividualEnriched.")
 
 
 class IndividualEnriched(BaseModel):
-    qid: str = Field(..., description="The individual, joining to Individual.qid. This table holds only what the project computed; everything a source states is on that row.")
+    entity: WikidataEntity = Field(..., description="The individual, joining to Individual.entity.qid. This table holds only what the project computed; everything a source states is on that row.")
 
     peak_productivity: PeakProductivity | None = Field(None, description="The range of years this project takes the individual to have been at work, and the single year that stands for it. This is what to date an individual by in a distribution over time: birth and death are missing for most people before 1500, and a birth year dates someone decades before they did anything.")
 
@@ -201,7 +201,7 @@ class IndividualEnriched(BaseModel):
 
     notability: Notability | None = Field(None, description="How widely the individual is written about, as the two counts the project publishes and the score built from them. Compare it with CVDB's visibility and Pantheon's hpi, which rank the same people differently — theirs are in datamodel_raw.py.")
 
-    provenance: dict[str, Provenance] = Field({}, description="Where every value on this row came from, keyed by field name. Each one carries the rule that produced it and the raw fields it was built on, which is the whole method: nothing here is read from a source, so nothing here is beyond argument.")
+    field_provenance: dict[str, Provenance] = Field({}, description="Where every value on this row came from, keyed by field name. Each one carries the rule that produced it and the raw fields it was built on, which is the whole method: nothing here is read from a source, so nothing here is beyond argument.")
 
 
 TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "country_of_citizenship": CountryOfCitizenship, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink, "individual_work": IndividualWork}
