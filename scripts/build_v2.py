@@ -245,7 +245,7 @@ def main():
         f, c = floruit.get(q, {}), best.get(q)
         enriched.append(M.IndividualEnriched(
             qid=q,
-            peak_productivity=M.PeakProductivity(start=f.get("floruit_period_start"), midpoint=f.get("floruit_year"), end=f.get("floruit_period_end"), is_estimated=None if f.get("estimated") is None else bool(f["estimated"]), assignation_method=f.get("method")) if f else None,
+            peak_productivity=M.PeakProductivity(start_year=f.get("floruit_period_start"), midpoint_year=f.get("floruit_year"), end_year=f.get("floruit_period_end"), is_estimated=None if f.get("estimated") is None else bool(f["estimated"]), assignation_method=f.get("method")) if f else None,
             polity=M.PolityMatch(polity=M.Polity(id=c["polity_id"], name=c["polity_name"]), years=c["overlap_years"], assignation_method=c["method"]) if c else None,
             polity_count=overlaps.get(q),
             notability=M.Notability(western_editions=r["notability_western"], non_western_editions=r["notability_non_western"], score=r["notability_general"]),
@@ -339,19 +339,19 @@ def main():
     spans = {}
     for r in rows(src, "SELECT * FROM polities_periods_cliopatria ORDER BY polity_id, from_year"):
         spans.setdefault(r["polity_id"], []).append(M.Territory(
-            start=r["from_year"], end=r["to_year"], area=r["area"], geometry=r["geometry"],
+            start_year=r["from_year"], end_year=r["to_year"], area=r["area"], geometry=r["geometry"],
             modern_polities=tuple(modern.get(r["polity_id"], ())),
-            origins={k: origin(raw=(f"PolityCliopatria.{v}",)) for k, v in {"start": "from_year", "end": "to_year", "area": "area", "geometry": "geometry"}.items()}
+            origins={k: origin(raw=(f"PolityCliopatria.{v}",)) for k, v in {"start_year": "from_year", "end_year": "to_year", "area": "area", "geometry": "geometry"}.items()}
             | {"modern_polities": origin(raw=("PolityCliopatria.geometry",), rule="The present-day states whose ground this territory's polygon overlaps. Cliopatria resolves them per polity, not per territory, so every territory of one polity repeats the same list.")},
         ))
     polities = [M.Polity(
         id=r["id"], name=r["name"], type=r["type"], wikidata_id=r["wikidata_id"],
         sitelink=M.IndividualSitelink(qid=r["wikidata_id"] or str(r["id"]), url=r["wikipedia_url"], site_url="https://en.wikipedia.org") if r["wikipedia_url"] else None,
-        start=min((t.start for t in spans.get(r["id"], []) if t.start is not None), default=None),
-        end=max((t.end for t in spans.get(r["id"], []) if t.end is not None), default=None),
+        start_year=min((t.start_year for t in spans.get(r["id"], []) if t.start_year is not None), default=None),
+        end_year=max((t.end_year for t in spans.get(r["id"], []) if t.end_year is not None), default=None),
         territories=tuple(spans.get(r["id"], ())),
         origins={k: origin(raw=(f"PolityCliopatria.{k}",)) for k in ("id", "name", "type", "wikidata_id", "sitelink")}
-        | {"start": origin(inputs=("territories",), rule="Earliest year over the polity's territories."), "end": origin(inputs=("territories",), rule="Latest year over them.")},
+        | {"start_year": origin(inputs=("territories",), rule="Earliest year over the polity's territories."), "end_year": origin(inputs=("territories",), rule="Latest year over them.")},
     ) for r in rows(src, "SELECT * FROM polities_cliopatria")]
     counts["polity"] = write(out, "polity", M.Polity, polities)
 
