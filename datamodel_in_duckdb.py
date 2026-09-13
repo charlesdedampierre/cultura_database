@@ -67,6 +67,14 @@ class CountryOfCitizenship(BaseModel):
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
+class Occupation(BaseModel):
+    qid: str = Field(..., description="The occupation's Wikidata item, as Individual.occupation names it.")
+    label: str | None = Field(None, description="English name, 'astronomer'.")
+    description: str | None = Field(None, description="English one-line description.")
+    subclass_of: tuple[str, ...] = Field((), description="P279, as qids. This is the tree IndividualEnriched.is_scientist and .is_artist walk, so it is here rather than left implicit in the flags.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
 class Identifier(BaseModel):
     pid: str = Field(..., description="The Wikidata property that carries the identifier, 'P214' for VIAF. This is what an external database is: Wikidata has 10 329 such properties and nothing else names them.")
     label: str | None = Field(None, description="The database's name, 'VIAF ID', 'ISBN-13'.")
@@ -156,3 +164,6 @@ class IndividualEnriched(Individual):
     is_human: bool | None = Field(None, description="False for the rows that are not people — fictional characters, deities, legendary creatures. Wikidata classes them among humans, so filter on this before counting.")
 
     origins: dict[str, Origin] = Field({}, description="Where every value on this row came from, keyed by field name — the inherited ones as well as the computed ones. An entry with a rule was computed by this project; an entry without one was read from the raw field it names. On a row that carries both, that is the only way to tell which values are Wikidata's and which are ours.")
+
+
+TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "country_of_citizenship": CountryOfCitizenship, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty}
