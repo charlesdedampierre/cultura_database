@@ -253,14 +253,14 @@ def main():
     place_qids = {p for r in people.values() for p in (r["birthcity_id"], r["deathcity_id"]) if p}
     src.execute("CREATE OR REPLACE TEMP TABLE pick_place AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(place_qids)])
     places = [M.Place(
-        qid=r["id"], label=r["name_en"], description=None, latitude=r["lat"], longitude=r["lon"],
+        qid=r["id"], label=r["name_en"], description=None,
+        coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
         country=r["original_country_name_id"], instance_of=split(r["entity_type_ids"], "|"),
-        inception=year(r["inception_date"]), dissolution=year(r["dissolution_date"]),
-        modern_country=r["iso_country_name"], modern_country_iso=r["iso_a3_code"],
+        existence=M.ExistencePeriod(inception=year(r["inception_date"]), dissolution=year(r["dissolution_date"])),
+        modern_country=M.ModernCountry(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"]),
         is_settlement=None if r["is_urban_settlement"] is None else bool(r["is_urban_settlement"]),
-        origins={k: origin(raw=(f"PlaceWikidata.{v}",)) for k, v in {"label": "label", "latitude": "latitude", "longitude": "longitude", "country": "country", "instance_of": "instance_of", "inception": "inception", "dissolution": "dissolved_abolished_or_demolished_date"}.items()}
+        origins={k: origin(raw=(f"PlaceWikidata.{v}",)) for k, v in {"label": "label", "coordinates": "latitude", "country": "country", "instance_of": "instance_of", "existence": "inception"}.items()}
         | {"modern_country": origin(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="Reverse-geocoded from the coordinates, so it is where the ground is today, not what Wikidata declares."),
-           "modern_country_iso": origin(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="ISO 3166-1 alpha-3 of that state."),
            "is_settlement": origin(raw=("PlaceWikidata.instance_of",), rule="A language model read the P31 classes and judged whether any of them is a populated place.", model="claude")},
     ) for r in rows(src, "SELECT p.* FROM places p JOIN pick_place USING (id)")]
     counts["place"] = write(out, "place", M.Place, places)
@@ -270,9 +270,11 @@ def main():
     continents = dict(src.execute("SELECT DISTINCT country_qid, continent FROM polities_modern_countries_cliopatria").fetchall())
     countries = [M.CountryOfCitizenship(
         qid=r["wikidata_id"], label=r["name_en"], description=r["description_en"], instance_of=split(r["instance_qids"], "|"),
-        latitude=r["lat"], longitude=r["lon"], continent=continents.get(r["wikidata_id"]), iso_3166_1_alpha_3_code=r["iso_a3_code"],
-        wikipedia_url=r["en_wikipedia_url"], inception=year(r["inception"]), dissolution=year(r["dissolved"]),
-        origins={k: origin(raw=(f"CountryWikidata.{k}",)) for k in ("label", "description", "instance_of", "latitude", "longitude", "continent")},
+        coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
+        continent=continents.get(r["wikidata_id"]), iso_3166_1_alpha_3_code=r["iso_a3_code"],
+        wikipedia_url=r["en_wikipedia_url"],
+        existence=M.ExistencePeriod(inception=year(r["inception"]), dissolution=year(r["dissolved"])),
+        origins={k: origin(raw=(f"CountryWikidata.{k}",)) for k in ("label", "description", "instance_of", "coordinates", "continent")},
     ) for r in rows(src, "SELECT c.* FROM country_of_citizenship c JOIN pick_country USING (wikidata_id)")]
     counts["country_of_citizenship"] = write(out, "country_of_citizenship", M.CountryOfCitizenship, countries)
 
