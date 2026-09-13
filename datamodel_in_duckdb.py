@@ -19,16 +19,16 @@ class Date(BaseModel):
 
 
 class PeakProductivity(BaseModel):
-    start: int | None = Field(None, description="First year of the range. By convention that is from age 30 to age 60, truncated by an early death — so it is a claim about a life stage, not a record of anything observed.")
-    midpoint: int | None = Field(None, description="The single year that stands for the range, its middle. It is the floruit as defined in the paper, and deliberately not called floruit — Wikidata has a property of that name, P1317, which is a date a source states rather than a range this project computes, and it is on Individual.floruit_date.")
-    end: int | None = Field(None, description="Last year of the range.")
+    start_year: int | None = Field(None, description="First year of the range. By convention that is from age 30 to age 60, truncated by an early death — so it is a claim about a life stage, not a record of anything observed.")
+    midpoint_year: int | None = Field(None, description="The single year that stands for the range, its middle. Empty on 12 934 755 of the 13 003 420 rows — it survives only where a source states a single year, so a distribution over time has to be built from start_year and end_year instead. It is the floruit as defined in the paper, and deliberately not called floruit — Wikidata has a property of that name, P1317, which is a date a source states rather than a range this project computes, and it is on Individual.floruit_date.")
+    end_year: int | None = Field(None, description="Last year of the range.")
     is_estimated: bool | None = Field(None, description="True when the range rests on an estimated birth or death year rather than an attested one. The range is still usable; it is simply softer, and this says so rather than leaving it to be discovered.")
     assignation_method: str | None = Field(None, description="How the range was arrived at, as a token naming the dates used and where they came from — 'birth_death_property', 'birth_only_property', 'works_span', 'floruit_description', 'no_data'. Twenty-two of them across the thirteen million, and they are not interchangeable: a range from an attested birth and death is a different claim from one the life-expectancy model produced. Group by this before trusting any distribution over time.")
 
 
 class Territory(BaseModel):
-    start: int | None = Field(None, description="First year the polity held this ground. Negative before the common era.")
-    end: int | None = Field(None, description="Last year it held it.")
+    start_year: int | None = Field(None, description="First year the polity held this ground. Negative before the common era.")
+    end_year: int | None = Field(None, description="Last year it held it.")
     area: float | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
     geometry: str | None = Field(None, description="The ground itself, as GeoJSON — a Polygon for a territory in one piece, a MultiPolygon when it is not, and never a Point: a polity holds an area, the smallest in Cliopatria being 87 km². This is what decides whether a place falls inside the polity, and the heaviest column in the published set.")
     modern_polities: tuple["Polity", ...] = Field((), description="The polities holding this ground today, each carrying its id and its name only — several, because a historical territory does not stop at modern borders. One that still exists is described by this same model, which is why nothing here needs a separate notion of a country. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
@@ -39,8 +39,8 @@ class Polity(BaseModel):
     id: int | None = Field(None, description="Cliopatria's identifier for the polity. One row per polity here — 1 633 of them — with the changes of borders nested in `territories` rather than spread over 13 755 rows that repeat the name.")
     name: str | None = Field(None, description="The polity's name as Cliopatria spells it — 'Ottoman Empire', 'Magadha - Shaishunaga dynasty'. Its own spelling, not Wikidata's.")
     type: Literal["POLITY", "RELATION"] | None = Field(None, description="'POLITY' for a polity in its own right, 'RELATION' for a dependency between two of them — 13 370 against 385. A relation is not somewhere a person can be born, so filter on it before counting.")
-    start: int | None = Field(None, description="First year the polity existed, the earliest of its territories.")
-    end: int | None = Field(None, description="Last year it existed.")
+    start_year: int | None = Field(None, description="First year the polity existed, the earliest of its territories.")
+    end_year: int | None = Field(None, description="Last year it existed.")
     wikidata_id: str | None = Field(None, description="The qid Cliopatria resolved for the polity, where it resolved one — the join out to Wikidata and to the other tables here.")
     sitelink: "IndividualSitelink | None" = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it; matching a place to a polity by URL is one of the two ways it is done, the other being a territory's polygon.")
     territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 8.4 of them and one reaches 212.")
