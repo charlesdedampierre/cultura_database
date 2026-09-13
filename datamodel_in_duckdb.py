@@ -97,7 +97,8 @@ class Notability(BaseModel):
 class PolityMatch(BaseModel):
     polity: Polity | None = Field(None, description="The polity, carrying its id and its name only — the ground it held is in its territories, in the Polity table, which a polygon repeated on thirteen million rows would otherwise dwarf.")
     years: int | None = Field(None, description="Years of the peak-productivity range spent inside it. A small number means the match is incidental — someone who died abroad.")
-    assignation_method: Literal["merge_with_polygon", "merge_with_url"] | None = Field(None, description="Which of the two matches settled it — the place falling inside the ground the polity held, or the place and the polity sharing a Wikipedia article. The polygon does almost all of it: 7 745 076 matches against 85 265 by URL.")
+    assignation_method: Literal["polygon", "url"] | None = Field(None, description="Which of the two matches settled it — the location falling inside the ground the polity held, or the location and the polity sharing a Wikipedia article. The polygon does almost all of it: 7 745 076 matches against 85 265 by URL.")
+    matched_on: Literal["birthplace", "deathplace", "country_of_citizenship"] | None = Field(None, description="Which of the individual's locations the match ran on. It matters as much as the method: a polity matched on a birthplace says where someone started, one matched on a country of citizenship says what state claimed them, and the two disagree for anyone who moved. The split is 2 873 217 birthplaces, 2 690 644 deathplaces and 2 266 480 citizenships.")
 
 
 class Place(BaseModel):
