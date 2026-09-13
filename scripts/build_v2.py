@@ -267,6 +267,7 @@ def main():
 
     # ── the lookup tables, restricted to what the sample reaches ───────────
     continents = dict(src.execute("SELECT DISTINCT iso_a3_code, continent FROM polities_modern_countries_cliopatria WHERE iso_a3_code IS NOT NULL").fetchall())
+    by_qid = {r[0]: (r[1], r[2]) for r in src.execute("SELECT DISTINCT country_qid, iso_a3_code, continent FROM polities_modern_countries_cliopatria WHERE country_qid IS NOT NULL").fetchall()}
     place_qids = {p for r in people.values() for p in (r["birthcity_id"], r["deathcity_id"]) if p}
     country_qids = {c for r in people.values() for c in split(r["country_of_citizenship_ids"], ";")}
     src.execute("CREATE OR REPLACE TEMP TABLE pick_place AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(place_qids)])
@@ -317,7 +318,7 @@ def main():
     identifier_types = [M.Identifier(
         property=M.WikidataProperty(pid=r["property_id"], label_en=r["name_en"], description=r["description"]), formatter_url=None,
         issuer=an_entity(r["issuer_id"], r["issuer_name"]) if r["issuer_id"] else None,
-        issuer_country=an_entity(r["country_id"], r["country_name"]) if r["country_id"] else None,
+        issuer_country=M.PresentDayState(name=r["country_name"], iso_3166_1_alpha_3_code=by_qid.get(r["country_id"], (None, None))[0], continent=by_qid.get(r["country_id"], (None, None))[1]) if r["country_id"] else None,
         official_website=r["website"],
         number_of_records=a_number(r["database_records"]), inception=a_date(r["inception"], None),
         field_provenance={k: provenance_of(raw=(f"ExternalIdPropertyWikidata.{k}",)) for k in ("property", "issuer", "issuer_country", "official_website", "number_of_records", "inception")},
