@@ -316,7 +316,9 @@ def main():
     src.execute("CREATE OR REPLACE TEMP TABLE pick_pid AS SELECT unnest(?::VARCHAR[]) AS property_id", [pids])
     identifier_types = [M.Identifier(
         property=M.WikidataProperty(pid=r["property_id"], label_en=r["name_en"], description=r["description"]), formatter_url=None,
-        issuer=r["issuer_id"], issuer_country=r["country_id"], official_website=r["website"],
+        issuer=an_entity(r["issuer_id"], r["issuer_name"]) if r["issuer_id"] else None,
+        issuer_country=an_entity(r["country_id"], r["country_name"]) if r["country_id"] else None,
+        official_website=r["website"],
         number_of_records=a_number(r["database_records"]), inception=a_date(r["inception"], None),
         field_provenance={k: provenance_of(raw=(f"ExternalIdPropertyWikidata.{k}",)) for k in ("property", "issuer", "issuer_country", "official_website", "number_of_records", "inception")},
     ) for r in rows(src, "SELECT t.* FROM identifier_types t JOIN pick_pid USING (property_id)")]
