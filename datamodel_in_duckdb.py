@@ -64,6 +64,21 @@ class PolityMatch(BaseModel):
     assignation_method: Literal["merge_with_polygon", "merge_with_url"] | None = Field(None, description="Which of the two matches settled it — the place falling inside the ground the polity held, or the place and the polity sharing a Wikipedia article. The polygon does almost all of it: 7 745 076 matches against 85 265 by URL.")
 
 
+class Coordinates(BaseModel):
+    latitude: float | None = Field(None, description="Decimal degrees, the latitude half of P625. Negative south of the equator.")
+    longitude: float | None = Field(None, description="Decimal degrees, the longitude half. Negative west of Greenwich.")
+
+
+class ExistencePeriod(BaseModel):
+    inception: int | None = Field(None, description="Year it came into being, P571.")
+    dissolution: int | None = Field(None, description="Year it ceased to exist, P576. Empty for something that still does.")
+
+
+class ModernCountry(BaseModel):
+    name: str | None = Field(None, description="The state's name in English, 'Russia'.")
+    iso_3166_1_alpha_3_code: str | None = Field(None, description="Its ISO 3166-1 alpha-3 code, 'RUS'. Empty where the geocoder found none, which happens at sea and in Antarctica.")
+
+
 class WikidataProperty(BaseModel):
     pid: str = Field(..., description="The property's identifier, 'P569'. Non-property sources keep their RDF term, 'rdfs:label'. Every column of Individual is named after one of these, and Origin.raw reaches them.")
     label: str | None = Field(None, description="The property's English label, 'date of birth'. Lowercased with non-alphanumeric runs turned into underscores, it is the column name in Individual.")
@@ -74,14 +89,11 @@ class Place(BaseModel):
     qid: str = Field(..., description="The place's Wikidata item, as Individual.place_of_birth and .place_of_death name it.")
     label: str | None = Field(None, description="English name, 'Ulm'.")
     description: str | None = Field(None, description="English one-line description, 'city in Baden-Württemberg, Germany'. It is often the only thing that tells a city from a hospital without reading the P31 classes.")
-    latitude: float | None = Field(None, description="Decimal degrees, the latitude half of P625.")
-    longitude: float | None = Field(None, description="Decimal degrees.")
+    coordinates: Coordinates | None = Field(None, description="Where the place is, P625. This is what every polygon test runs against, so a place without it can never be matched to a polity.")
     country: str | None = Field(None, description="P17, the country Wikidata declares the place to be in, as a qid. For a historical place this is often a state that no longer exists — Königsberg is declared in the Kingdom of Prussia. Join it to CountryOfCitizenship.")
     instance_of: tuple[str, ...] = Field((), description="P31, the classes of the place as qids — 'city', 'hospital', 'quarter'. P19 names all of these as places of birth.")
-    inception: int | None = Field(None, description="Year the place began to exist, P571.")
-    dissolution: int | None = Field(None, description="Year it ceased to exist, P576. A birthplace with one has since been razed or absorbed.")
-    modern_country: str | None = Field(None, description="The state holding this ground today, by name, from a reverse geocoder on the coordinates — not what Wikidata declares. Königsberg is declared in Prussia and geocodes to Russia. Computed, unlike everything above it.")
-    modern_country_iso: str | None = Field(None, description="ISO 3166-1 alpha-3 code of that state. Empty where the geocoder found none, which happens at sea and in Antarctica.")
+    existence: ExistencePeriod | None = Field(None, description="The years the place existed. A birthplace with an end has since been razed or absorbed.")
+    modern_country: ModernCountry | None = Field(None, description="The state holding this ground today, from a reverse geocoder on the coordinates — not what Wikidata declares. Königsberg is declared in Prussia and geocodes to Russia. Computed, unlike everything above it.")
     is_settlement: bool | None = Field(None, description="True when the place is a populated place rather than a hospital, a building or an administrative region. A language model read the P31 classes, not the places, so a place is a settlement when any of its classes is. Computed.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column. An entry with a rule was computed — the last three columns — and one without was read.")
 
@@ -91,13 +103,11 @@ class CountryOfCitizenship(BaseModel):
     label: str | None = Field(None, description="English name, 'Kingdom of Prussia'.")
     description: str | None = Field(None, description="English one-line description.")
     instance_of: tuple[str, ...] = Field((), description="P31, as qids — 'sovereign state', 'former country'. This is what tells a state that still exists from one that does not, without asking a geocoder.")
-    latitude: float | None = None
-    longitude: float | None = None
+    coordinates: Coordinates | None = Field(None, description="Where the state is, P625 — a single point for a whole country, so it locates it rather than bounds it.")
     continent: str | None = Field(None, description="P30, as a qid.")
     iso_3166_1_alpha_3_code: str | None = Field(None, description="P298. Only a state that exists today has one, so an empty code is itself the signal that this is a historical entity.")
     wikipedia_url: str | None = Field(None, description="Its English Wikipedia article, which is how a state is matched to a Cliopatria polity when the polygons do not settle it.")
-    inception: int | None = Field(None, description="Year the state came into being, P571.")
-    dissolution: int | None = Field(None, description="Year it ceased to exist, P576.")
+    existence: ExistencePeriod | None = Field(None, description="The years the state existed. An empty end and an empty ISO code disagree about whether it still does, and the code is the one to trust.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
