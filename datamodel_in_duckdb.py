@@ -118,12 +118,9 @@ class Individual(BaseModel):
     qid: str = Field(..., description="The individual's Wikidata item. Raw: IndividualWikidata.qid.")
     label: str | None = Field(None, description="English label, unquoted — the raw file gives it as the RDF literal '\"Claus Hammel\"@en'. Raw: IndividualWikidata.label.")
     description: str | None = Field(None, description="English one-line description, unquoted. Raw: IndividualWikidata.description.")
-    date_of_birth: str | None = Field(None, description="P569 as an ISO string, '1879-03-14' — Wikidata's '1879-03-14T00:00:00Z' without the stamp, which is not a time of day. Raw: IndividualWikidata.date_of_birth.")
-    date_of_birth_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="How precisely P569 is stated, as a word rather than the numeric code. Raw: IndividualWikidata.date_of_birth_precision.")
-    date_of_death: str | None = Field(None, description="P570, on the same terms. Raw: IndividualWikidata.date_of_death.")
-    date_of_death_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.date_of_death_precision.")
-    floruit: str | None = Field(None, description="P1317, a date a source states the individual was active. Rare, and a date rather than a range — not IndividualEnriched.peak_productivity_*, which this project computes. Raw: IndividualWikidata.floruit.")
-    floruit_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.floruit_precision.")
+    birth_date: Date | None = Field(None, description="Date of birth as one value: the ISO string, the year read off it, and the precision. Built from IndividualWikidata.date_of_birth and .date_of_birth_precision, which arrive as two separate files and are one fact.")
+    death_date: Date | None = Field(None, description="Date of death, on the same terms.")
+    floruit_date: Date | None = Field(None, description="The P1317 date, on the same terms. Still a date Wikidata states, not IndividualEnriched.peak_productivity_*, which this project computes.")
     place_of_birth: str | None = Field(None, description="P19, as the place's qid. Often a city, sometimes a country, sometimes a hospital — P19 makes no promise. Join it to PlaceWikidata for the name and the coordinates. Raw: IndividualWikidata.place_of_birth.")
     place_of_death: str | None = Field(None, description="P20, as a qid. Raw: IndividualWikidata.place_of_death.")
     sex_or_gender: str | None = Field(None, description="P21, as a qid. A free vocabulary in practice: 48 distinct values in the data. Raw: IndividualWikidata.sex_or_gender.")
@@ -137,10 +134,6 @@ class Individual(BaseModel):
 
 
 class IndividualEnriched(Individual):
-
-    birth_date: Date | None = Field(None, description="Date of birth as one value: the ISO string, the year read off it, and the precision. Built from IndividualWikidata.date_of_birth and .date_of_birth_precision, which arrive as two separate files and are one fact.")
-    death_date: Date | None = Field(None, description="Date of death, on the same terms.")
-    floruit_date: Date | None = Field(None, description="The P1317 date, on the same terms. Still a date Wikidata states, not the range below.")
 
     peak_productivity_start: int | None = Field(None, description="First year of the range this project takes the individual to have been at work. By convention that is from age 30 to age 60, truncated by an early death — so it is a claim about a life stage, not a record of anything observed.")
     peak_productivity_midpoint: int | None = Field(None, description="The single year that stands for the range, its middle. This is what to date an individual by in a distribution over time: birth and death are missing for most people before 1500, and a birth year dates someone decades before they did anything. It is the floruit as defined in the paper, and deliberately not called floruit — Wikidata has a property of that name, P1317, which is a date a source states rather than a range this project computes, and it is on IndividualWikidata.")
