@@ -105,7 +105,7 @@ class Occupation(BaseModel):
     qid: str = Field(..., description="The occupation's Wikidata item, as Individual.occupation names it.")
     label: str | None = Field(None, description="English name, 'astronomer'.")
     description: str | None = Field(None, description="English one-line description.")
-    subclass_of: tuple[str, ...] = Field((), description="P279, as qids. This is the tree IndividualEnriched.is_scientist and .is_artist walk, so it is here rather than left implicit in the flags.")
+    subclass_of: tuple[str, ...] = Field((), description="P279, as qids. This is the tree Individual.is_scientist and .is_artist walk, so it is here rather than left implicit in the flags.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
@@ -153,8 +153,9 @@ class Work(BaseModel):
     description: str | None = Field(None, description="English one-line description, 'painting by Leonardo da Vinci'.")
     instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work as qids — 'painting', 'film', 'novel'.")
     inception: Date | None = Field(None, description="When the work was made, P571.")
-    publication_date: Date | None = Field(None, description="When it was first published or released, P577. The year of a work is this where there is one and the inception otherwise, which is how IndividualEnriched.works_first_year is built.")
+    publication_date: Date | None = Field(None, description="When it was first published or released, P577. The year of a work is this where there is one and the inception otherwise, which is how Individual.works_period is built.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
 
 class IndividualWork(BaseModel):
     qid: str = Field(..., description="The individual credited, joining to Individual.qid.")
@@ -186,7 +187,8 @@ class Individual(BaseModel):
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by field name. Every entry names a raw field and carries no rule: the values here are the raw ones unquoted and stripped of their stamps, nothing more. Any change of shape — a date joined to its precision, a qid resolved to a label — is on IndividualEnriched.")
 
 
-class IndividualEnriched(Individual):
+class IndividualEnriched(BaseModel):
+    qid: str = Field(..., description="The individual, joining to Individual.qid. This table holds only what the project computed; everything a source states is on that row.")
 
     peak_productivity: PeakProductivity | None = Field(None, description="The range of years this project takes the individual to have been at work, and the single year that stands for it. This is what to date an individual by in a distribution over time: birth and death are missing for most people before 1500, and a birth year dates someone decades before they did anything.")
 
@@ -195,7 +197,7 @@ class IndividualEnriched(Individual):
 
     notability: Notability | None = Field(None, description="How widely the individual is written about, as the two counts of language editions and the score built from them. Compare it with CVDB's visibility and Pantheon's hpi, which rank the same people differently — theirs are in datamodel_raw.py.")
 
-    origins: dict[str, Origin] = Field({}, description="Where every value on this row came from, keyed by field name — the inherited ones as well as the computed ones. An entry with a rule was computed by this project; an entry without one was read from the raw field it names. On a row that carries both, that is the only way to tell which values are Wikidata's and which are ours.")
+    origins: dict[str, Origin] = Field({}, description="Where every value on this row came from, keyed by field name. Each one carries the rule that produced it and the raw fields it was built on, which is the whole method: nothing here is read from a source, so nothing here is beyond argument.")
 
 
 TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "country_of_citizenship": CountryOfCitizenship, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink, "individual_work": IndividualWork}
