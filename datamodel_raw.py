@@ -46,23 +46,34 @@ class PlaceWikidata(BaseModel):
     longitude: float | None = Field(None, description="The longitude half of P625.")
     country: str | None = None
     instance_of: tuple[str, ...] = ()
+    inception: str | None = None
+    inception_precision: int | None = Field(None, description="Precision of P571's time value.")
+    dissolved_abolished_or_demolished_date: str | None = None
+    dissolved_abolished_or_demolished_date_precision: int | None = Field(None, description="Precision of P576's time value. A place with one no longer exists, which is how a birthplace since razed or absorbed shows itself.")
 
 
 class CountryWikidata(BaseModel):
     qid: str = Field(..., description="The country's Wikidata item, as P27 names it.")
     label: str | None = None
+    description: str | None = None
+    instance_of: tuple[str, ...] = Field((), description="P31, the classes of the entity, as qids — 'sovereign state', 'former country'. This is what tells a state that still exists from one that does not, without asking a geocoder.")
     latitude: float | None = Field(None, description="The latitude half of P625.")
     longitude: float | None = Field(None, description="The longitude half of P625.")
     country: str | None = None
     continent: str | None = None
     iso_3166_1_alpha_3_code: str | None = None
     sitelink: tuple[Sitelink, ...] = ()
+    inception: str | None = None
+    inception_precision: int | None = Field(None, description="Precision of P571's time value.")
+    dissolved_abolished_or_demolished_date: str | None = None
+    dissolved_abolished_or_demolished_date_precision: int | None = Field(None, description="Precision of P576's time value. A state with one no longer exists.")
 
 
 class OccupationWikidata(BaseModel):
     qid: str = Field(..., description="The occupation's Wikidata item, as P106 names it.")
     label: str | None = None
     subclass_of: tuple[str, ...] = ()
+    description: str | None = None
 
 
 class WorkWikidata(BaseModel):
@@ -194,3 +205,27 @@ class EntityTypeClassification(BaseModel):
     label: str | None = Field(None, description="The class's English label, as given to the model.")
     urban_settlement: bool | None = Field(None, description="Whether the class denotes a populated place — a town, a village, a quarter — rather than an administrative region, a building or a natural feature. Answered by a language model; the model id and the prompt are in the enrichment that used it.")
     reason: str | None = Field(None, description="The short phrase the model gave for its answer, kept so a wrong call can be seen rather than guessed at.")
+
+
+class WritingLanguageWikidata(BaseModel):
+    qid: str = Field(..., description="The language's Wikidata item, as P6886 names it. Nothing else resolved these: an individual's writing_language is a list of qids and this is what turns them into languages.")
+    label: str | None = None
+
+
+class ExternalIdPropertyWikidata(BaseModel):
+    pid: str = Field(..., description="A Wikidata property of type external identifier, 'P214' for VIAF. There are 10 329 of them, and every key of IndividualWikidata.external_id is one.")
+    label: str | None = Field(None, description="The property's English label — 'ISBN-13', 'VIAF ID'. This is the name of the database an identifier belongs to.")
+    formatter_url: str | None = Field(None, description="P1630, the template that turns an identifier into a link: 'https://viaf.org/viaf/$1', with $1 standing for the value. It is how an external_id becomes a URL without storing one per individual.")
+    subject_item_of_this_property: str | None = Field(None, description="P1629, the qid of the organisation that issues the identifiers — a national library, a museum. Join it to CountryWikidata to weigh how national a database's coverage is.")
+    country: str | None = Field(None, description="P17 of that issuer, as a qid.")
+    official_website: str | None = Field(None, description="P856 of the database.")
+    number_of_records: str | None = Field(None, description="P4876, how many records the database holds, as published.")
+    inception: str | None = Field(None, description="P571, when the database was founded.")
+
+
+class PolityModernCountry(BaseModel):
+    polity_id: int | None = Field(None, description="The Cliopatria polity, by its integer id. Several rows share one: a historical polity's ground is in 1.4 modern countries on average.")
+    country_qid: str | None = Field(None, description="A country holding that ground today, as a qid. Join it to CountryWikidata.")
+    iso_a3_code: str | None = Field(None, description="ISO 3166-1 alpha-3 code of that country.")
+    continent: str | None = Field(None, description="P30 of that country, by name.")
+    sources: str | None = Field(None, description="The Wikidata property paths that produced the mapping, pipe-joined: 'P17', 'P36/P17', 'P1366/P17'. A path of P36/P17 means the polity was matched through its capital's country rather than directly, which is a weaker claim, and this column is the only place that shows it.")
