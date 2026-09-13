@@ -82,6 +82,10 @@ def a_date(stamp, precision):
     return M.Date(iso=head, year=year(stamp), precision=PRECISION.get(precision))
 
 
+def an_entity(qid, label=None, description=None):
+    return M.WikidataEntity(qid=qid, label=label, description=description)
+
+
 def origin(raw=(), rule=None, inputs=(), model=None, retrieved_on=None):
     return M.Origin(raw=raw, inputs=inputs, rule=rule, model=model, retrieved_on=retrieved_on)
 
@@ -188,9 +192,9 @@ def main():
         identifiers[r["wikidata_id"]].append(M.IndividualIdentifier(qid=r["wikidata_id"], pid=r["property_id"], value=r["value"], url=r["url"], origins={"value": origin(raw=("IndividualWikidata.external_id",))}))
     work_rows = rows(src, "SELECT w.* FROM works w JOIN pick ON w.individual_id = pick.wikidata_id")
     for r in tqdm(work_rows, desc="works"):
-        credits[r["individual_id"]].append(M.IndividualWork(qid=r["individual_id"], work_qid=r["work_id"], credit_property=r["relationship"], origins={"credit_property": origin(raw=("IndividualWikidata.work",))}))
+        credits[r["individual_id"]].append(M.IndividualWork(qid=r["individual_id"], work_qid=r["work_id"], credit_property=M.WikidataProperty(pid=r["relationship"], label=None, description=None) if r["relationship"] else None, origins={"credit_property": origin(raw=("IndividualWikidata.work",))}))
 
-    RAW = {f: origin(raw=(f"IndividualWikidata.{f}",)) for f in ("qid", "label", "description", "place_of_birth", "place_of_death", "sex_or_gender", "occupation", "country_of_citizenship", "writing_language", "external_id", "sitelink", "work")}
+    RAW = {f: origin(raw=(f"IndividualWikidata.{f}",)) for f in ("entity", "place_of_birth", "place_of_death", "sex_or_gender", "occupation", "country_of_citizenship", "writing_language", "external_id", "sitelink", "work")}
     RAW |= {
         "birth_date": origin(raw=("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_birth_precision")),
         "death_date": origin(raw=("IndividualWikidata.date_of_death", "IndividualWikidata.date_of_death_precision")),
@@ -205,15 +209,15 @@ def main():
     for q, r in people.items():
         span = (r["works_period"] or "").split("-") if r["works_period"] else []
         individuals.append(M.Individual(
-            qid=q, label=r["name_en"], description=r["description_en"],
+            entity=an_entity(q, r["name_en"], r["description_en"]),
             birth_date=a_date(r["birthdate"], r["birthdate_precision"]),
             death_date=a_date(r["deathdate"], r["deathdate_precision"]),
             floruit_date=a_date(r["floruit_date"], r["floruit_precision"]),
-            place_of_birth=M.Place(qid=r["birthcity_id"], label=place_names.get(r["birthcity_id"])) if r["birthcity_id"] else None,
-            place_of_death=M.Place(qid=r["deathcity_id"], label=place_names.get(r["deathcity_id"])) if r["deathcity_id"] else None,
+            place_of_birth=M.Place(entity=an_entity(r["birthcity_id"], place_names.get(r["birthcity_id"]))) if r["birthcity_id"] else None,
+            place_of_death=M.Place(entity=an_entity(r["deathcity_id"], place_names.get(r["deathcity_id"]))) if r["deathcity_id"] else None,
             sex_or_gender=r["gender_id"],
-            occupation=tuple(M.Occupation(qid=o, label=occupation_names.get(o)) for o in split(r["occupations_ids"], ";")),
-            country_of_citizenship=tuple(M.CountryOfCitizenship(qid=c, label=country_names.get(c)) for c in split(r["country_of_citizenship_ids"], ";")),
+            occupation=tuple(M.Occupation(entity=an_entity(o, occupation_names.get(o))) for o in split(r["occupations_ids"], ";")),
+            country_of_citizenship=tuple(M.CountryOfCitizenship(entity=an_entity(c, country_names.get(c))) for c in split(r["country_of_citizenship_ids"], ";")),
             writing_language=split(r["writing_language_ids"], ";"),
             external_id=tuple(identifiers[q]), sitelink=tuple(links[q]), work=tuple(credits[q]),
             works_period=M.WorksPeriod(first_year=int(span[0]), last_year=int(span[1])) if len(span) == 2 and all(s.lstrip("-").isdigit() for s in span) else None,
@@ -253,13 +257,13 @@ def main():
     place_qids = {p for r in people.values() for p in (r["birthcity_id"], r["deathcity_id"]) if p}
     src.execute("CREATE OR REPLACE TEMP TABLE pick_place AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(place_qids)])
     places = [M.Place(
-        qid=r["id"], label=r["name_en"], description=None,
+        entity=an_entity(r["id"], r["name_en"]),
         coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
         country=r["original_country_name_id"], instance_of=split(r["entity_type_ids"], "|"),
         existence=M.ExistencePeriod(inception=year(r["inception_date"]), dissolution=year(r["dissolution_date"])),
         modern_country=M.ModernCountry(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"]),
         is_settlement=None if r["is_urban_settlement"] is None else bool(r["is_urban_settlement"]),
-        origins={k: origin(raw=(f"PlaceWikidata.{v}",)) for k, v in {"label": "label", "coordinates": "latitude", "country": "country", "instance_of": "instance_of", "existence": "inception"}.items()}
+        origins={k: origin(raw=(f"PlaceWikidata.{v}",)) for k, v in {"entity": "label", "coordinates": "latitude", "country": "country", "instance_of": "instance_of", "existence": "inception"}.items()}
         | {"modern_country": origin(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="Reverse-geocoded from the coordinates, so it is where the ground is today, not what Wikidata declares."),
            "is_settlement": origin(raw=("PlaceWikidata.instance_of",), rule="A language model read the P31 classes and judged whether any of them is a populated place.", model="claude")},
     ) for r in rows(src, "SELECT p.* FROM places p JOIN pick_place USING (id)")]
@@ -269,30 +273,32 @@ def main():
     src.execute("CREATE OR REPLACE TEMP TABLE pick_country AS SELECT unnest(?::VARCHAR[]) AS wikidata_id", [sorted(country_qids)])
     continents = dict(src.execute("SELECT DISTINCT country_qid, continent FROM polities_modern_countries_cliopatria").fetchall())
     countries = [M.CountryOfCitizenship(
-        qid=r["wikidata_id"], label=r["name_en"], description=r["description_en"], instance_of=split(r["instance_qids"], "|"),
+        entity=an_entity(r["wikidata_id"], r["name_en"], r["description_en"]), instance_of=split(r["instance_qids"], "|"),
         coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
-        continent=continents.get(r["wikidata_id"]), iso_3166_1_alpha_3_code=r["iso_a3_code"],
-        wikipedia_url=r["en_wikipedia_url"],
+        continent=continents.get(r["wikidata_id"]),
+        modern_country=M.ModernCountry(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"]),
+        sitelink=M.IndividualSitelink(qid=r["wikidata_id"], url=r["en_wikipedia_url"], site_url="https://en.wikipedia.org") if r["en_wikipedia_url"] else None,
         existence=M.ExistencePeriod(inception=year(r["inception"]), dissolution=year(r["dissolved"])),
-        origins={k: origin(raw=(f"CountryWikidata.{k}",)) for k in ("label", "description", "instance_of", "coordinates", "continent")},
+        origins={k: origin(raw=(f"CountryWikidata.{k}",)) for k in ("entity", "instance_of", "coordinates", "continent")}
+        | {"modern_country": origin(raw=("CountryWikidata.latitude", "CountryWikidata.longitude"), rule="Reverse-geocoded from the state's coordinates, so a historical state gives whichever state holds that ground today.")},
     ) for r in rows(src, "SELECT c.* FROM country_of_citizenship c JOIN pick_country USING (wikidata_id)")]
     counts["country_of_citizenship"] = write(out, "country_of_citizenship", M.CountryOfCitizenship, countries)
 
     occupation_qids = {o for r in people.values() for o in split(r["occupations_ids"], ";")}
     src.execute("CREATE OR REPLACE TEMP TABLE pick_occupation AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(occupation_qids)])
     occupations = [M.Occupation(
-        qid=r["id"], label=r["name_en"], description=r["description_en"], subclass_of=(),
-        origins={k: origin(raw=(f"OccupationWikidata.{k}",)) for k in ("label", "description")},
+        entity=an_entity(r["id"], r["name_en"], r["description_en"]), subclass_of=(),
+        origins={"entity": origin(raw=("OccupationWikidata.label", "OccupationWikidata.description"))},
     ) for r in rows(src, "SELECT o.* FROM occupations o JOIN pick_occupation USING (id)")]
     counts["occupation"] = write(out, "occupation", M.Occupation, occupations)
 
     pids = sorted({i.pid for group in identifiers.values() for i in group})
     src.execute("CREATE OR REPLACE TEMP TABLE pick_pid AS SELECT unnest(?::VARCHAR[]) AS property_id", [pids])
     identifier_types = [M.Identifier(
-        pid=r["property_id"], label=r["name_en"], description=r["description"], formatter_url=None,
+        property=M.WikidataProperty(pid=r["property_id"], label=r["name_en"], description=r["description"]), formatter_url=None,
         issuer=r["issuer_id"], issuer_country=r["country_id"], official_website=r["website"],
-        number_of_records=a_number(r["database_records"]), inception=year(r["inception"]),
-        origins={k: origin(raw=(f"ExternalIdPropertyWikidata.{k}",)) for k in ("label", "description", "issuer", "issuer_country", "official_website", "number_of_records", "inception")},
+        number_of_records=a_number(r["database_records"]), inception=a_date(r["inception"], None),
+        origins={k: origin(raw=(f"ExternalIdPropertyWikidata.{k}",)) for k in ("property", "issuer", "issuer_country", "official_website", "number_of_records", "inception")},
     ) for r in rows(src, "SELECT t.* FROM identifier_types t JOIN pick_pid USING (property_id)")]
     counts["identifier"] = write(out, "identifier", M.Identifier, identifier_types)
     counts["individual_identifier"] = write(out, "individual_identifier", M.IndividualIdentifier, [i for g in identifiers.values() for i in g])
@@ -318,10 +324,10 @@ def main():
             continue
         seen.add(r["work_id"])
         works.append(M.Work(
-            qid=r["work_id"], label=r["work_name"], description=None, instance_of=split(r["instance_of"], "|"),
+            entity=an_entity(r["work_id"], r["work_name"]), instance_of=split(r["instance_of"], "|"),
             inception=a_date(r["inception_date"], r["inception_precision"]),
             publication_date=a_date(r["publication_date"], r["publication_precision"]),
-            origins={k: origin(raw=(f"WorkWikidata.{k}",)) for k in ("label", "instance_of", "inception", "publication_date")},
+            origins={k: origin(raw=(f"WorkWikidata.{k}",)) for k in ("entity", "instance_of", "inception", "publication_date")},
         ))
     counts["work"] = write(out, "work", M.Work, works)
     counts["individual_work"] = write(out, "individual_work", M.IndividualWork, [w for g in credits.values() for w in g])
@@ -339,11 +345,12 @@ def main():
             | {"modern_polities": origin(raw=("PolityCliopatria.geometry",), rule="The present-day states whose ground this territory's polygon overlaps. Cliopatria resolves them per polity, not per territory, so every territory of one polity repeats the same list.")},
         ))
     polities = [M.Polity(
-        id=r["id"], name=r["name"], type=r["type"], wikidata_id=r["wikidata_id"], wikipedia_url=r["wikipedia_url"],
+        id=r["id"], name=r["name"], type=r["type"], wikidata_id=r["wikidata_id"],
+        sitelink=M.IndividualSitelink(qid=r["wikidata_id"] or str(r["id"]), url=r["wikipedia_url"], site_url="https://en.wikipedia.org") if r["wikipedia_url"] else None,
         start=min((t.start for t in spans.get(r["id"], []) if t.start is not None), default=None),
         end=max((t.end for t in spans.get(r["id"], []) if t.end is not None), default=None),
         territories=tuple(spans.get(r["id"], ())),
-        origins={k: origin(raw=(f"PolityCliopatria.{k}",)) for k in ("id", "name", "type", "wikidata_id", "wikipedia_url")}
+        origins={k: origin(raw=(f"PolityCliopatria.{k}",)) for k in ("id", "name", "type", "wikidata_id", "sitelink")}
         | {"start": origin(inputs=("territories",), rule="Earliest year over the polity's territories."), "end": origin(inputs=("territories",), rule="Latest year over them.")},
     ) for r in rows(src, "SELECT * FROM polities_cliopatria")]
     counts["polity"] = write(out, "polity", M.Polity, polities)
