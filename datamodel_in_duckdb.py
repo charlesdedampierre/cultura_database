@@ -51,6 +51,12 @@ class WorksPeriod(BaseModel):
     last_year: int | None = Field(None, description="Year of the latest, on the same terms.")
 
 
+class Notability(BaseModel):
+    western_editions: int | None = Field(None, description="How many of the language editions covering the individual are in Western languages.")
+    non_western_editions: int | None = Field(None, description="How many are not.")
+    score: float | None = Field(None, description="The geometric mean of the two counts, 0 to about 282. A geometric mean rewards reach that crosses the divide: someone read in 100 Western and 100 non-Western editions scores 100, someone read in 200 Western and none scores 0.")
+
+
 class PolityMatch(BaseModel):
     polity: Polity | None = Field(None, description="The polity, carrying its id and its name only — the ground it held is in its territories, in the Polity table, which a polygon repeated on thirteen million rows would otherwise dwarf.")
     years: int | None = Field(None, description="Years of the peak-productivity range spent inside it. A small number means the match is incidental — someone who died abroad.")
@@ -170,9 +176,7 @@ class IndividualEnriched(Individual):
 
     works_period: WorksPeriod | None = Field(None, description="The years their dated works span, from the earliest to the latest. Unlike peak_productivity this is observed rather than inferred — but only from works that carry a date, so it is narrower than a working life and empty for the many individuals credited with none.")
 
-    western_editions: int | None = Field(None, description="How many of the language editions covering the individual are in Western languages.")
-    non_western_editions: int | None = Field(None, description="How many are not.")
-    notability: float | None = Field(None, description="The geometric mean of the two counts, 0 to about 282. A geometric mean rewards reach that crosses the divide: someone read in 100 Western and 100 non-Western editions scores 100, someone read in 200 Western and none scores 0. Compare it with CVDB's visibility and Pantheon's hpi, which rank the same people differently.")
+    notability: Notability | None = Field(None, description="How widely the individual is written about, as the two counts of language editions and the score built from them. Compare it with CVDB's visibility and Pantheon's hpi, which rank the same people differently — theirs are in datamodel_raw.py.")
 
     is_human: bool | None = Field(None, description="False for the rows that are not people — fictional characters, deities, legendary creatures. Wikidata classes them among humans, so filter on this before counting.")
 
