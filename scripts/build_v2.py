@@ -280,7 +280,7 @@ def main():
             country=r["original_country_name_id"], instance_of=split(r["entity_type_ids"], "|"),
             existence=M.ExistencePeriod(inception=a_date(r["inception_date"], r["inception_precision"]), dissolution=a_date(r["dissolution_date"], r["dissolution_precision"])),
             present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
-            sitelink=M.Sitelink(url=r["en_wikipedia_url_original_country_name"]) if r["en_wikipedia_url_original_country_name"] else None,
+            sitelink=None,  # places.en_wikipedia_url_original_country_name is the country's article, not the place's
             is_settlement=None if r["is_urban_settlement"] is None else bool(r["is_urban_settlement"]),
             field_provenance={k: provenance_of(raw=(f"PlaceWikidata.{v}",)) for k, v in FROM_PLACE.items()} | GEOCODED,
         )
