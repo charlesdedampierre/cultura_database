@@ -222,7 +222,7 @@ def main():
             place_of_death=M.Place(entity=an_entity(r["deathcity_id"], place_names.get(r["deathcity_id"]))) if r["deathcity_id"] else None,
             sex_or_gender=r["gender_id"],
             occupation=tuple(M.Occupation(entity=an_entity(o, occupation_names.get(o))) for o in split(r["occupations_ids"], ";")),
-            country_of_citizenship=tuple(M.CountryOfCitizenship(entity=an_entity(c, country_names.get(c))) for c in split(r["country_of_citizenship_ids"], ";")),
+            country_of_citizenship=tuple(M.Place(entity=an_entity(c, country_names.get(c))) for c in split(r["country_of_citizenship_ids"], ";")),
             writing_language=split(r["writing_language_ids"], ";"),
             external_id=tuple(identifiers[q]), sitelink=tuple(links[q]), work=tuple(credits[q]),
             works_period=M.WorksPeriod(first_year=int(span[0]), last_year=int(span[1])) if len(span) == 2 and all(s.lstrip("-").isdigit() for s in span) else None,
@@ -261,32 +261,41 @@ def main():
     # ── the lookup tables, restricted to what the sample reaches ───────────
     continents = dict(src.execute("SELECT DISTINCT iso_a3_code, continent FROM polities_modern_countries_cliopatria WHERE iso_a3_code IS NOT NULL").fetchall())
     place_qids = {p for r in people.values() for p in (r["birthcity_id"], r["deathcity_id"]) if p}
-    src.execute("CREATE OR REPLACE TEMP TABLE pick_place AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(place_qids)])
-    places = [M.Place(
-        entity=an_entity(r["id"], r["name_en"]),
-        coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
-        country=r["original_country_name_id"], instance_of=split(r["entity_type_ids"], "|"),
-        existence=M.ExistencePeriod(inception=a_date(r["inception_date"], r["inception_precision"]), dissolution=a_date(r["dissolution_date"], r["dissolution_precision"])),
-        present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
-        is_settlement=None if r["is_urban_settlement"] is None else bool(r["is_urban_settlement"]),
-        field_provenance={k: provenance_of(raw=(f"PlaceWikidata.{v}",)) for k, v in {"entity": "label", "coordinates": "latitude", "country": "country", "instance_of": "instance_of", "existence": "inception"}.items()}
-        | {"present_day_state": provenance_of(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="Reverse-geocoded from the coordinates, so it is where the ground is today, not what Wikidata declares."),
-           "is_settlement": provenance_of(raw=("PlaceWikidata.instance_of",), rule="A language model read the P31 classes and judged whether any of them is a populated place.", model="claude")},
-    ) for r in rows(src, "SELECT p.* FROM places p JOIN pick_place USING (id)")]
-    counts["place"] = write(out, "place", M.Place, places)
-
     country_qids = {c for r in people.values() for c in split(r["country_of_citizenship_ids"], ";")}
+    src.execute("CREATE OR REPLACE TEMP TABLE pick_place AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(place_qids)])
     src.execute("CREATE OR REPLACE TEMP TABLE pick_country AS SELECT unnest(?::VARCHAR[]) AS wikidata_id", [sorted(country_qids)])
-    countries = [M.CountryOfCitizenship(
-        entity=an_entity(r["wikidata_id"], r["name_en"], r["description_en"]), instance_of=split(r["instance_qids"], "|"),
-        coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
-        present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
-        sitelink=M.Sitelink(url=r["en_wikipedia_url"]) if r["en_wikipedia_url"] else None,
-        existence=M.ExistencePeriod(inception=a_date(r["inception"], None), dissolution=a_date(r["dissolved"], None)),
-        field_provenance={k: provenance_of(raw=(f"CountryWikidata.{k}",)) for k in ("entity", "instance_of", "coordinates")}
-        | {"present_day_state": provenance_of(raw=("CountryWikidata.latitude", "CountryWikidata.longitude"), rule="Reverse-geocoded from the state's coordinates, so a historical state gives whichever state holds that ground today.")},
-    ) for r in rows(src, "SELECT c.* FROM country_of_citizenship c JOIN pick_country USING (wikidata_id)")]
-    counts["country_of_citizenship"] = write(out, "country_of_citizenship", M.CountryOfCitizenship, countries)
+
+    FROM_PLACE = {"entity": "label", "coordinates": "latitude", "country": "country", "instance_of": "instance_of", "existence": "inception"}
+    GEOCODED = {
+        "present_day_state": provenance_of(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="Reverse-geocoded from the coordinates, so it is where the ground is today, not what Wikidata declares."),
+        "is_settlement": provenance_of(raw=("PlaceWikidata.instance_of",), rule="A language model read the P31 classes and judged whether any of them is a populated place.", model="claude"),
+    }
+
+    # cities and states in one table: P19 makes no distinction between them
+    places = {}
+    for r in rows(src, "SELECT p.* FROM places p JOIN pick_place USING (id)"):
+        places[r["id"]] = M.Place(
+            entity=an_entity(r["id"], r["name_en"]),
+            coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
+            country=r["original_country_name_id"], instance_of=split(r["entity_type_ids"], "|"),
+            existence=M.ExistencePeriod(inception=a_date(r["inception_date"], r["inception_precision"]), dissolution=a_date(r["dissolution_date"], r["dissolution_precision"])),
+            present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
+            sitelink=M.Sitelink(url=r["en_wikipedia_url_original_country_name"]) if r["en_wikipedia_url_original_country_name"] else None,
+            is_settlement=None if r["is_urban_settlement"] is None else bool(r["is_urban_settlement"]),
+            field_provenance={k: provenance_of(raw=(f"PlaceWikidata.{v}",)) for k, v in FROM_PLACE.items()} | GEOCODED,
+        )
+    for r in rows(src, "SELECT c.* FROM country_of_citizenship c JOIN pick_country USING (wikidata_id)"):
+        places[r["wikidata_id"]] = M.Place(
+            entity=an_entity(r["wikidata_id"], r["name_en"], r["description_en"]),
+            coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
+            country=None, instance_of=split(r["instance_qids"], "|"),
+            existence=M.ExistencePeriod(inception=a_date(r["inception"], None), dissolution=a_date(r["dissolved"], None)),
+            present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
+            sitelink=M.Sitelink(url=r["en_wikipedia_url"]) if r["en_wikipedia_url"] else None,
+            is_settlement=None,
+            field_provenance={k: provenance_of(raw=(f"CountryWikidata.{v}",)) for k, v in FROM_PLACE.items() if k != "country"} | GEOCODED,
+        )
+    counts["place"] = write(out, "place", M.Place, list(places.values()))
 
     occupation_qids = {o for r in people.values() for o in split(r["occupations_ids"], ";")}
     src.execute("CREATE OR REPLACE TEMP TABLE pick_occupation AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(occupation_qids)])
