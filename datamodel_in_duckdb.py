@@ -18,6 +18,43 @@ class Date(BaseModel):
     precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="How precisely the source states the date, as a word rather than Wikidata's numeric code. A date known only to the century still reads as a full ISO string, so this is the only way to know it is not one.")
 
 
+class WikidataEntity(BaseModel):
+    qid: str = Field(..., description="The item's Wikidata identifier, 'Q937'. Everything Wikidata knows hangs off it, and it is the join key between every table here.")
+    label: str | None = Field(None, description="Its English label — 'Albert Einstein', 'Kingdom of Prussia', 'astronomer'. The raw files give it as the RDF literal '\"Ulm\"@en'; the quotes and the language tag are stripped.")
+    description: str | None = Field(None, description="Its English one-line description, 'city in Baden-Württemberg, Germany'. Wikidata writes one for most items, and it is often the shortest way to tell two items with the same label apart.")
+
+
+class WikidataProperty(BaseModel):
+    pid: str = Field(..., description="The property's identifier, 'P569'. Non-property sources keep their RDF term, 'rdfs:label'. Every column of Individual is named after one of these, and Origin.raw reaches them.")
+    label: str | None = Field(None, description="The property's English label, 'date of birth'. Lowercased with non-alphanumeric runs turned into underscores, it is the column name in Individual.")
+    description: str | None = Field(None, description="What the property means, in Wikidata's own words — 'date on which the subject was born'. Stored once here rather than repeated on every value, which is why no column of this schema describes itself.")
+
+
+class Coordinates(BaseModel):
+    latitude: float | None = Field(None, description="Decimal degrees, the latitude half of P625. Negative south of the equator.")
+    longitude: float | None = Field(None, description="Decimal degrees, the longitude half. Negative west of Greenwich.")
+
+
+class ExistencePeriod(BaseModel):
+    inception: Date | None = Field(None, description="When it came into being, P571. The precision is worth reading before the year: a city dated to the century is not a city dated to the day.")
+    dissolution: Date | None = Field(None, description="When it ceased to exist, P576. Empty for something that still does.")
+
+
+class PresentDayState(BaseModel):
+    name: str | None = Field(None, description="The state's name in English, 'Russia'.")
+    iso_3166_1_alpha_3_code: str | None = Field(None, description="Its ISO 3166-1 alpha-3 code, 'RUS'. Empty where the geocoder found none, which happens at sea and in Antarctica.")
+    continent: str | None = Field(None, description="The continent it sits on, 'Europe'. It is the coarsest grouping in the schema and the one most analyses reach for first, so it is here rather than left to a lookup a reader has to supply.")
+
+
+class Sitelink(BaseModel):
+    url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 pages, and an individual reaches at most 341. They are not all Wikipedia — 349 are, and the rest are Wikiquote (81), Wikisource (76), Wikibooks (43), Wikinews (30) and Wikivoyage (10). Counting a person's pages without filtering on the project counts their quotations and their transcribed works alongside the articles about them.")
+    label: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
+    language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
+    is_western: bool | None = Field(None, description="Whether the edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 208 editions are Western, 204 are not, and 200 are on neither list — 9.4 per cent of all pages — so a split computed from this column leaves a residue.")
+    number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
 class PeakProductivity(BaseModel):
     start_year: int | None = Field(None, description="First year of the range. By convention that is from age 30 to age 60, truncated by an early death — so it is a claim about a life stage, not a record of anything observed.")
     midpoint_year: int | None = Field(None, description="The single year that stands for the range, its middle. Empty on 12 934 755 of the 13 003 420 rows — it survives only where a source states a single year, so a distribution over time has to be built from start_year and end_year instead. It is the floruit as defined in the paper, and deliberately not called floruit — Wikidata has a property of that name, P1317, which is a date a source states rather than a range this project computes, and it is on Individual.floruit_date.")
@@ -31,18 +68,17 @@ class Territory(BaseModel):
     end_year: int | None = Field(None, description="Last year it held it.")
     area: float | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
     geometry: str | None = Field(None, description="The ground itself, as GeoJSON — a Polygon for a territory in one piece, a MultiPolygon when it is not, and never a Point: a polity holds an area, the smallest in Cliopatria being 87 km². This is what decides whether a place falls inside the polity, and the heaviest column in the published set.")
-    modern_polities: tuple["Polity", ...] = Field((), description="The polities holding this ground today, each carrying its id and its name only — several, because a historical territory does not stop at modern borders. One that still exists is described by this same model, which is why nothing here needs a separate notion of a country. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
+    present_day_states: tuple[PresentDayState, ...] = Field((), description="The states holding this ground today — several, because a historical territory does not stop at present-day borders. The same model Place and CountryOfCitizenship carry, so a birthplace, a citizenship and a territory all land on comparable ground. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
 class Polity(BaseModel):
-    id: int | None = Field(None, description="Cliopatria's identifier for the polity. One row per polity here — 1 633 of them — with the changes of borders nested in `territories` rather than spread over 13 755 rows that repeat the name.")
+    cliopatria_id: int | None = Field(None, description="Cliopatria's identifier for the polity — assigned by this project when the GeoJSON was loaded, since Cliopatria itself numbers nothing. One row per polity here — 1 633 of them — with the changes of borders nested in `territories` rather than spread over 13 755 rows that repeat the name.")
     name: str | None = Field(None, description="The polity's name as Cliopatria spells it — 'Ottoman Empire', 'Magadha - Shaishunaga dynasty'. Its own spelling, not Wikidata's.")
     type: Literal["POLITY", "RELATION"] | None = Field(None, description="'POLITY' for a polity in its own right, 'RELATION' for a dependency between two of them — 13 370 against 385. A relation is not somewhere a person can be born, so filter on it before counting.")
-    start_year: int | None = Field(None, description="First year the polity existed, the earliest of its territories.")
-    end_year: int | None = Field(None, description="Last year it existed.")
-    wikidata_id: str | None = Field(None, description="The qid Cliopatria resolved for the polity, where it resolved one — the join out to Wikidata and to the other tables here.")
-    sitelink: "IndividualSitelink | None" = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it; matching a place to a polity by URL is one of the two ways it is done, the other being a territory's polygon.")
+    existence: ExistencePeriod | None = Field(None, description="The years the polity existed, read off its territories — the earliest start and the latest end. Cliopatria states years and nothing finer, so the precision is always 'year' and the day in the ISO string carries no information.")
+    entity: WikidataEntity | None = Field(None, description="The Wikidata item Cliopatria resolved for the polity, where it resolved one — the join out to Wikidata and to the other tables here. Empty for a polity it could not resolve, which is why cliopatria_id and not a qid is this table's key.")
+    sitelink: Sitelink | None = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it; matching a place to a polity by URL is one of the two ways it is done, the other being a territory's polygon.")
     territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 8.4 of them and one reaches 212.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
@@ -64,40 +100,13 @@ class PolityMatch(BaseModel):
     assignation_method: Literal["merge_with_polygon", "merge_with_url"] | None = Field(None, description="Which of the two matches settled it — the place falling inside the ground the polity held, or the place and the polity sharing a Wikipedia article. The polygon does almost all of it: 7 745 076 matches against 85 265 by URL.")
 
 
-class WikidataEntity(BaseModel):
-    qid: str = Field(..., description="The item's Wikidata identifier, 'Q937'. Everything Wikidata knows hangs off it, and it is the join key between every table here.")
-    label: str | None = Field(None, description="Its English label — 'Albert Einstein', 'Kingdom of Prussia', 'astronomer'. The raw files give it as the RDF literal '\"Ulm\"@en'; the quotes and the language tag are stripped.")
-    description: str | None = Field(None, description="Its English one-line description, 'city in Baden-Württemberg, Germany'. Wikidata writes one for most items, and it is often the shortest way to tell two items with the same label apart.")
-
-
-class WikidataProperty(BaseModel):
-    pid: str = Field(..., description="The property's identifier, 'P569'. Non-property sources keep their RDF term, 'rdfs:label'. Every column of Individual is named after one of these, and Origin.raw reaches them.")
-    label: str | None = Field(None, description="The property's English label, 'date of birth'. Lowercased with non-alphanumeric runs turned into underscores, it is the column name in Individual.")
-    description: str | None = Field(None, description="What the property means, in Wikidata's own words — 'date on which the subject was born'. Stored once here rather than repeated on every value, which is why no column of this schema describes itself.")
-
-
-class Coordinates(BaseModel):
-    latitude: float | None = Field(None, description="Decimal degrees, the latitude half of P625. Negative south of the equator.")
-    longitude: float | None = Field(None, description="Decimal degrees, the longitude half. Negative west of Greenwich.")
-
-
-class ExistencePeriod(BaseModel):
-    inception: int | None = Field(None, description="Year it came into being, P571.")
-    dissolution: int | None = Field(None, description="Year it ceased to exist, P576. Empty for something that still does.")
-
-
-class ModernCountry(BaseModel):
-    name: str | None = Field(None, description="The state's name in English, 'Russia'.")
-    iso_3166_1_alpha_3_code: str | None = Field(None, description="Its ISO 3166-1 alpha-3 code, 'RUS'. Empty where the geocoder found none, which happens at sea and in Antarctica.")
-
-
 class Place(BaseModel):
     entity: WikidataEntity = Field(..., description="The place's Wikidata item, as Individual.place_of_birth and .place_of_death name it. Its description is often the only thing that tells a city from a hospital without reading the P31 classes.")
     coordinates: Coordinates | None = Field(None, description="Where the place is, P625. This is what every polygon test runs against, so a place without it can never be matched to a polity.")
     country: str | None = Field(None, description="P17, the country Wikidata declares the place to be in, as a qid. For a historical place this is often a state that no longer exists — Königsberg is declared in the Kingdom of Prussia. Join it to CountryOfCitizenship.")
     instance_of: tuple[str, ...] = Field((), description="P31, the classes of the place as qids — 'city', 'hospital', 'quarter'. P19 names all of these as places of birth.")
     existence: ExistencePeriod | None = Field(None, description="The years the place existed. A birthplace with an end has since been razed or absorbed.")
-    modern_country: ModernCountry | None = Field(None, description="The state holding this ground today, from a reverse geocoder on the coordinates — not what Wikidata declares. Königsberg is declared in Prussia and geocodes to Russia. Computed, unlike everything above it.")
+    present_day_state: PresentDayState | None = Field(None, description="The state holding this ground today, from a reverse geocoder on the coordinates — not what Wikidata declares. Königsberg is declared in Prussia and geocodes to Russia. Computed, unlike everything above it.")
     is_settlement: bool | None = Field(None, description="True when the place is a populated place rather than a hospital, a building or an administrative region. A language model read the P31 classes, not the places, so a place is a settlement when any of its classes is. Computed.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column. An entry with a rule was computed — the last three columns — and one without was read.")
 
@@ -106,10 +115,9 @@ class CountryOfCitizenship(BaseModel):
     entity: WikidataEntity = Field(..., description="The state's Wikidata item, as Individual.country_of_citizenship names it. Historical states are here as readily as present ones.")
     instance_of: tuple[str, ...] = Field((), description="P31, as qids — 'sovereign state', 'former country'. This is what tells a state that still exists from one that does not, without asking a geocoder.")
     coordinates: Coordinates | None = Field(None, description="Where the state is, P625 — a single point for a whole country, so it locates it rather than bounds it.")
-    continent: str | None = Field(None, description="P30, as a qid.")
-    modern_country: ModernCountry | None = Field(None, description="The state holding this ground today, reverse-geocoded from the coordinates — the Ottoman Empire gives Turkey, the Kingdom of Prussia gives Germany, and a state that still exists gives itself. Computed, unlike everything above it, and the reason no column here carries a historical state's own ISO code: it has none.")
-    sitelink: "IndividualSitelink | None" = Field(None, description="Its English Wikipedia article, which is how a state is matched to a Cliopatria polity when the polygons do not settle it.")
-    existence: ExistencePeriod | None = Field(None, description="The years the state existed. An empty dissolution is the only thing that says it still does — modern_country is filled either way.")
+    present_day_state: PresentDayState | None = Field(None, description="The state holding this ground today, reverse-geocoded from the coordinates — the Ottoman Empire gives Turkey, the Kingdom of Prussia gives Germany, and a state that still exists gives itself. Computed, unlike everything above it, and the reason no column here carries a historical state's own ISO code: it has none.")
+    sitelink: Sitelink | None = Field(None, description="Its English Wikipedia article, which is how a state is matched to a Cliopatria polity when the polygons do not settle it.")
+    existence: ExistencePeriod | None = Field(None, description="The years the state existed. An empty dissolution is the only thing that says it still does — present_day_state is filled either way.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
@@ -135,15 +143,6 @@ class IndividualIdentifier(BaseModel):
     pid: str = Field(..., description="Which database, joining to Identifier.pid. The pair is the key: an individual has at most one identifier per database.")
     value: str | None = Field(None, description="The identifier as that database issued it, '75121530'. A string, never a number: many carry leading zeros or letters.")
     url: str | None = Field(None, description="The record's URL where Wikidata gives one. It is otherwise Identifier.formatter_url with the value substituted, so this column is mostly empty by design.")
-    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
-
-
-class Sitelink(BaseModel):
-    url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 pages, and an individual reaches at most 341. They are not all Wikipedia — 349 are, and the rest are Wikiquote (81), Wikisource (76), Wikibooks (43), Wikinews (30) and Wikivoyage (10). Counting a person's pages without filtering on the project counts their quotations and their transcribed works alongside the articles about them.")
-    label: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
-    language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
-    is_western: bool | None = Field(None, description="Whether the edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 208 editions are Western, 204 are not, and 200 are on neither list — 9.4 per cent of all pages — so a split computed from this column leaves a residue.")
-    number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 

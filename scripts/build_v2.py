@@ -75,6 +75,11 @@ def a_number(value):
         return None
 
 
+def a_year(value):
+    """A Date from a bare year, which is all Cliopatria states."""
+    return None if value is None else M.Date(iso=None, year=int(value), precision="year")
+
+
 def a_date(stamp, precision):
     head = iso(stamp)
     if head is None:
@@ -121,7 +126,7 @@ def duck_type(annotation, seen=()):
         return "VARCHAR"
     if isinstance(annotation, type) and issubclass(annotation, M.BaseModel):
         if annotation in seen:
-            return "STRUCT(id BIGINT, name VARCHAR)"
+            return "STRUCT(cliopatria_id BIGINT, name VARCHAR)"
         inner = ", ".join(f'"{n}" {duck_type(f.annotation, seen + (annotation,))}' for n, f in annotation.model_fields.items())
         return f"STRUCT({inner})"
     raise TypeError(annotation)
@@ -246,7 +251,7 @@ def main():
         enriched.append(M.IndividualEnriched(
             qid=q,
             peak_productivity=M.PeakProductivity(start_year=f.get("floruit_period_start"), midpoint_year=f.get("floruit_year"), end_year=f.get("floruit_period_end"), is_estimated=None if f.get("estimated") is None else bool(f["estimated"]), assignation_method=f.get("method")) if f else None,
-            polity=M.PolityMatch(polity=M.Polity(id=c["polity_id"], name=c["polity_name"]), years=c["overlap_years"], assignation_method=c["method"]) if c else None,
+            polity=M.PolityMatch(polity=M.Polity(cliopatria_id=c["polity_id"], name=c["polity_name"]), years=c["overlap_years"], assignation_method=c["method"]) if c else None,
             polity_count=overlaps.get(q),
             notability=M.Notability(western_editions=r["notability_western"], non_western_editions=r["notability_non_western"], score=r["notability_general"]),
             origins=ENRICHED,
@@ -254,33 +259,32 @@ def main():
     counts["individual_enriched"] = write(out, "individual_enriched", M.IndividualEnriched, enriched)
 
     # ── the lookup tables, restricted to what the sample reaches ───────────
+    continents = dict(src.execute("SELECT DISTINCT iso_a3_code, continent FROM polities_modern_countries_cliopatria WHERE iso_a3_code IS NOT NULL").fetchall())
     place_qids = {p for r in people.values() for p in (r["birthcity_id"], r["deathcity_id"]) if p}
     src.execute("CREATE OR REPLACE TEMP TABLE pick_place AS SELECT unnest(?::VARCHAR[]) AS id", [sorted(place_qids)])
     places = [M.Place(
         entity=an_entity(r["id"], r["name_en"]),
         coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
         country=r["original_country_name_id"], instance_of=split(r["entity_type_ids"], "|"),
-        existence=M.ExistencePeriod(inception=year(r["inception_date"]), dissolution=year(r["dissolution_date"])),
-        modern_country=M.ModernCountry(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"]),
+        existence=M.ExistencePeriod(inception=a_date(r["inception_date"], r["inception_precision"]), dissolution=a_date(r["dissolution_date"], r["dissolution_precision"])),
+        present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
         is_settlement=None if r["is_urban_settlement"] is None else bool(r["is_urban_settlement"]),
         origins={k: origin(raw=(f"PlaceWikidata.{v}",)) for k, v in {"entity": "label", "coordinates": "latitude", "country": "country", "instance_of": "instance_of", "existence": "inception"}.items()}
-        | {"modern_country": origin(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="Reverse-geocoded from the coordinates, so it is where the ground is today, not what Wikidata declares."),
+        | {"present_day_state": origin(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="Reverse-geocoded from the coordinates, so it is where the ground is today, not what Wikidata declares."),
            "is_settlement": origin(raw=("PlaceWikidata.instance_of",), rule="A language model read the P31 classes and judged whether any of them is a populated place.", model="claude")},
     ) for r in rows(src, "SELECT p.* FROM places p JOIN pick_place USING (id)")]
     counts["place"] = write(out, "place", M.Place, places)
 
     country_qids = {c for r in people.values() for c in split(r["country_of_citizenship_ids"], ";")}
     src.execute("CREATE OR REPLACE TEMP TABLE pick_country AS SELECT unnest(?::VARCHAR[]) AS wikidata_id", [sorted(country_qids)])
-    continents = dict(src.execute("SELECT DISTINCT country_qid, continent FROM polities_modern_countries_cliopatria").fetchall())
     countries = [M.CountryOfCitizenship(
         entity=an_entity(r["wikidata_id"], r["name_en"], r["description_en"]), instance_of=split(r["instance_qids"], "|"),
         coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
-        continent=continents.get(r["wikidata_id"]),
-        modern_country=M.ModernCountry(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"]),
-        sitelink=M.IndividualSitelink(qid=r["wikidata_id"], url=r["en_wikipedia_url"], site_url="https://en.wikipedia.org") if r["en_wikipedia_url"] else None,
-        existence=M.ExistencePeriod(inception=year(r["inception"]), dissolution=year(r["dissolved"])),
-        origins={k: origin(raw=(f"CountryWikidata.{k}",)) for k in ("entity", "instance_of", "coordinates", "continent")}
-        | {"modern_country": origin(raw=("CountryWikidata.latitude", "CountryWikidata.longitude"), rule="Reverse-geocoded from the state's coordinates, so a historical state gives whichever state holds that ground today.")},
+        present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
+        sitelink=M.Sitelink(url=r["en_wikipedia_url"]) if r["en_wikipedia_url"] else None,
+        existence=M.ExistencePeriod(inception=a_date(r["inception"], None), dissolution=a_date(r["dissolved"], None)),
+        origins={k: origin(raw=(f"CountryWikidata.{k}",)) for k in ("entity", "instance_of", "coordinates")}
+        | {"present_day_state": origin(raw=("CountryWikidata.latitude", "CountryWikidata.longitude"), rule="Reverse-geocoded from the state's coordinates, so a historical state gives whichever state holds that ground today.")},
     ) for r in rows(src, "SELECT c.* FROM country_of_citizenship c JOIN pick_country USING (wikidata_id)")]
     counts["country_of_citizenship"] = write(out, "country_of_citizenship", M.CountryOfCitizenship, countries)
 
@@ -334,24 +338,26 @@ def main():
 
     # ── polities: one row each, territories nested ─────────────────────────
     modern = {}
-    for r in rows(src, "SELECT polity_id, country_qid, country_name FROM polities_modern_countries_cliopatria"):
-        modern.setdefault(r["polity_id"], []).append(M.Polity(id=None, name=r["country_name"], wikidata_id=r["country_qid"]))
+    for r in rows(src, "SELECT polity_id, country_name, iso_a3_code, continent FROM polities_modern_countries_cliopatria"):
+        modern.setdefault(r["polity_id"], []).append(M.PresentDayState(name=r["country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=r["continent"]))
     spans = {}
     for r in rows(src, "SELECT * FROM polities_periods_cliopatria ORDER BY polity_id, from_year"):
         spans.setdefault(r["polity_id"], []).append(M.Territory(
             start_year=r["from_year"], end_year=r["to_year"], area=r["area"], geometry=r["geometry"],
-            modern_polities=tuple(modern.get(r["polity_id"], ())),
+            present_day_states=tuple(modern.get(r["polity_id"], ())),
             origins={k: origin(raw=(f"PolityCliopatria.{v}",)) for k, v in {"start_year": "from_year", "end_year": "to_year", "area": "area", "geometry": "geometry"}.items()}
-            | {"modern_polities": origin(raw=("PolityCliopatria.geometry",), rule="The present-day states whose ground this territory's polygon overlaps. Cliopatria resolves them per polity, not per territory, so every territory of one polity repeats the same list.")},
+            | {"present_day_states": origin(raw=("PolityCliopatria.geometry",), rule="The present-day states whose ground this territory's polygon overlaps. Cliopatria resolves them per polity, not per territory, so every territory of one polity repeats the same list.")},
         ))
     polities = [M.Polity(
-        id=r["id"], name=r["name"], type=r["type"], wikidata_id=r["wikidata_id"],
-        sitelink=M.IndividualSitelink(qid=r["wikidata_id"] or str(r["id"]), url=r["wikipedia_url"], site_url="https://en.wikipedia.org") if r["wikipedia_url"] else None,
-        start_year=min((t.start_year for t in spans.get(r["id"], []) if t.start_year is not None), default=None),
-        end_year=max((t.end_year for t in spans.get(r["id"], []) if t.end_year is not None), default=None),
+        cliopatria_id=r["id"], name=r["name"], type=r["type"],
+        entity=an_entity(r["wikidata_id"], r["name"]) if r["wikidata_id"] else None,
+        sitelink=M.Sitelink(url=r["wikipedia_url"]) if r["wikipedia_url"] else None,
+        existence=M.ExistencePeriod(
+            inception=a_year(min((t.start_year for t in spans.get(r["id"], []) if t.start_year is not None), default=None)),
+            dissolution=a_year(max((t.end_year for t in spans.get(r["id"], []) if t.end_year is not None), default=None))),
         territories=tuple(spans.get(r["id"], ())),
-        origins={k: origin(raw=(f"PolityCliopatria.{k}",)) for k in ("id", "name", "type", "wikidata_id", "sitelink")}
-        | {"start_year": origin(inputs=("territories",), rule="Earliest year over the polity's territories."), "end_year": origin(inputs=("territories",), rule="Latest year over them.")},
+        origins={k: origin(raw=(f"PolityCliopatria.{v}",)) for k, v in {"cliopatria_id": "id", "name": "name", "type": "type", "entity": "wikidata_id", "sitelink": "wikipedia_url"}.items()}
+        | {"existence": origin(inputs=("territories",), rule="Earliest start and latest end over the polity's territories.")},
     ) for r in rows(src, "SELECT * FROM polities_cliopatria")]
     counts["polity"] = write(out, "polity", M.Polity, polities)
 
