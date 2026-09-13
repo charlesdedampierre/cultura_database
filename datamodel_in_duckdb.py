@@ -67,12 +67,13 @@ class PolityMatch(BaseModel):
 class WikidataProperty(BaseModel):
     pid: str = Field(..., description="The property's identifier, 'P569'. Non-property sources keep their RDF term, 'rdfs:label'. Every column of Individual is named after one of these, and Origin.raw reaches them.")
     label: str | None = Field(None, description="The property's English label, 'date of birth'. Lowercased with non-alphanumeric runs turned into underscores, it is the column name in Individual.")
-    definition: str | None = Field(None, description="What the property means, in Wikidata's own words — 'date on which the subject was born'. Stored once here rather than repeated on every value, which is why no column of this schema describes itself.")
+    description: str | None = Field(None, description="What the property means, in Wikidata's own words — 'date on which the subject was born'. Stored once here rather than repeated on every value, which is why no column of this schema describes itself.")
 
 
 class Place(BaseModel):
     qid: str = Field(..., description="The place's Wikidata item, as Individual.place_of_birth and .place_of_death name it.")
     label: str | None = Field(None, description="English name, 'Ulm'.")
+    description: str | None = Field(None, description="English one-line description, 'city in Baden-Württemberg, Germany'. It is often the only thing that tells a city from a hospital without reading the P31 classes.")
     latitude: float | None = Field(None, description="Decimal degrees, the latitude half of P625.")
     longitude: float | None = Field(None, description="Decimal degrees.")
     country: str | None = Field(None, description="P17, the country Wikidata declares the place to be in, as a qid. For a historical place this is often a state that no longer exists — Königsberg is declared in the Kingdom of Prussia. Join it to CountryOfCitizenship.")
@@ -111,6 +112,7 @@ class Occupation(BaseModel):
 class Identifier(BaseModel):
     pid: str = Field(..., description="The Wikidata property that carries the identifier, 'P214' for VIAF. This is what an external database is: Wikidata has 10 329 such properties and nothing else names them.")
     label: str | None = Field(None, description="The database's name, 'VIAF ID', 'ISBN-13'.")
+    description: str | None = Field(None, description="What the property means, in Wikidata's own words — 'identifier for the Virtual International Authority File'.")
     formatter_url: str | None = Field(None, description="P1630, the template that turns an identifier into a link — 'https://viaf.org/viaf/$1', with $1 standing for the value. It is why IndividualIdentifier need not store a URL per row.")
     issuer: str | None = Field(None, description="P1629, the qid of the organisation that issues the identifiers — a national library, a museum.")
     issuer_country: str | None = Field(None, description="P17 of that issuer, as a qid. Use it to weigh how national a database's coverage is: a French library indexes French lives more densely, and a count of identifiers is not a count of importance.")
@@ -138,9 +140,10 @@ class Sitelink(BaseModel):
 
 class Work(BaseModel):
     qid: str = Field(..., description="The work's Wikidata item. A few keys in the source are lexeme URIs rather than qids.")
+    label: str | None = Field(None, description="The work's English title, 'Mona Lisa'.")
+    description: str | None = Field(None, description="English one-line description, 'painting by Leonardo da Vinci'.")
     creator: "Individual | None" = Field(None, description="The individual credited, carrying their qid and their name only — everything else about them is on their own row. A work with several creators has one row per creator.")
     credit_property: str | None = Field(None, description="The property that credits them — 'P50' author, 'P170' creator, 'P175' performer. It is what stops an actor and a director counting as having written the same film. Join it to WikidataProperty for its name.")
-    label: str | None = Field(None, description="The work's English title, 'Mona Lisa'.")
     instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work as qids — 'painting', 'film', 'novel'.")
     inception: Date | None = Field(None, description="When the work was made, P571.")
     publication_date: Date | None = Field(None, description="When it was first published or released, P577. The year of a work is this where there is one and the inception otherwise, which is how IndividualEnriched.works_first_year is built.")
