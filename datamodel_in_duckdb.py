@@ -131,9 +131,18 @@ class IndividualIdentifier(BaseModel):
 
 
 class Sitelink(BaseModel):
+    site: str = Field(..., description="A Wikimedia edition, by its host — 'fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 articles, and an individual reaches at most 228.")
+    label: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
+    language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
+    is_western: bool | None = Field(None, description="Whether the edition counts as Western. This is the line IndividualEnriched.notability is split on, and drawing it is a decision this project made, not a fact Wikidata states — which is why it is a column here to be read and argued with rather than a rule buried in the code.")
+    number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
+class IndividualSitelink(BaseModel):
     qid: str = Field(..., description="The individual, joining to Individual.qid.")
-    language: str | None = Field(None, description="The edition the article is in, as its host — 'fr.wikipedia.org'. An individual has up to 228, and it is the count of these, split Western against non-Western, that IndividualEnriched.notability is built on.")
-    title: str | None = Field(None, description="The article's title in that edition, unescaped.")
+    site: str = Field(..., description="Which edition, joining to Sitelink.site. The pair is the key: an individual has at most one article per edition.")
+    title: str | None = Field(None, description="The article's title in that edition, unescaped — 'هانز-ايكارت شايفر'.")
     url: str | None = Field(None, description="The article's URL, percent-encoded as Wikidata gives it.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
@@ -164,7 +173,7 @@ class Individual(BaseModel):
     country_of_citizenship: tuple[CountryOfCitizenship, ...] = Field((), description="P27, in Wikidata's order, historical states included, each carrying the state's qid and its name only — its coordinates, its dates and its ISO code are in the CountryOfCitizenship table. This is the state a person held papers from, not the ground they lived on: IndividualEnriched.polity is that. Raw: IndividualWikidata.country_of_citizenship.")
     writing_language: tuple[str, ...] = Field((), description="P6886, qids. Raw: IndividualWikidata.writing_language.")
     external_id: tuple[IndividualIdentifier, ...] = Field((), description="Every external database that holds a record for the individual, each carrying the database's pid and the identifier it issued. Which database it is, is the pid and nothing else — Identifier is where that is named and given a formatter_url to build the link from. Raw: IndividualWikidata.external_id, a map of property to value.")
-    sitelink: tuple[Sitelink, ...] = Field((), description="Every Wikipedia article about the individual, one per language edition, up to 228, each carrying the edition and the article's title and URL. Counting these, split Western against non-Western, is what IndividualEnriched.notability is built on. Raw: IndividualWikidata.sitelink.")
+    sitelink: tuple[IndividualSitelink, ...] = Field((), description="Every Wikipedia article about the individual, one per edition, up to 228, each carrying the edition and the article's title and URL. Counting these, split Western against non-Western on Sitelink.is_western, is what IndividualEnriched.notability is built on. Raw: IndividualWikidata.sitelink.")
     work: tuple[Work, ...] = Field((), description="Every work credited to the individual, each carrying the work's qid, its title and the property that credits them — which is what stops an actor and a director counting as having written the same film. Raw: IndividualWikidata.work.")
     works_period: WorksPeriod | None = Field(None, description="The years their dated works span, from the earliest to the latest. Unlike peak_productivity this is observed rather than inferred — but only from works that carry a date, so it is narrower than a working life and empty for the many individuals credited with none.")
     is_human: bool | None = Field(None, description="False for the rows that are not people — fictional characters, deities, legendary creatures. Wikidata classes them among humans, so filter on this before counting.")
@@ -185,4 +194,4 @@ class IndividualEnriched(Individual):
     origins: dict[str, Origin] = Field({}, description="Where every value on this row came from, keyed by field name — the inherited ones as well as the computed ones. An entry with a rule was computed by this project; an entry without one was read from the raw field it names. On a row that carries both, that is the only way to tell which values are Wikidata's and which are ours.")
 
 
-TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "country_of_citizenship": CountryOfCitizenship, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty}
+TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "country_of_citizenship": CountryOfCitizenship, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "individual_sitelink": IndividualSitelink, "wikidata_property": WikidataProperty}
