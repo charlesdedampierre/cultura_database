@@ -253,7 +253,7 @@ def main():
             peak_productivity=M.PeakProductivity(start_year=f.get("floruit_period_start"), midpoint_year=f.get("floruit_year"), end_year=f.get("floruit_period_end"), is_estimated=None if f.get("estimated") is None else bool(f["estimated"]), assignation_method=f.get("method")) if f else None,
             polity=M.PolityMatch(polity=M.Polity(cliopatria_id=c["polity_id"], name=c["polity_name"]), years=c["overlap_years"], assignation_method=c["method"]) if c else None,
             polity_count=overlaps.get(q),
-            notability=M.Notability(western_editions=r["notability_western"], non_western_editions=r["notability_non_western"], score=r["notability_general"]),
+            notability=M.Notability(western_reach=r["notability_western"], non_western_reach=r["notability_non_western"], cross_cultural_score=r["notability_general"]),
             origins=ENRICHED,
         ))
     counts["individual_enriched"] = write(out, "individual_enriched", M.IndividualEnriched, enriched)

@@ -89,9 +89,9 @@ class WorksPeriod(BaseModel):
 
 
 class Notability(BaseModel):
-    western_editions: int | None = Field(None, description="The project's count of Western-language coverage. It is not a partition of the individual's own sitelinks: the two counts sum to more pages than the individual has on 499 of 500 sampled rows, by 37.8 on average — Shakespeare has 332 pages, 228 Western and 348 non-Western. Whatever it counts, it is not this table's rows, so do not derive it from them or check it against them.")
-    non_western_editions: int | None = Field(None, description="The same for non-Western coverage, on the same caution.")
-    score: float | None = Field(None, description="The geometric mean of the two counts, 0 to about 282. A geometric mean rewards reach that crosses the divide: someone read in 100 Western and 100 non-Western editions scores 100, someone read in 200 Western and none scores 0.")
+    western_reach: int | None = Field(None, description="How far the individual reaches into Western-language coverage, as this project scores it. Deliberately not called a count of editions: it is not a partition of the individual's own sitelinks, and the two reaches sum to more pages than the individual has on 499 of 500 sampled rows, by 37.8 on average — Shakespeare has 332 pages, 228 Western and 348 non-Western. Do not derive it from individual_sitelink or check it against that table.")
+    non_western_reach: int | None = Field(None, description="The same for non-Western coverage, on the same caution.")
+    cross_cultural_score: float | None = Field(None, description="The geometric mean of the two reaches, 0 to about 282, and the project's headline ranking. A geometric mean is what makes it cross-cultural: 100 Western and 100 non-Western scores 100, while 200 Western and none scores 0 — so it measures reach across the divide, not reach in total.")
 
 
 class PolityMatch(BaseModel):
