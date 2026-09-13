@@ -4,11 +4,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class AIAnswer(BaseModel):
+    model_name: str | None = Field(None, description="The exact model id that answered, 'claude-opus-4-20250514'. The version matters: the same prompt to a later model gives different answers, and a value without this cannot be reproduced.")
+    prompt_id: str | None = Field(None, description="The prompt that was sent, by the name of its file in prompts/ — 'urban_settlement', 'wikipedia_dates'. The file is the prompt in full, so the question asked is on the record alongside the answer.")
+
+
 class Provenance(BaseModel):
     raw: tuple[str, ...] = Field((), description="The fields of datamodel_raw.py this value was built from, as 'Model.field' — 'IndividualWikidata.date_of_birth', 'CrossVerifiedPerson.birth', 'PolityCliopatria.geometry'. Every source the project reads is in that file in full, so this is the link back to the data exactly as it arrived, and from there to a Wikidata property and its definition.")
     inputs: tuple[str, ...] = Field((), description="For a value computed from another computed one, the fields of this table it was built on — the floruit from its start and end. Values read from a source name those in `raw` instead.")
     rule: str | None = Field(None, description="For a computed value, what was done to those inputs, in one sentence. This is the whole method: there is no step recorded elsewhere.")
-    model: str | None = Field(None, description="For a value a language model produced, the exact model id. The prompt is in prompts/, named after the task.")
+    ai_answer: AIAnswer | None = Field(None, description="Set when a language model produced the value rather than a rule — which model, and which prompt it was given. A value with this is a judgement, not a lookup, and is the one kind here that a rerun can change.")
     retrieved_on: date | None = Field(None, description="The day the source was read. Wikidata is edited continuously, so a value without this cannot be reproduced.")
 
 

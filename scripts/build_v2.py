@@ -91,8 +91,9 @@ def an_entity(qid, label=None, description=None):
     return M.WikidataEntity(qid=qid, label=label, description=description)
 
 
-def provenance_of(raw=(), rule=None, inputs=(), model=None, retrieved_on=None):
-    return M.Provenance(raw=raw, inputs=inputs, rule=rule, model=model, retrieved_on=retrieved_on)
+def provenance_of(raw=(), rule=None, inputs=(), prompt_id=None, retrieved_on=None):
+    answer = M.AIAnswer(model_name=None, prompt_id=prompt_id) if prompt_id else None
+    return M.Provenance(raw=raw, inputs=inputs, rule=rule, ai_answer=answer, retrieved_on=retrieved_on)
 
 
 # ── the DuckDB type of a pydantic model, cut at a finite depth ──────────────
@@ -268,7 +269,7 @@ def main():
     FROM_PLACE = {"entity": "label", "coordinates": "latitude", "country": "country", "instance_of": "instance_of", "existence": "inception"}
     GEOCODED = {
         "present_day_state": provenance_of(raw=("PlaceWikidata.latitude", "PlaceWikidata.longitude"), rule="Reverse-geocoded from the coordinates, so it is where the ground is today, not what Wikidata declares."),
-        "is_settlement": provenance_of(raw=("PlaceWikidata.instance_of",), rule="A language model read the P31 classes and judged whether any of them is a populated place.", model="claude"),
+        "is_settlement": provenance_of(raw=("PlaceWikidata.instance_of",), rule="A language model read the P31 classes and judged whether any of them is a populated place.", prompt_id="urban_settlement"),
     }
 
     # cities and states in one table: P19 makes no distinction between them
