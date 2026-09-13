@@ -105,7 +105,7 @@ class Sitelink(BaseModel):
 
 class Work(BaseModel):
     qid: str = Field(..., description="The work's Wikidata item. A few keys in the source are lexeme URIs rather than qids.")
-    creator: str | None = Field(None, description="The individual credited, joining to Individual.qid. A work with several creators has one row per creator.")
+    creator: "Individual | None" = Field(None, description="The individual credited, carrying their qid and their name only — everything else about them is on their own row. A work with several creators has one row per creator.")
     credit_property: str | None = Field(None, description="The property that credits them — 'P50' author, 'P170' creator, 'P175' performer. It is what stops an actor and a director counting as having written the same film. Join it to WikidataProperty for its name.")
     label: str | None = Field(None, description="The work's English title, 'Mona Lisa'.")
     instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work as qids — 'painting', 'film', 'novel'.")
