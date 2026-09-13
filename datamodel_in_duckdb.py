@@ -25,13 +25,13 @@ class Date(BaseModel):
 
 class WikidataEntity(BaseModel):
     qid: str = Field(..., description="The item's Wikidata identifier, 'Q937'. Everything Wikidata knows hangs off it, and it is the join key between every table here.")
-    label: str | None = Field(None, description="Its English label — 'Albert Einstein', 'Kingdom of Prussia', 'astronomer'. The raw files give it as the RDF literal '\"Ulm\"@en'; the quotes and the language tag are stripped.")
+    label_en: str | None = Field(None, description="Its English label — 'Albert Einstein', 'Kingdom of Prussia', 'astronomer'. The raw files give it as the RDF literal '\"Ulm\"@en'; the quotes and the language tag are stripped.")
     description: str | None = Field(None, description="Its English one-line description, 'city in Baden-Württemberg, Germany'. Wikidata writes one for most items, and it is often the shortest way to tell two items with the same label apart.")
 
 
 class WikidataProperty(BaseModel):
     pid: str = Field(..., description="The property's identifier, 'P569'. Non-property sources keep their RDF term, 'rdfs:label'. Every column of Individual is named after one of these, and Provenance.raw reaches them.")
-    label: str | None = Field(None, description="The property's English label, 'date of birth'. Lowercased with non-alphanumeric runs turned into underscores, it is the column name in Individual.")
+    label_en: str | None = Field(None, description="The property's English label, 'date of birth'. Lowercased with non-alphanumeric runs turned into underscores, it is the column name in Individual.")
     description: str | None = Field(None, description="What the property means, in Wikidata's own words — 'date on which the subject was born'. Stored once here rather than repeated on every value, which is why no column of this schema describes itself.")
 
 
@@ -53,7 +53,7 @@ class PresentDayState(BaseModel):
 
 class Sitelink(BaseModel):
     url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 pages, and an individual reaches at most 341. They are not all Wikipedia — 349 are, and the rest are Wikiquote (81), Wikisource (76), Wikibooks (43), Wikinews (30) and Wikivoyage (10). Counting a person's pages without filtering on the project counts their quotations and their transcribed works alongside the articles about them.")
-    label: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
+    label_en: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
     language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
     is_western: bool | None = Field(None, description="Whether the edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 208 editions are Western, 204 are not, and 200 are on neither list — 9.4 per cent of all pages — so a split computed from this column leaves a residue.")
     number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
@@ -64,7 +64,6 @@ class PeakProductivity(BaseModel):
     start_year: int | None = Field(None, description="First year of the range. By convention that is from age 30 to age 60, truncated by an early death — so it is a claim about a life stage, not a record of anything observed.")
     midpoint_year: int | None = Field(None, description="The single year that stands for the range, its middle. Empty on 12 934 755 of the 13 003 420 rows — it survives only where a source states a single year, so a distribution over time has to be built from start_year and end_year instead. It is the floruit as defined in the paper, and deliberately not called floruit — Wikidata has a property of that name, P1317, which is a date a source states rather than a range this project computes, and it is on Individual.floruit_date.")
     end_year: int | None = Field(None, description="Last year of the range.")
-    is_estimated: bool | None = Field(None, description="True when the range rests on an estimated birth or death year rather than an attested one. The range is still usable; it is simply softer, and this says so rather than leaving it to be discovered.")
     assignation_method: str | None = Field(None, description="How the range was arrived at, as a token naming the dates used and where they came from — 'birth_death_property', 'birth_only_property', 'works_span', 'floruit_description', 'no_data'. Twenty-two of them across the thirteen million, and they are not interchangeable: a range from an attested birth and death is a different claim from one the life-expectancy model produced. Group by this before trusting any distribution over time.")
 
 
@@ -72,7 +71,7 @@ class Territory(BaseModel):
     start_year: int | None = Field(None, description="First year the polity held this ground. Negative before the common era.")
     end_year: int | None = Field(None, description="Last year it held it.")
     area: float | None = Field(None, description="Area of that ground in square kilometres. Read down the territories and you watch an empire move: the Greek City-States go 64 106, then 89 420, then 129 112 km².")
-    geometry: str | None = Field(None, description="The ground itself, as GeoJSON — a Polygon for a territory in one piece, a MultiPolygon when it is not, and never a Point: a polity holds an area, the smallest in Cliopatria being 87 km². This is what decides whether a place falls inside the polity, and the heaviest column in the published set.")
+    geometry: str | None = Field(None, description="The ground itself, as a GeoJSON geometry object serialised to a string: {\"type\": …, \"coordinates\": …} and those two keys only — no Feature wrapper, no properties, no crs member. The type is Polygon on 6 522 territories and MultiPolygon on 7 233, never a Point: a polity holds an area, the smallest in Cliopatria being 87 km². Coordinates are longitude then latitude in decimal degrees on WGS 84, as RFC 7946 requires, with rings closed and the outer ring first. Parse it with any GeoJSON reader, or in DuckDB with ST_GeomFromGeoJSON after installing spatial. It is by far the heaviest column here — 149 613 205 bytes over the 13 755 territories, a Polygon averaging 2.7 KB and a MultiPolygon 18 KB, one reaching 279 KB — which is why the polities are a table of their own and not embedded in each individual.")
     present_day_states: tuple[PresentDayState, ...] = Field((), description="The states holding this ground today — several, because a historical territory does not stop at present-day borders. The same model Place and CountryOfCitizenship carry, so a birthplace, a citizenship and a territory all land on comparable ground. Cliopatria resolves these per polity rather than per territory, so loading it as it stands repeats the same ones on every entry; only recomputing them from this polygon makes the breakdown real.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 

@@ -93,8 +93,8 @@ def a_date(stamp, precision):
     return M.Date(iso=head, year=year(stamp), precision=PRECISION.get(precision))
 
 
-def an_entity(qid, label=None, description=None):
-    return M.WikidataEntity(qid=qid, label=label, description=description)
+def an_entity(qid, label_en=None, description=None):
+    return M.WikidataEntity(qid=qid, label_en=label_en, description=description)
 
 
 def provenance_of(raw=(), rule=None, inputs=(), prompt_id=None, retrieved_on=None):
@@ -204,7 +204,7 @@ def main():
         identifiers[r["wikidata_id"]].append(M.IndividualIdentifier(qid=r["wikidata_id"], pid=r["property_id"], value=r["value"], url=r["url"], field_provenance={"value": provenance_of(raw=("IndividualWikidata.external_id",))}))
     work_rows = rows(src, "SELECT w.* FROM works w JOIN pick ON w.individual_id = pick.wikidata_id")
     for r in tqdm(work_rows, desc="works"):
-        credits[r["individual_id"]].append(M.IndividualWork(qid=r["individual_id"], work_qid=r["work_id"], credit_property=M.WikidataProperty(pid=r["relationship"], label=None, description=None) if r["relationship"] else None, field_provenance={"credit_property": provenance_of(raw=("IndividualWikidata.work",))}))
+        credits[r["individual_id"]].append(M.IndividualWork(qid=r["individual_id"], work_qid=r["work_id"], credit_property=M.WikidataProperty(pid=r["relationship"], label_en=None, description=None) if r["relationship"] else None, field_provenance={"credit_property": provenance_of(raw=("IndividualWikidata.work",))}))
 
     RAW = {f: provenance_of(raw=(f"IndividualWikidata.{f}",)) for f in ("entity", "place_of_birth", "place_of_death", "sex_or_gender", "occupation", "country_of_citizenship", "writing_language", "external_id", "sitelink", "work")}
     RAW |= {
@@ -315,7 +315,7 @@ def main():
     pids = sorted({i.pid for group in identifiers.values() for i in group})
     src.execute("CREATE OR REPLACE TEMP TABLE pick_pid AS SELECT unnest(?::VARCHAR[]) AS property_id", [pids])
     identifier_types = [M.Identifier(
-        property=M.WikidataProperty(pid=r["property_id"], label=r["name_en"], description=r["description"]), formatter_url=None,
+        property=M.WikidataProperty(pid=r["property_id"], label_en=r["name_en"], description=r["description"]), formatter_url=None,
         issuer=r["issuer_id"], issuer_country=r["country_id"], official_website=r["website"],
         number_of_records=a_number(r["database_records"]), inception=a_date(r["inception"], None),
         field_provenance={k: provenance_of(raw=(f"ExternalIdPropertyWikidata.{k}",)) for k in ("property", "issuer", "issuer_country", "official_website", "number_of_records", "inception")},
@@ -328,7 +328,7 @@ def main():
     for site, n in tqdm(src.execute("SELECT site, count(*) FROM wikimedia_links GROUP BY 1 ORDER BY 2 DESC").fetchall(), desc="editions"):
         code = site.split(".")[0]
         editions.append(M.Sitelink(
-            url=f"https://{site}", label=None, language=None,
+            url=f"https://{site}", label_en=None, language=None,
             is_western=True if code in WESTERN else (False if code in NON_WESTERN else None),
             number_of_articles=n,
             field_provenance={"number_of_articles": provenance_of(raw=("IndividualWikidata.sitelink",), rule="Count of articles this edition carries across every individual in Cultura."),
@@ -377,7 +377,7 @@ def main():
     ) for r in rows(src, "SELECT * FROM polities_cliopatria")]
     counts["polity"] = write(out, "polity", M.Polity, polities)
 
-    properties = [M.WikidataProperty(pid=r["property_id"], label=r["property_name"], description=r["description"])
+    properties = [M.WikidataProperty(pid=r["property_id"], label_en=r["property_name"], description=r["description"])
                   for r in rows(src, "SELECT DISTINCT property_id, property_name, description FROM wikidata_properties_definition")]
     counts["wikidata_property"] = write(out, "wikidata_property", M.WikidataProperty, properties)
 
