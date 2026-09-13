@@ -126,7 +126,7 @@ class Identifier(BaseModel):
     property: WikidataProperty = Field(..., description="The Wikidata property that carries the identifier, 'P214' for VIAF, its label being the database's name. This is what an external database is: Wikidata has 10 329 such properties and nothing else names them.")
     formatter_url: str | None = Field(None, description="P1630, the template that turns an identifier into a link — 'https://viaf.org/viaf/$1', with $1 standing for the value. It is why IndividualIdentifier need not store a URL per row.")
     issuer: WikidataEntity | None = Field(None, description="P1629, the organisation that issues the identifiers — a national library, a museum.")
-    issuer_country: WikidataEntity | None = Field(None, description="P17 of that issuer. Use it to weigh how national a database's coverage is: a French library indexes French lives more densely, and a count of identifiers is not a count of importance.")
+    issuer_country: PresentDayState | None = Field(None, description="P17 of that issuer, as a present-day state — every database here exists now, so there is no historical case. Use it to weigh how national a database's coverage is: a French library indexes French lives more densely, and a count of identifiers is not a count of importance. Its continent makes that weighing coarse but immediate.")
     official_website: str | None = Field(None, description="P856 of the database.")
     number_of_records: int | None = Field(None, description="P4876, how many records it holds. Together with the count of individuals carrying one of its identifiers, this says what share of the database Cultura reaches.")
     inception: Date | None = Field(None, description="When the database was founded, P571.")
