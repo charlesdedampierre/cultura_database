@@ -110,7 +110,7 @@ class Place(BaseModel):
     entity: WikidataEntity = Field(..., description="The place's Wikidata item, as Individual.place_of_birth, .place_of_death and .country_of_citizenship all name it. One table holds them because P19 makes no distinction: a birthplace is as often a state or a hospital as a city, and splitting states off into a table of their own only moved the problem. Its description is often the only thing that tells a city from a hospital without reading the P31 classes.")
     coordinates: Coordinates | None = Field(None, description="Where the place is, P625 — a single point, so for a state it locates rather than bounds it. This is what every polygon test runs against, so a place without it can never be matched to a polity.")
     country: str | None = Field(None, description="P17, the country Wikidata declares the place to be in, as a qid joining back to this same table. For a historical place this is often a state that no longer exists — Königsberg is declared in the Kingdom of Prussia. Empty on a row that is itself a state.")
-    instance_of: tuple[str, ...] = Field((), description="P31, the classes of the place as qids — 'city', 'hospital', 'quarter', 'sovereign state', 'former country'. This is what tells a city from a building and a state that still exists from one that does not, without asking a geocoder.")
+    instance_of: tuple[WikidataEntity, ...] = Field((), description="P31, the classes of the place — 'city', 'hospital', 'quarter', 'sovereign state', 'former country'. This is what tells a city from a building and a state that still exists from one that does not, without asking a geocoder, and it carries the labels so that reading it needs no second table.")
     existence: ExistencePeriod | None = Field(None, description="The years the place existed. A birthplace with an end has since been razed or absorbed, and a state with one has fallen; an empty end is the only thing that says either still stands.")
     present_day_state: PresentDayState | None = Field(None, description="The state holding this ground today, from a reverse geocoder on the coordinates — not what Wikidata declares. Königsberg is declared in Prussia and geocodes to Russia, the Ottoman Empire gives Turkey, and a state that still exists gives itself. Computed, unlike everything above it, and the reason no column here carries a historical state's own ISO code: it has none.")
     sitelink: Sitelink | None = Field(None, description="Its English Wikipedia article, which is how a state is matched to a Cliopatria polity when the polygons do not settle it.")
@@ -120,7 +120,7 @@ class Place(BaseModel):
 
 class Occupation(BaseModel):
     entity: WikidataEntity = Field(..., description="The occupation's Wikidata item, as Individual.occupation names it.")
-    subclass_of: tuple[str, ...] = Field((), description="P279, as qids. This is the tree Individual.is_scientist and .is_artist walk, so it is here rather than left implicit in the flags.")
+    subclass_of: tuple[WikidataEntity, ...] = Field((), description="P279, the occupations this one is a kind of. This is the tree Individual.is_scientist and .is_artist walk, so it is here rather than left implicit in the flags.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
@@ -153,7 +153,7 @@ class IndividualSitelink(BaseModel):
 
 class Work(BaseModel):
     entity: WikidataEntity = Field(..., description="The work's Wikidata item, its title as the label — 'Mona Lisa'. A few keys in the source are lexeme URIs rather than qids.")
-    instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work as qids — 'painting', 'film', 'novel'.")
+    instance_of: tuple[WikidataEntity, ...] = Field((), description="P31, the classes of the work — 'painting', 'film', 'novel', 'version, edition or translation'. The last of these is worth filtering: a translation is a row of its own, so counting works without it counts the same book many times.")
     inception: Date | None = Field(None, description="When the work was made, P571.")
     publication_date: Date | None = Field(None, description="When it was first published or released, P577. The year of a work is this where there is one and the inception otherwise, which is how Individual.works_period is built.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")

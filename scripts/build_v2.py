@@ -75,6 +75,12 @@ def a_number(value):
         return None
 
 
+def entities(qids, labels, sep="|"):
+    """A list of items from the source's paired id and label columns."""
+    ids, names = split(qids, sep), split(labels, sep)
+    return tuple(an_entity(q, names[i] if i < len(names) else None) for i, q in enumerate(ids))
+
+
 def a_year(value):
     """A Date from a bare year, which is all Cliopatria states."""
     return None if value is None else M.Date(iso=None, year=int(value), precision="year")
@@ -278,7 +284,7 @@ def main():
         places[r["id"]] = M.Place(
             entity=an_entity(r["id"], r["name_en"]),
             coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
-            country=r["original_country_name_id"], instance_of=split(r["entity_type_ids"], "|"),
+            country=r["original_country_name_id"], instance_of=entities(r["entity_type_ids"], r["entity_type"]),
             existence=M.ExistencePeriod(inception=a_date(r["inception_date"], r["inception_precision"]), dissolution=a_date(r["dissolution_date"], r["dissolution_precision"])),
             present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
             sitelink=None,  # places.en_wikipedia_url_original_country_name is the country's article, not the place's
@@ -289,7 +295,7 @@ def main():
         places[r["wikidata_id"]] = M.Place(
             entity=an_entity(r["wikidata_id"], r["name_en"], r["description_en"]),
             coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
-            country=None, instance_of=split(r["instance_qids"], "|"),
+            country=None, instance_of=entities(r["instance_qids"], r["instance_labels"]),
             existence=M.ExistencePeriod(inception=a_date(r["inception"], None), dissolution=a_date(r["dissolved"], None)),
             present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
             sitelink=M.Sitelink(url=r["en_wikipedia_url"]) if r["en_wikipedia_url"] else None,
@@ -338,7 +344,7 @@ def main():
             continue
         seen.add(r["work_id"])
         works.append(M.Work(
-            entity=an_entity(r["work_id"], r["work_name"]), instance_of=split(r["instance_of"], "|"),
+            entity=an_entity(r["work_id"], r["work_name"]), instance_of=entities(r["instance_of"], r["instance_of_en"]),
             inception=a_date(r["inception_date"], r["inception_precision"]),
             publication_date=a_date(r["publication_date"], r["publication_precision"]),
             field_provenance={k: provenance_of(raw=(f"WorkWikidata.{k}",)) for k in ("entity", "instance_of", "inception", "publication_date")},
