@@ -46,6 +46,11 @@ class Polity(BaseModel):
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
+class WorksPeriod(BaseModel):
+    first_year: int | None = Field(None, description="Year of the earliest dated work, by publication date where there is one and creation date otherwise.")
+    last_year: int | None = Field(None, description="Year of the latest, on the same terms.")
+
+
 class PolityMatch(BaseModel):
     polity: Polity | None = Field(None, description="The polity, carrying its id and its name only — the ground it held is in its territories, in the Polity table, which a polygon repeated on thirteen million rows would otherwise dwarf.")
     years: int | None = Field(None, description="Years of the peak-productivity range spent inside it. A small number means the match is incidental — someone who died abroad.")
@@ -163,8 +168,7 @@ class IndividualEnriched(Individual):
     is_scientist: bool | None = Field(None, description="True when any occupation descends from 'scientist' (Q901) through Wikidata's subclass tree.")
     is_artist: bool | None = Field(None, description="True when any occupation descends from 'artist' (Q483501).")
 
-    works_first_year: int | None = Field(None, description="Year of their earliest dated work, by publication date where there is one and creation date otherwise.")
-    works_last_year: int | None = None
+    works_period: WorksPeriod | None = Field(None, description="The years their dated works span, from the earliest to the latest. Unlike peak_productivity this is observed rather than inferred — but only from works that carry a date, so it is narrower than a working life and empty for the many individuals credited with none.")
 
     western_editions: int | None = Field(None, description="How many of the language editions covering the individual are in Western languages.")
     non_western_editions: int | None = Field(None, description="How many are not.")
