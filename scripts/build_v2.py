@@ -258,7 +258,7 @@ def main():
         enriched.append(M.IndividualEnriched(
             entity=an_entity(q, r["name_en"], r["description_en"]),
             peak_productivity=M.PeakProductivity(start_year=f.get("floruit_period_start"), midpoint_year=f.get("floruit_year"), end_year=f.get("floruit_period_end"), is_estimated=None if f.get("estimated") is None else bool(f["estimated"]), assignation_method=f.get("method")) if f else None,
-            polity=M.PolityMatch(polity=M.Polity(cliopatria_id=c["polity_id"], name=c["polity_name"]), years_spent_in_polity=c["overlap_years"], assignation_method=c["method"].removeprefix("merge_with_") if c["method"] else None, matched_on=c["origin"]) if c else None,
+            polity=M.PolityMatch(polity=M.Polity(cliopatria_id=c["polity_id"], name=c["polity_name"]), years_spent_in_polity=c["overlap_years"], assignation_method=f'{c["method"].removeprefix("merge_with_")}_of_{c["origin"]}' if c["method"] and c["origin"] else None) if c else None,
             polity_count=overlaps.get(q),
             notability=M.Notability(number_of_western_editions=r["notability_western"], number_of_non_western_editions=r["notability_non_western"], cross_cultural_score=r["notability_general"]),
             field_provenance=ENRICHED,
@@ -284,7 +284,7 @@ def main():
         places[r["id"]] = M.Place(
             entity=an_entity(r["id"], r["name_en"]),
             coordinates=M.Coordinates(latitude=r["lat"], longitude=r["lon"]) if r["lat"] is not None else None,
-            country=r["original_country_name_id"], instance_of=entities(r["entity_type_ids"], r["entity_type"]),
+            country=an_entity(r["original_country_name_id"], r["original_country_name"]) if r["original_country_name_id"] else None, instance_of=entities(r["entity_type_ids"], r["entity_type"]),
             existence=M.ExistencePeriod(inception=a_date(r["inception_date"], r["inception_precision"]), dissolution=a_date(r["dissolution_date"], r["dissolution_precision"])),
             present_day_state=M.PresentDayState(name=r["iso_country_name"], iso_3166_1_alpha_3_code=r["iso_a3_code"], continent=continents.get(r["iso_a3_code"])),
             sitelink=None,  # places.en_wikipedia_url_original_country_name is the country's article, not the place's
