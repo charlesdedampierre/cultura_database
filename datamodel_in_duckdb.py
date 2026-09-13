@@ -53,8 +53,8 @@ class WorksPeriod(BaseModel):
 
 
 class Notability(BaseModel):
-    western_editions: int | None = Field(None, description="How many of the language editions covering the individual are in Western languages.")
-    non_western_editions: int | None = Field(None, description="How many are not.")
+    western_editions: int | None = Field(None, description="The project's count of Western-language coverage. It is not a partition of the individual's own sitelinks: the two counts sum to more pages than the individual has on 499 of 500 sampled rows, by 37.8 on average — Shakespeare has 332 pages, 228 Western and 348 non-Western. Whatever it counts, it is not this table's rows, so do not derive it from them or check it against them.")
+    non_western_editions: int | None = Field(None, description="The same for non-Western coverage, on the same caution.")
     score: float | None = Field(None, description="The geometric mean of the two counts, 0 to about 282. A geometric mean rewards reach that crosses the divide: someone read in 100 Western and 100 non-Western editions scores 100, someone read in 200 Western and none scores 0.")
 
 
@@ -131,10 +131,10 @@ class IndividualIdentifier(BaseModel):
 
 
 class Sitelink(BaseModel):
-    url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 articles, and an individual reaches at most 228.")
+    url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 pages, and an individual reaches at most 341. They are not all Wikipedia — 349 are, and the rest are Wikiquote (81), Wikisource (76), Wikibooks (43), Wikinews (30) and Wikivoyage (10). Counting a person's pages without filtering on the project counts their quotations and their transcribed works alongside the articles about them.")
     label: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
     language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
-    is_western: bool | None = Field(None, description="Whether the edition counts as Western. This is the line IndividualEnriched.notability is split on, and drawing it is a decision this project made, not a fact Wikidata states — which is why it is a column here to be read and argued with rather than a rule buried in the code.")
+    is_western: bool | None = Field(None, description="Whether the edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 208 editions are Western, 204 are not, and 200 are on neither list — 9.4 per cent of all pages — so a split computed from this column leaves a residue.")
     number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
@@ -178,7 +178,7 @@ class Individual(BaseModel):
     country_of_citizenship: tuple[CountryOfCitizenship, ...] = Field((), description="P27, in Wikidata's order, historical states included, each carrying the state's qid and its name only — its coordinates, its dates and its ISO code are in the CountryOfCitizenship table. This is the state a person held papers from, not the ground they lived on: IndividualEnriched.polity is that. Raw: IndividualWikidata.country_of_citizenship.")
     writing_language: tuple[str, ...] = Field((), description="P6886, qids. Raw: IndividualWikidata.writing_language.")
     external_id: tuple[IndividualIdentifier, ...] = Field((), description="Every external database that holds a record for the individual, each carrying the database's pid and the identifier it issued. Which database it is, is the pid and nothing else — Identifier is where that is named and given a formatter_url to build the link from. Raw: IndividualWikidata.external_id, a map of property to value.")
-    sitelink: tuple[IndividualSitelink, ...] = Field((), description="Every Wikipedia article about the individual, one per edition, up to 228, each carrying the edition and the article's title and URL. Counting these, split Western against non-Western on Sitelink.is_western, is what IndividualEnriched.notability is built on. Raw: IndividualWikidata.sitelink.")
+    sitelink: tuple[IndividualSitelink, ...] = Field((), description="Every Wikimedia page about the individual, one per edition, up to 341, each carrying the edition and the page's title and URL. Most are Wikipedia articles; the rest are Wikiquote, Wikisource, Wikibooks, Wikinews and Wikivoyage pages, told apart by the host in Sitelink.url. Raw: IndividualWikidata.sitelink.")
     work: tuple[IndividualWork, ...] = Field((), description="Every work credited to the individual, each carrying the work's qid and the property that credits them — which is what stops an actor and a director counting as having written the same film. The title and the dates are on the work's own row. Raw: IndividualWikidata.work.")
     works_period: WorksPeriod | None = Field(None, description="The years their dated works span, from the earliest to the latest. Unlike peak_productivity this is observed rather than inferred — but only from works that carry a date, so it is narrower than a working life and empty for the many individuals credited with none.")
     is_human: bool | None = Field(None, description="False for the rows that are not people — fictional characters, deities, legendary creatures. Wikidata classes them among humans, so filter on this before counting.")
@@ -195,7 +195,7 @@ class IndividualEnriched(BaseModel):
     polity: PolityMatch | None = Field(None, description="The historical polity the individual most belonged to, and how long they were in it. A place is matched to a polity when it falls inside the ground that polity held while the individual was active, and the one with the longest overlap is published here. CVDB and Pantheon answer this question too, by other methods — theirs are in datamodel_raw.py.")
     polity_count: int | None = Field(None, description="How many polities the individual overlaps at all. More than one is normal for a long life in a contested region.")
 
-    notability: Notability | None = Field(None, description="How widely the individual is written about, as the two counts of language editions and the score built from them. Compare it with CVDB's visibility and Pantheon's hpi, which rank the same people differently — theirs are in datamodel_raw.py.")
+    notability: Notability | None = Field(None, description="How widely the individual is written about, as the two counts the project publishes and the score built from them. Compare it with CVDB's visibility and Pantheon's hpi, which rank the same people differently — theirs are in datamodel_raw.py.")
 
     origins: dict[str, Origin] = Field({}, description="Where every value on this row came from, keyed by field name. Each one carries the rule that produced it and the raw fields it was built on, which is the whole method: nothing here is read from a source, so nothing here is beyond argument.")
 
