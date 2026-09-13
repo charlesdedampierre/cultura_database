@@ -151,11 +151,15 @@ class Work(BaseModel):
     qid: str = Field(..., description="The work's Wikidata item. A few keys in the source are lexeme URIs rather than qids.")
     label: str | None = Field(None, description="The work's English title, 'Mona Lisa'.")
     description: str | None = Field(None, description="English one-line description, 'painting by Leonardo da Vinci'.")
-    creator: "Individual | None" = Field(None, description="The individual credited, carrying their qid and their name only — everything else about them is on their own row. A work with several creators has one row per creator.")
-    credit_property: str | None = Field(None, description="The property that credits them — 'P50' author, 'P170' creator, 'P175' performer. It is what stops an actor and a director counting as having written the same film. Join it to WikidataProperty for its name.")
     instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work as qids — 'painting', 'film', 'novel'.")
     inception: Date | None = Field(None, description="When the work was made, P571.")
     publication_date: Date | None = Field(None, description="When it was first published or released, P577. The year of a work is this where there is one and the inception otherwise, which is how IndividualEnriched.works_first_year is built.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+class IndividualWork(BaseModel):
+    qid: str = Field(..., description="The individual credited, joining to Individual.qid.")
+    work_qid: str = Field(..., description="The work, joining to Work.qid. The pair is the key: a work with several creators has one row per creator.")
+    credit_property: str | None = Field(None, description="The property that credits them — 'P50' author, 'P170' creator, 'P175' performer. It is what stops an actor and a director counting as having written the same film. Join it to WikidataProperty for its name.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
@@ -174,7 +178,7 @@ class Individual(BaseModel):
     writing_language: tuple[str, ...] = Field((), description="P6886, qids. Raw: IndividualWikidata.writing_language.")
     external_id: tuple[IndividualIdentifier, ...] = Field((), description="Every external database that holds a record for the individual, each carrying the database's pid and the identifier it issued. Which database it is, is the pid and nothing else — Identifier is where that is named and given a formatter_url to build the link from. Raw: IndividualWikidata.external_id, a map of property to value.")
     sitelink: tuple[IndividualSitelink, ...] = Field((), description="Every Wikipedia article about the individual, one per edition, up to 228, each carrying the edition and the article's title and URL. Counting these, split Western against non-Western on Sitelink.is_western, is what IndividualEnriched.notability is built on. Raw: IndividualWikidata.sitelink.")
-    work: tuple[Work, ...] = Field((), description="Every work credited to the individual, each carrying the work's qid, its title and the property that credits them — which is what stops an actor and a director counting as having written the same film. Raw: IndividualWikidata.work.")
+    work: tuple[IndividualWork, ...] = Field((), description="Every work credited to the individual, each carrying the work's qid and the property that credits them — which is what stops an actor and a director counting as having written the same film. The title and the dates are on the work's own row. Raw: IndividualWikidata.work.")
     works_period: WorksPeriod | None = Field(None, description="The years their dated works span, from the earliest to the latest. Unlike peak_productivity this is observed rather than inferred — but only from works that carry a date, so it is narrower than a working life and empty for the many individuals credited with none.")
     is_human: bool | None = Field(None, description="False for the rows that are not people — fictional characters, deities, legendary creatures. Wikidata classes them among humans, so filter on this before counting.")
     is_scientist: bool | None = Field(None, description="True when any occupation descends from 'scientist' (Q901) through Wikidata's subclass tree.")
@@ -194,4 +198,4 @@ class IndividualEnriched(Individual):
     origins: dict[str, Origin] = Field({}, description="Where every value on this row came from, keyed by field name — the inherited ones as well as the computed ones. An entry with a rule was computed by this project; an entry without one was read from the raw field it names. On a row that carries both, that is the only way to tell which values are Wikidata's and which are ours.")
 
 
-TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "country_of_citizenship": CountryOfCitizenship, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink}
+TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "country_of_citizenship": CountryOfCitizenship, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink, "individual_work": IndividualWork}
