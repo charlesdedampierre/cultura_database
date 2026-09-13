@@ -31,10 +31,91 @@ class Polity(BaseModel):
     wikipedia_url: str | None = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it; matching a place to a polity by URL is the other half of the method, the first being the polygon.")
 
 
+class WikidataProperty(BaseModel):
+    pid: str = Field(..., description="The property's identifier, 'P569'. Non-property sources keep their RDF term, 'rdfs:label'. Every column of Individual is named after one of these, and Origin.raw reaches them.")
+    label: str | None = Field(None, description="The property's English label, 'date of birth'. Lowercased with non-alphanumeric runs turned into underscores, it is the column name in Individual.")
+    definition: str | None = Field(None, description="What the property means, in Wikidata's own words — 'date on which the subject was born'. Stored once here rather than repeated on every value, which is why no column of this schema describes itself.")
+
+
+class Place(BaseModel):
+    qid: str = Field(..., description="The place's Wikidata item, as Individual.place_of_birth and .place_of_death name it.")
+    label: str | None = Field(None, description="English name, 'Ulm'.")
+    latitude: float | None = Field(None, description="Decimal degrees, the latitude half of P625.")
+    longitude: float | None = Field(None, description="Decimal degrees.")
+    country: str | None = Field(None, description="P17, the country Wikidata declares the place to be in, as a qid. For a historical place this is often a state that no longer exists — Königsberg is declared in the Kingdom of Prussia. Join it to CountryOfCitizenship.")
+    instance_of: tuple[str, ...] = Field((), description="P31, the classes of the place as qids — 'city', 'hospital', 'quarter'. P19 names all of these as places of birth.")
+    inception: int | None = Field(None, description="Year the place began to exist, P571.")
+    dissolution: int | None = Field(None, description="Year it ceased to exist, P576. A birthplace with one has since been razed or absorbed.")
+    modern_country: str | None = Field(None, description="The state holding this ground today, by name, from a reverse geocoder on the coordinates — not what Wikidata declares. Königsberg is declared in Prussia and geocodes to Russia. Computed, unlike everything above it.")
+    modern_country_iso: str | None = Field(None, description="ISO 3166-1 alpha-3 code of that state. Empty where the geocoder found none, which happens at sea and in Antarctica.")
+    is_settlement: bool | None = Field(None, description="True when the place is a populated place rather than a hospital, a building or an administrative region. A language model read the P31 classes, not the places, so a place is a settlement when any of its classes is. Computed.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column. An entry with a rule was computed — the last three columns — and one without was read.")
+
+
+class CountryOfCitizenship(BaseModel):
+    qid: str = Field(..., description="The state's Wikidata item, as Individual.country_of_citizenship names it. Historical states are here as readily as present ones.")
+    label: str | None = Field(None, description="English name, 'Kingdom of Prussia'.")
+    description: str | None = Field(None, description="English one-line description.")
+    instance_of: tuple[str, ...] = Field((), description="P31, as qids — 'sovereign state', 'former country'. This is what tells a state that still exists from one that does not, without asking a geocoder.")
+    latitude: float | None = None
+    longitude: float | None = None
+    continent: str | None = Field(None, description="P30, as a qid.")
+    iso_3166_1_alpha_3_code: str | None = Field(None, description="P298. Only a state that exists today has one, so an empty code is itself the signal that this is a historical entity.")
+    wikipedia_url: str | None = Field(None, description="Its English Wikipedia article, which is how a state is matched to a Cliopatria polity when the polygons do not settle it.")
+    inception: int | None = Field(None, description="Year the state came into being, P571.")
+    dissolution: int | None = Field(None, description="Year it ceased to exist, P576.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
+class Identifier(BaseModel):
+    pid: str = Field(..., description="The Wikidata property that carries the identifier, 'P214' for VIAF. This is what an external database is: Wikidata has 10 329 such properties and nothing else names them.")
+    label: str | None = Field(None, description="The database's name, 'VIAF ID', 'ISBN-13'.")
+    formatter_url: str | None = Field(None, description="P1630, the template that turns an identifier into a link — 'https://viaf.org/viaf/$1', with $1 standing for the value. It is why IndividualIdentifier need not store a URL per row.")
+    issuer: str | None = Field(None, description="P1629, the qid of the organisation that issues the identifiers — a national library, a museum.")
+    issuer_country: str | None = Field(None, description="P17 of that issuer, as a qid. Use it to weigh how national a database's coverage is: a French library indexes French lives more densely, and a count of identifiers is not a count of importance.")
+    official_website: str | None = Field(None, description="P856 of the database.")
+    number_of_records: int | None = Field(None, description="P4876, how many records it holds. Together with the count of individuals carrying one of its identifiers, this says what share of the database Cultura reaches.")
+    inception: int | None = Field(None, description="Year the database was founded, P571.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
+class IndividualIdentifier(BaseModel):
+    qid: str = Field(..., description="The individual, joining to Individual.qid.")
+    pid: str = Field(..., description="Which database, joining to Identifier.pid. The pair is the key: an individual has at most one identifier per database.")
+    value: str | None = Field(None, description="The identifier as that database issued it, '75121530'. A string, never a number: many carry leading zeros or letters.")
+    url: str | None = Field(None, description="The record's URL where Wikidata gives one. It is otherwise Identifier.formatter_url with the value substituted, so this column is mostly empty by design.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
+class Sitelink(BaseModel):
+    qid: str = Field(..., description="The individual, joining to Individual.qid.")
+    language: str | None = Field(None, description="The edition the article is in, as its host — 'fr.wikipedia.org'. An individual has up to 228, and it is the count of these, split Western against non-Western, that IndividualEnriched.notability is built on.")
+    title: str | None = Field(None, description="The article's title in that edition, unescaped.")
+    url: str | None = Field(None, description="The article's URL, percent-encoded as Wikidata gives it.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
+class Work(BaseModel):
+    qid: str = Field(..., description="The work's Wikidata item. A few keys in the source are lexeme URIs rather than qids.")
+    creator: str | None = Field(None, description="The individual credited, joining to Individual.qid. A work with several creators has one row per creator.")
+    credit_property: str | None = Field(None, description="The property that credits them — 'P50' author, 'P170' creator, 'P175' performer. It is what stops an actor and a director counting as having written the same film. Join it to WikidataProperty for its name.")
+    label: str | None = Field(None, description="The work's English title, 'Mona Lisa'.")
+    instance_of: tuple[str, ...] = Field((), description="P31, the classes of the work as qids — 'painting', 'film', 'novel'.")
+    inception: Date | None = Field(None, description="When the work was made, P571.")
+    publication_date: Date | None = Field(None, description="When it was first published or released, P577. The year of a work is this where there is one and the inception otherwise, which is how IndividualEnriched.works_first_year is built.")
+    origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
+
+
 class Individual(BaseModel):
     qid: str = Field(..., description="The individual's Wikidata item. Raw: IndividualWikidata.qid.")
     label: str | None = Field(None, description="English label, unquoted — the raw file gives it as the RDF literal '\"Claus Hammel\"@en'. Raw: IndividualWikidata.label.")
     description: str | None = Field(None, description="English one-line description, unquoted. Raw: IndividualWikidata.description.")
+    date_of_birth: str | None = Field(None, description="P569 as an ISO string, '1879-03-14' — Wikidata's '1879-03-14T00:00:00Z' without the stamp, which is not a time of day. Raw: IndividualWikidata.date_of_birth.")
+    date_of_birth_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="How precisely P569 is stated, as a word rather than the numeric code. Raw: IndividualWikidata.date_of_birth_precision.")
+    date_of_death: str | None = Field(None, description="P570, on the same terms. Raw: IndividualWikidata.date_of_death.")
+    date_of_death_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.date_of_death_precision.")
+    floruit: str | None = Field(None, description="P1317, a date a source states the individual was active. Rare, and a date rather than a range — not IndividualEnriched.peak_productivity_*, which this project computes. Raw: IndividualWikidata.floruit.")
+    floruit_precision: Literal["day", "month", "year", "decade", "century", "millennium"] | None = Field(None, description="Raw: IndividualWikidata.floruit_precision.")
     place_of_birth: str | None = Field(None, description="P19, as the place's qid. Often a city, sometimes a country, sometimes a hospital — P19 makes no promise. Join it to PlaceWikidata for the name and the coordinates. Raw: IndividualWikidata.place_of_birth.")
     place_of_death: str | None = Field(None, description="P20, as a qid. Raw: IndividualWikidata.place_of_death.")
     sex_or_gender: str | None = Field(None, description="P21, as a qid. A free vocabulary in practice: 48 distinct values in the data. Raw: IndividualWikidata.sex_or_gender.")
