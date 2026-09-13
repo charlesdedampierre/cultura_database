@@ -129,7 +129,7 @@ class Individual(BaseModel):
     writing_language: tuple[str, ...] = Field((), description="P6886, qids. Raw: IndividualWikidata.writing_language.")
     external_id: tuple[IndividualIdentifier, ...] = Field((), description="Every external database that holds a record for the individual, each carrying the database's pid and the identifier it issued. Which database it is, is the pid and nothing else — Identifier is where that is named and given a formatter_url to build the link from. Raw: IndividualWikidata.external_id, a map of property to value.")
     sitelink: tuple[Sitelink, ...] = Field((), description="Every Wikipedia article about the individual, one per language edition, up to 228, each carrying the edition and the article's title and URL. Counting these, split Western against non-Western, is what IndividualEnriched.notability is built on. Raw: IndividualWikidata.sitelink.")
-    work: tuple[str, ...] = Field((), description="The qid of every work credited to the individual. Raw: IndividualWikidata.work, which also carries the credit property this drops.")
+    work: tuple[Work, ...] = Field((), description="Every work credited to the individual, each carrying the work's qid, its title and the property that credits them — which is what stops an actor and a director counting as having written the same film. Raw: IndividualWikidata.work.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by field name. Every entry names a raw field and carries no rule: the values here are the raw ones unquoted and stripped of their stamps, nothing more. Any change of shape — a date joined to its precision, a qid resolved to a label — is on IndividualEnriched.")
 
 
