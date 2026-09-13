@@ -131,7 +131,7 @@ class IndividualIdentifier(BaseModel):
 
 
 class Sitelink(BaseModel):
-    site: str = Field(..., description="A Wikimedia edition, by its host — 'fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 articles, and an individual reaches at most 228.")
+    url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 articles, and an individual reaches at most 228.")
     label: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
     language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
     is_western: bool | None = Field(None, description="Whether the edition counts as Western. This is the line IndividualEnriched.notability is split on, and drawing it is a decision this project made, not a fact Wikidata states — which is why it is a column here to be read and argued with rather than a rule buried in the code.")
@@ -141,9 +141,9 @@ class Sitelink(BaseModel):
 
 class IndividualSitelink(BaseModel):
     qid: str = Field(..., description="The individual, joining to Individual.qid.")
-    site: str = Field(..., description="Which edition, joining to Sitelink.site. The pair is the key: an individual has at most one article per edition.")
+    url: str = Field(..., description="The article's URL, percent-encoded as Wikidata gives it. With the qid it is the key, and on its own it identifies the article across the whole set — an individual has at most one per edition.")
+    site_url: str | None = Field(None, description="Which edition, joining to Sitelink.url. It is the host of `url` and could be cut from it, but a join that needs string surgery is a join most people get wrong, so it is a column.")
     title: str | None = Field(None, description="The article's title in that edition, unescaped — 'هانز-ايكارت شايفر'.")
-    url: str | None = Field(None, description="The article's URL, percent-encoded as Wikidata gives it.")
     origins: dict[str, Origin] = Field({}, description="Where each value came from, keyed by column.")
 
 
