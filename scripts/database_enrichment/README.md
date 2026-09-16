@@ -30,7 +30,7 @@ cannot drift apart.
 | 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
 | 00 | `00_productive_age_window.py` | `IndividualWikidata.date_of_birth`, `.floruit`, `CrossVerifiedPerson.level1_main_occ` | `data/productive_age_window.csv` | the measurement itself |
 | 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity` | the database itself |
-| 07 | `07_polity_identity.py` | `PolityCliopatria.name`, `.wikidata`, `.type`, `.wikipedia`, `.from_year`, `.to_year`, `.area`, `.geometry` | the whole `polity` table | `cliopatria_polities_only_v3.geojson` |
+| 08 | `08_polity_assignment.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.coordinates`, `Place.sitelink`, `Polity.territories`, `Polity.sitelink`, `IndividualEnriched.peak_productivity` | `IndividualEnriched.polity`, `.polity_count` | the database itself |
 | 05 | `05_is_human.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.instance_of` | `Individual.is_human` | `city_entity_types.json` |
 
 01 and 02 are the fields a language model produced. Neither script calls one:
@@ -95,27 +95,28 @@ The window inferred from a birth year is read from
 in that file are not applied: they are keyed by the cross-verified occupation
 category, which this database does not carry.
 
-## Polity identity
+## The polity assignment
 
-Cliopatria publishes one feature per polity per change of borders and numbers
-none of them, so 07 has to tell the polities apart before anything can count
-them. Its four steps are named at the top of the file, each registering itself,
-the same arrangement 06 uses for its rules:
+08 puts each individual on the ground they stood on while they were at work. It
+is `scripts/legacy/database_consolidation_V2/04_individuals_cliopatria_rs`
+rewritten in Python, and its priority is two tuples, as 06's is:
 
-1. `discard_the_nameless` — the name is the only identifier Cliopatria gives.
-2. `strip_enclosing_parentheses` — a name in parentheses is the name inside.
-3. `key_on_name_and_wikidata` — both together identify a polity; a name alone
-   keys only those Cliopatria never resolved.
-4. `number_by_first_appearance` — `cliopatria_id`, in file order.
+- `PHASES` — `polygon_containing_the_place`, then
+  `wikipedia_article_shared_with_the_polity` for those the polygons left
+  unmatched.
+- `LOCATION_PRIORITY` — per phase. Polygons are tried deathplace, birthplace,
+  country of citizenship; articles country of citizenship, deathplace,
+  birthplace. The first location that matches anything ends the search, so a
+  deathplace inside a polygon settles it and the birthplace is never tried.
 
-13 755 features become 1 604 polities carrying 13 755 territories between them,
-1 602 with a Wikidata item. Keying on the name alone would give 1 633 and make
-one polity of two that merely share a name, the Timurid Empire among them.
+Every polity whose territory covers the place and whose years overlap the peak
+activity window is kept, not only the closest fit: a city inside both a kingdom
+and the empire above it produces two matches, and `polity_count` is the length
+of that list.
 
-`raw_to_db` creates `polity` empty: telling the polities apart is a rule, and
-rules live here.
-
-## Still to write
-
-The assignment of individuals to polities, which reads the peak activity window
-and the territories this step nests.
+`years_spent_in_polity` counts each calendar year of the window **once**,
+however many of that polity's territories cover it. The Rust summed the
+per-territory overlaps instead, which is why a polity with 212 territory rows
+could report 744 years inside a 65-year life; its own comment says the union
+was intended. `COUNT_YEARS_ONCE` at the top of the file switches between the
+two.

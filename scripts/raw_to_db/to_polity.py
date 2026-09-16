@@ -1,19 +1,13 @@
+import sys
+from pathlib import Path
 from urllib.parse import quote
 
-from common import D, Enrichment, ROOT, as_json, open_database, stage
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "datamodels"))
 
+import datamodel_in_duckdb as D
 import to_duckdb as C
-import to_raw as T
-from write import columns_of
 
 ENGLISH_WIKIPEDIA = "https://en.wikipedia.org/wiki/"
-
-ENRICHMENT = Enrichment(
-    reads=("PolityCliopatria.name", "PolityCliopatria.wikidata", "PolityCliopatria.type", "PolityCliopatria.wikipedia", "PolityCliopatria.from_year", "PolityCliopatria.to_year", "PolityCliopatria.area", "PolityCliopatria.geometry"),
-    writes=("Polity.cliopatria_id", "Polity.name", "Polity.type", "Polity.entity", "Polity.sitelink", "Polity.territories"),
-    rule="Cliopatria publishes one feature per polity per change of borders and numbers none of them, so the polities have to be told apart before anything can be counted. Two features are the same polity when they share a name and the Wikidata item Cliopatria resolved, a name it wraps in parentheses being the name inside them, and a feature with no name being no polity. The features of one polity become its territories, and cliopatria_id numbers the polities in the order the file first mentions them.",
-    answers=ROOT / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson",
-)
 
 STEPS = (
     "discard_the_nameless",
@@ -104,25 +98,10 @@ def polities(spans):
     return [a_polity(numbered[key], key, group) for key, group in grouped.items()]
 
 
-def main():
-    ENRICHMENT.announce()
+def announce(spans, built):
     print("polity identity, step by step:")
     for position, name in enumerate(STEPS, start=1):
         print(f"   {position}. {name}")
-    print()
-
-    spans = T.polities()
-    built = polities(spans)
     resolved = sum(1 for polity in built if polity.entity)
     territories = sum(len(polity.territories) for polity in built)
-    print(f"{len(spans):,} features become {len(built):,} polities carrying {territories:,} territories, {resolved:,} of them with a Wikidata item")
-
-    connection = open_database()
-    stage(connection, "assigned", columns_of(D.Polity), [as_json(polity) for polity in built])
-    connection.execute("CREATE OR REPLACE TABLE polity AS SELECT * FROM assigned")
-    print(f"\npolity holds {connection.execute('SELECT count(*) FROM polity').fetchone()[0]:,} rows")
-    connection.close()
-
-
-if __name__ == "__main__":
-    main()
+    print(f"\n{len(spans):,} features become {len(built):,} polities carrying {territories:,} territories, {resolved:,} of them with a Wikidata item")
