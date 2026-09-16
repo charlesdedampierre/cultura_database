@@ -79,10 +79,10 @@ nothing else:
   used. Each date's source is read off its own provenance, so moving a source
   is moving one name in this tuple.
 
-`peak_productivity` holds four things: `start_year`, `end_year`,
-`midpoint_year` — filled only where a source states a single year rather than a
-span — and `assignation_method`, which names the rule and the date source that
-produced the other three.
+`peak_productivity` holds three things: `start_year`, `end_year`, and
+`assignation_method`, which names the rule and the date source that produced
+them. It is always a range. Where a source states a single year — a floruit, or
+the only dated work — that year anchors the range rather than becoming it.
 
 Year-precise dates are tried before coarse ones: the whole of `RULES` runs over
 day, month and year precision first, and only then over decade, century and
