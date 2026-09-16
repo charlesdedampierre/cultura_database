@@ -30,6 +30,7 @@ cannot drift apart.
 | 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
 | 00 | `00_productive_age_window.py` | `IndividualWikidata.date_of_birth`, `.floruit`, `CrossVerifiedPerson.level1_main_occ` | `data/productive_age_window.csv` | the measurement itself |
 | 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity` | the database itself |
+| 07 | `07_polity_identity.py` | `PolityCliopatria.name`, `.wikidata`, `.type`, `.wikipedia`, `.from_year`, `.to_year`, `.area`, `.geometry` | the whole `polity` table | `cliopatria_polities_only_v3.geojson` |
 | 05 | `05_is_human.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.instance_of` | `Individual.is_human` | `city_entity_types.json` |
 
 01 and 02 are the fields a language model produced. Neither script calls one:
@@ -94,6 +95,27 @@ The window inferred from a birth year is read from
 in that file are not applied: they are keyed by the cross-verified occupation
 category, which this database does not carry.
 
+## Polity identity
+
+Cliopatria publishes one feature per polity per change of borders and numbers
+none of them, so 07 has to tell the polities apart before anything can count
+them. Its four steps are named at the top of the file, each registering itself,
+the same arrangement 06 uses for its rules:
+
+1. `discard_the_nameless` — the name is the only identifier Cliopatria gives.
+2. `strip_enclosing_parentheses` — a name in parentheses is the name inside.
+3. `key_on_name_and_wikidata` — both together identify a polity; a name alone
+   keys only those Cliopatria never resolved.
+4. `number_by_first_appearance` — `cliopatria_id`, in file order.
+
+13 755 features become 1 604 polities carrying 13 755 territories between them,
+1 602 with a Wikidata item. Keying on the name alone would give 1 633 and make
+one polity of two that merely share a name, the Timurid Empire among them.
+
+`raw_to_db` creates `polity` empty: telling the polities apart is a rule, and
+rules live here.
+
 ## Still to write
 
-The polity assignment, which reads the peak activity window.
+The assignment of individuals to polities, which reads the peak activity window
+and the territories this step nests.
