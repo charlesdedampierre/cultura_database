@@ -59,11 +59,7 @@ def individual(raw):
         occupation=tuple(D.Occupation(entity=entity(qid)) for qid in raw.occupation),
         country_of_citizenship=tuple(D.Place(entity=entity(qid)) for qid in raw.country_of_citizenship),
         writing_language=raw.writing_language,
-        external_id=tuple(
-            individual_identifier(raw.qid, pid, value)
-            for pid, values in sorted(raw.external_id.items())
-            for value in values
-        ),
+        external_id=tuple(individual_identifier(raw.qid, pid, value) for pid, values in sorted(raw.external_id.items()) for value in values),
         sitelink=tuple(individual_sitelink(raw.qid, link) for link in raw.sitelink),
         work=tuple(individual_work(raw.qid, credit) for credit in raw.work),
         field_provenance={
@@ -99,9 +95,7 @@ def individual_sitelink(qid, link):
         url=link.url,
         site_url=f"https://{link.site}" if link.site else None,
         title=link.title,
-        field_provenance={
-            field: read_from("IndividualWikidata.sitelink") for field in ("url", "site_url", "title")
-        },
+        field_provenance={field: read_from("IndividualWikidata.sitelink") for field in ("url", "site_url", "title")},
     )
 
 
@@ -148,11 +142,15 @@ def country(raw):
             inception=date(raw.inception, raw.inception_precision, "CountryWikidata.inception", "CountryWikidata.inception_precision"),
             dissolution=date(raw.dissolved_abolished_or_demolished_date, raw.dissolved_abolished_or_demolished_date_precision, "CountryWikidata.dissolved_abolished_or_demolished_date", "CountryWikidata.dissolved_abolished_or_demolished_date_precision"),
         ),
-        present_day_state=D.PresentDayState(
-            name=raw.label,
-            iso_3166_1_alpha_3_code=raw.iso_3166_1_alpha_3_code,
-            continent=raw.continent,
-        ) if raw.iso_3166_1_alpha_3_code else None,
+        present_day_state=(
+            D.PresentDayState(
+                name=raw.label,
+                iso_3166_1_alpha_3_code=raw.iso_3166_1_alpha_3_code,
+                continent=raw.continent,
+            )
+            if raw.iso_3166_1_alpha_3_code
+            else None
+        ),
         sitelink=D.Sitelink(url=raw.sitelink[0].url) if raw.sitelink else None,
         field_provenance={
             "entity": read_from("CountryWikidata.qid", "CountryWikidata.label", "CountryWikidata.description"),
