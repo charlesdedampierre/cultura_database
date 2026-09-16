@@ -34,7 +34,7 @@ class IndividualWikidata(BaseModel):
     occupation: tuple[str, ...] = ()
     country_of_citizenship: tuple[str, ...] = ()
     writing_language: tuple[str, ...] = ()
-    external_id: dict[str, str] = Field({}, description="A map of property to identifier, exactly as the raw file gives it: {'P214': '7007870'}. Which database it is, is the property and nothing else — Wikidata has 10 329 external-id properties, and Property holds what each one is.")
+    external_id: dict[str, tuple[str, ...]] = Field({}, description="A map of property to the identifiers it carries, exactly as the raw file gives them: {'P214': ('7007870',)}. The values are a list because Wikidata lets one property carry several — a person indexed twice in the same database, under two records that were never merged. It is not rare: 28 of 500 sampled individuals have at least one such property, 23 distinct properties do it, and reading only the first value would have dropped 132 identifiers from that sample alone. Which database it is, is the property and nothing else — Wikidata has 10 329 external-id properties, and Property holds what each one is.")
     sitelink: tuple[Sitelink, ...] = ()
     work: tuple[WorkCredit, ...] = Field((), description="Every work credited to the individual, as a pair of the work's qid and the property that credits them. Neither is resolved here; the labels are in WorkWikidata.")
 
