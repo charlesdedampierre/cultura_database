@@ -117,6 +117,7 @@ def born_too_recently(birth, low):
 
 @rule("floruit")
 def from_floruit(birth, death, floruit, works, low, high):
+    """The window a single stated floruit year implies: placed around that year within the productive-age window when a birth year says how old they were, and running forward from it for the length of a productive span when nothing does."""
     if floruit is None:
         return None
     span = high - low
@@ -141,6 +142,7 @@ def from_floruit(birth, death, floruit, works, low, high):
 
 @rule("works_span")
 def from_works_span(birth, death, floruit, works, low, high):
+    """The years the individual's dated works actually span, taken exactly as they fall, whenever the first and the last are not the same year."""
     if works is None or works.get("first_year") is None or works.get("last_year") is None:
         return None
     if works["first_year"] == works["last_year"]:
@@ -151,6 +153,7 @@ def from_works_span(birth, death, floruit, works, low, high):
 
 @rule("works_single")
 def from_works_single(birth, death, floruit, works, low, high):
+    """A single dated work year, widened forward by the length of a productive span, one work dating a moment rather than a working life."""
     if works is None or works.get("first_year") is None:
         return None
     if works["first_year"] != works.get("last_year"):
@@ -162,6 +165,7 @@ def from_works_single(birth, death, floruit, works, low, high):
 
 @rule("birth_and_death")
 def from_birth_and_death(birth, death, floruit, works, low, high):
+    """The productive-age window counted from the birth year, cut short at the death year for anyone who died before the end of it."""
     if birth is None or death is None or born_too_recently(birth, low):
         return None
     start, end = clamp(birth.year + low, min(birth.year + high, death.year))
@@ -170,6 +174,7 @@ def from_birth_and_death(birth, death, floruit, works, low, high):
 
 @rule("birth_only")
 def from_birth_only(birth, death, floruit, works, low, high):
+    """The productive-age window counted from the birth year, with no death year to cut it short."""
     if birth is None or born_too_recently(birth, low):
         return None
     start, end = clamp(birth.year + low, birth.year + high)
@@ -178,6 +183,7 @@ def from_birth_only(birth, death, floruit, works, low, high):
 
 @rule("death_only")
 def from_death_only(birth, death, floruit, works, low, high):
+    """The window ending at the death year and running back the length of a productive span, which is as much as a death year alone supports."""
     if death is None:
         return None
     start, end = clamp(death.year - (high - low), death.year)
