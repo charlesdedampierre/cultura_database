@@ -46,6 +46,7 @@ def rule(name):
     def keep(function):
         IMPLEMENTATIONS[name] = function
         return function
+
     return keep
 
 
@@ -97,11 +98,7 @@ def source_of(entry):
 
 
 def preferred(entries, precisions):
-    found = [
-        Dated(year=entry["year"], source=source_of(entry), precision=entry["precision"])
-        for entry in entries or ()
-        if entry.get("year") is not None and entry.get("precision") in precisions
-    ]
+    found = [Dated(year=entry["year"], source=source_of(entry), precision=entry["precision"]) for entry in entries or () if entry.get("year") is not None and entry.get("precision") in precisions]
     found.sort(key=lambda d: SOURCE_PRIORITY.index(d.source) if d.source in SOURCE_PRIORITY else len(SOURCE_PRIORITY))
     return found[0] if found else None
 
@@ -223,31 +220,38 @@ def main():
     print()
 
     connection = open_database()
-    rows = connection.execute(
-        """
+    rows = connection.execute("""
         SELECT entity.qid AS qid, entity.label_en AS label, entity.description AS description,
                birth_date, death_date, floruit_date, works_period
         FROM individual
-        """
-    ).arrow().read_all().to_pylist()
+        """).arrow().read_all().to_pylist()
 
     assigned, counts = [], {}
     for row in rows:
         window = peak_productivity(row, low, high)
         method = window.method if window else NO_RULE_APPLIES
         counts[method] = counts.get(method, 0) + 1
-        assigned.append(as_json(D.IndividualEnriched(
-            entity=D.WikidataEntity(qid=row["qid"], label_en=row["label"], description=row["description"]),
-            peak_productivity=D.PeakProductivity(
-                start_year=window.start_year,
-                midpoint_year=window.midpoint_year,
-                end_year=window.end_year,
-                assignation_method=method,
-            ) if window else None,
-            field_provenance={"peak_productivity": ENRICHMENT.provenance()},
-        )))
+        assigned.append(
+            as_json(
+                D.IndividualEnriched(
+                    entity=D.WikidataEntity(qid=row["qid"], label_en=row["label"], description=row["description"]),
+                    peak_productivity=(
+                        D.PeakProductivity(
+                            start_year=window.start_year,
+                            midpoint_year=window.midpoint_year,
+                            end_year=window.end_year,
+                            assignation_method=method,
+                        )
+                        if window
+                        else None
+                    ),
+                    field_provenance={"peak_productivity": ENRICHMENT.provenance()},
+                )
+            )
+        )
 
     from write import columns_of
+
     stage(connection, "assigned", columns_of(D.IndividualEnriched), assigned)
     connection.execute("CREATE OR REPLACE TABLE individual_enriched AS SELECT * FROM assigned")
 
