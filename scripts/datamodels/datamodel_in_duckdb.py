@@ -136,7 +136,7 @@ class Identifier(BaseModel):
 
 class IndividualIdentifier(BaseModel):
     qid: str = Field(..., description="The individual, joining to Individual.qid.")
-    pid: str = Field(..., description="Which database, joining to Identifier.pid. The pair is the key: an individual has at most one identifier per database.")
+    pid: str = Field(..., description="Which database, joining to Identifier.pid. The qid and the pid do not make a key: Wikidata lets one property carry several identifiers for one person — two library records never merged into one — so the same pair recurs with a different `value` on 9 per cent of the individuals sampled. Counting rows here counts records held, not databases reached; count distinct pids for that.")
     value: str | None = Field(None, description="The identifier as that database issued it, '75121530'. A string, never a number: many carry leading zeros or letters.")
     url: str | None = Field(None, description="The record's URL where Wikidata gives one. It is otherwise Identifier.formatter_url with the value substituted, so this column is mostly empty by design.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
