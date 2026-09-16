@@ -1,30 +1,52 @@
+import csv
 from dataclasses import dataclass
 
 from common import D, Enrichment, ROOT, as_json, open_database, provenance_column, stage
 
 CURRENT_YEAR = 2026
 
-PRODUCTIVE_AGE = {
-    "global": (29, 55),
-    "Culture": (30, 62),
-    "Discovery/Science": (33, 62),
-    "Leadership": (34, 67),
-    "Sports/Games": (21, 35),
-}
+PRODUCTIVE_AGE_DATASET = ROOT / "data" / "productive_age_window.csv"
+PRODUCTIVE_AGE_CATEGORY = "global"
 
-SOURCE_PRIORITY = ("property", "description", "cross_verified", "wikipedia", "life_expectancy")
+RULES = (
+    "floruit",
+    "works_span",
+    "works_single",
+    "birth_and_death",
+    "birth_only",
+    "death_only",
+)
+
+SOURCE_PRIORITY = (
+    "wikidata_property",
+    "wikidata_entity_description",
+    "cross_verified_database",
+    "wikipedia_article",
+    "life_expectancy_estimate",
+)
 
 PRECISION_PRIORITY = (
-    ("year", ("day", "month", "year")),
-    ("coarse", ("decade", "century", "millennium")),
+    ("stated to the year", ("day", "month", "year")),
+    ("stated no finer than a decade", ("decade", "century", "millennium")),
 )
+
+NO_RULE_APPLIES = "no_data"
 
 ENRICHMENT = Enrichment(
     reads=("Individual.birth_date", "Individual.death_date", "Individual.floruit_date", "Individual.works_period"),
     writes=("IndividualEnriched.peak_productivity",),
-    rule="The years the individual is taken to have been at work, from the first date rule that applies. Rules are tried in the order written in RULES, year-precise dates before coarse ones, and within a rule the date sources in the order written in SOURCE_PRIORITY. assignation_method names the rule and the source that won, so the row says which of them produced it.",
-    answers=ROOT / "data" / "cultura_v2.duckdb",
+    rule="The years the individual is taken to have been at work, as a start year, an end year, the single year that stands for them where one exists, and the name of the rule that produced them. Every rule in RULES is tried in the order written, over dates stated to the year before dates stated no finer than a decade; the first rule that yields a window wins. Where a rule needs a date the individual has from several sources, the source earliest in SOURCE_PRIORITY is the one used. An individual no rule fits is left with no window at all.",
+    answers=PRODUCTIVE_AGE_DATASET,
 )
+
+IMPLEMENTATIONS = {}
+
+
+def rule(name):
+    def keep(function):
+        IMPLEMENTATIONS[name] = function
+        return function
+    return keep
 
 
 @dataclass(frozen=True)
@@ -42,6 +64,14 @@ class Window:
     method: str
 
 
+def productive_age(category=PRODUCTIVE_AGE_CATEGORY):
+    with PRODUCTIVE_AGE_DATASET.open() as handle:
+        for row in csv.DictReader(handle):
+            if row["category"] == category:
+                return int(row["low_age"]), int(row["high_age"]), int(row["individuals"])
+    raise SystemExit(f"{category} is not a category of {PRODUCTIVE_AGE_DATASET}")
+
+
 def mapping(value):
     if isinstance(value, dict):
         return value
@@ -53,24 +83,24 @@ def mapping(value):
 def source_of(entry):
     provenance = mapping(entry.get("field_provenance")).get("year") or {}
     answer = provenance.get("ai_answer") or {}
-    rule = provenance.get("rule") or ""
+    rule_text = (provenance.get("rule") or "").lower()
     raw = " ".join(provenance.get("raw") or ())
     if answer.get("prompt_id") == "wikipedia_dates":
-        return "wikipedia"
+        return "wikipedia_article"
     if "CrossVerified" in raw:
-        return "cross_verified"
-    if "description" in rule.lower():
-        return "description"
-    if "life expectancy" in rule.lower() or "life_expectancy" in raw:
-        return "life_expectancy"
-    return "property"
+        return "cross_verified_database"
+    if "life expectancy" in rule_text:
+        return "life_expectancy_estimate"
+    if "description" in rule_text:
+        return "wikidata_entity_description"
+    return "wikidata_property"
 
 
-def dated(entries, precisions):
+def preferred(entries, precisions):
     found = [
-        Dated(year=e["year"], source=source_of(e), precision=e["precision"])
-        for e in entries or ()
-        if e.get("year") is not None and e.get("precision") in precisions
+        Dated(year=entry["year"], source=source_of(entry), precision=entry["precision"])
+        for entry in entries or ()
+        if entry.get("year") is not None and entry.get("precision") in precisions
     ]
     found.sort(key=lambda d: SOURCE_PRIORITY.index(d.source) if d.source in SOURCE_PRIORITY else len(SOURCE_PRIORITY))
     return found[0] if found else None
@@ -78,10 +108,14 @@ def dated(entries, precisions):
 
 def clamp(start, end):
     end = min(end, CURRENT_YEAR)
-    start = min(start, end)
-    return start, end
+    return min(start, end), end
 
 
+def born_too_recently(birth, low):
+    return birth is not None and birth.year + low > CURRENT_YEAR
+
+
+@rule("floruit")
 def from_floruit(birth, death, floruit, works, low, high):
     if floruit is None:
         return None
@@ -99,61 +133,67 @@ def from_floruit(birth, death, floruit, works, low, high):
     if death is not None and death.year < end:
         end = death.year
     start, end = clamp(start, end)
-    if end - start < max(10, span // 2):
-        start = end - max(10, span // 2)
+    shortest = max(10, span // 2)
+    if end - start < shortest:
+        start = end - shortest
     return Window(start, end, floruit.year, f"floruit_{floruit.source}")
 
 
-def from_works(birth, death, floruit, works, low, high):
+@rule("works_span")
+def from_works_span(birth, death, floruit, works, low, high):
     if works is None or works.get("first_year") is None or works.get("last_year") is None:
         return None
-    first, last = works["first_year"], works["last_year"]
-    if first == last:
-        start, end = clamp(first, first + (high - low))
-        return Window(start, end, first, "works_single")
-    start, end = clamp(first, last)
+    if works["first_year"] == works["last_year"]:
+        return None
+    start, end = clamp(works["first_year"], works["last_year"])
     return Window(start, end, None, "works_span")
 
 
-def from_birth_and_death(birth, death, floruit, works, low, high):
-    if birth is None or death is None:
+@rule("works_single")
+def from_works_single(birth, death, floruit, works, low, high):
+    if works is None or works.get("first_year") is None:
         return None
-    if birth.year + low > CURRENT_YEAR:
+    if works["first_year"] != works.get("last_year"):
+        return None
+    year = works["first_year"]
+    start, end = clamp(year, year + (high - low))
+    return Window(start, end, year, "works_single")
+
+
+@rule("birth_and_death")
+def from_birth_and_death(birth, death, floruit, works, low, high):
+    if birth is None or death is None or born_too_recently(birth, low):
         return None
     start, end = clamp(birth.year + low, min(birth.year + high, death.year))
     return Window(start, end, None, f"birth_death_{birth.source}")
 
 
-def from_birth(birth, death, floruit, works, low, high):
-    if birth is None or birth.year + low > CURRENT_YEAR:
+@rule("birth_only")
+def from_birth_only(birth, death, floruit, works, low, high):
+    if birth is None or born_too_recently(birth, low):
         return None
     start, end = clamp(birth.year + low, birth.year + high)
     return Window(start, end, None, f"birth_only_{birth.source}")
 
 
-def from_death(birth, death, floruit, works, low, high):
+@rule("death_only")
+def from_death_only(birth, death, floruit, works, low, high):
     if death is None:
         return None
     start, end = clamp(death.year - (high - low), death.year)
     return Window(start, end, None, f"death_only_{death.source}")
 
 
-RULES = (
-    from_floruit,
-    from_works,
-    from_birth_and_death,
-    from_birth,
-    from_death,
-)
+assert tuple(IMPLEMENTATIONS) == RULES, f"{tuple(IMPLEMENTATIONS)} is not {RULES}"
 
 
 def peak_productivity(row, low, high):
     for _, precisions in PRECISION_PRIORITY:
-        birth = dated(row["birth_date"], precisions)
-        death = dated(row["death_date"], precisions)
-        floruit = dated(row["floruit_date"], precisions)
-        for rule in RULES:
-            window = rule(birth, death, floruit, row["works_period"], low, high)
+        birth = preferred(row["birth_date"], precisions)
+        death = preferred(row["death_date"], precisions)
+        floruit = preferred(row["floruit_date"], precisions)
+        for name in RULES:
+            window = IMPLEMENTATIONS[name](birth, death, floruit, row["works_period"], low, high)
             if window is not None:
                 return window
     return None
@@ -161,13 +201,20 @@ def peak_productivity(row, low, high):
 
 def main():
     ENRICHMENT.announce()
+    low, high, measured_on = productive_age()
+    print(f"productive age window: {low} to {high}, the quartiles of age at floruit over {measured_on:,} individuals")
+    print(f"read from {PRODUCTIVE_AGE_DATASET.name}, category {PRODUCTIVE_AGE_CATEGORY}\n")
     print("rules, in the order they are tried:")
-    for rule in RULES:
-        print(f"   {rule.__name__}")
-    print(f"sources, in the order they are preferred: {', '.join(SOURCE_PRIORITY)}")
-    low, high = PRODUCTIVE_AGE["global"]
-    print(f"productive age window: {low} to {high}")
-    print("per-occupation windows are not applied: they need the cross-verified occupation category, which this database does not carry\n")
+    for position, name in enumerate(RULES, start=1):
+        print(f"   {position}. {name}")
+    print(f"   {len(RULES) + 1}. {NO_RULE_APPLIES}")
+    print("\ndate precision, in the order it is tried:")
+    for description, _ in PRECISION_PRIORITY:
+        print(f"   {description}")
+    print("\ndate sources, in the order they are preferred:")
+    for position, name in enumerate(SOURCE_PRIORITY, start=1):
+        print(f"   {position}. {name}")
+    print()
 
     connection = open_database()
     rows = connection.execute(
@@ -181,9 +228,9 @@ def main():
     assigned, counts = [], {}
     for row in rows:
         window = peak_productivity(row, low, high)
-        method = window.method if window else "no_data"
+        method = window.method if window else NO_RULE_APPLIES
         counts[method] = counts.get(method, 0) + 1
-        enriched = D.IndividualEnriched(
+        assigned.append(as_json(D.IndividualEnriched(
             entity=D.WikidataEntity(qid=row["qid"], label_en=row["label"], description=row["description"]),
             peak_productivity=D.PeakProductivity(
                 start_year=window.start_year,
@@ -192,8 +239,7 @@ def main():
                 assignation_method=method,
             ) if window else None,
             field_provenance={"peak_productivity": ENRICHMENT.provenance()},
-        )
-        assigned.append(as_json(enriched))
+        )))
 
     from write import columns_of
     stage(connection, "assigned", columns_of(D.IndividualEnriched), assigned)
