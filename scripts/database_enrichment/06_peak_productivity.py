@@ -61,7 +61,6 @@ class Dated:
 class Window:
     start_year: int
     end_year: int
-    midpoint_year: int | None
     method: str
 
 
@@ -134,7 +133,7 @@ def from_floruit(birth, death, floruit, works, low, high):
     shortest = max(10, span // 2)
     if end - start < shortest:
         start = end - shortest
-    return Window(start, end, floruit.year, f"floruit_{floruit.source}")
+    return Window(start, end, f"floruit_{floruit.source}")
 
 
 @rule("works_span")
@@ -145,7 +144,7 @@ def from_works_span(birth, death, floruit, works, low, high):
     if works["first_year"] == works["last_year"]:
         return None
     start, end = clamp(works["first_year"], works["last_year"])
-    return Window(start, end, None, "works_span")
+    return Window(start, end, "works_span")
 
 
 @rule("works_single")
@@ -157,7 +156,7 @@ def from_works_single(birth, death, floruit, works, low, high):
         return None
     year = works["first_year"]
     start, end = clamp(year, year + (high - low))
-    return Window(start, end, year, "works_single")
+    return Window(start, end, "works_single")
 
 
 @rule("birth_and_death")
@@ -166,7 +165,7 @@ def from_birth_and_death(birth, death, floruit, works, low, high):
     if birth is None or death is None or born_too_recently(birth, low):
         return None
     start, end = clamp(birth.year + low, min(birth.year + high, death.year))
-    return Window(start, end, None, f"birth_death_{birth.source}")
+    return Window(start, end, f"birth_death_{birth.source}")
 
 
 @rule("birth_only")
@@ -175,7 +174,7 @@ def from_birth_only(birth, death, floruit, works, low, high):
     if birth is None or born_too_recently(birth, low):
         return None
     start, end = clamp(birth.year + low, birth.year + high)
-    return Window(start, end, None, f"birth_only_{birth.source}")
+    return Window(start, end, f"birth_only_{birth.source}")
 
 
 @rule("death_only")
@@ -184,7 +183,7 @@ def from_death_only(birth, death, floruit, works, low, high):
     if death is None:
         return None
     start, end = clamp(death.year - (high - low), death.year)
-    return Window(start, end, None, f"death_only_{death.source}")
+    return Window(start, end, f"death_only_{death.source}")
 
 
 assert tuple(IMPLEMENTATIONS) == RULES, f"{tuple(IMPLEMENTATIONS)} is not {RULES}"
@@ -238,7 +237,6 @@ def main():
                     peak_productivity=(
                         D.PeakProductivity(
                             start_year=window.start_year,
-                            midpoint_year=window.midpoint_year,
                             end_year=window.end_year,
                             assignation_method=method,
                         )
