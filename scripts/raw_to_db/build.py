@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "datamodels"))
 import datamodel_in_duckdb as D
 import sources as S
 import to_duckdb as C
+import to_polity as P
 import to_raw as T
 from write import write_table
 
@@ -35,15 +36,19 @@ def main():
     raw_countries = T.countries(country_qids)
     raw_occupations = T.occupations(occupation_qids)
     raw_works = T.works(work_qids)
+    raw_polities = T.polities()
     raw_identifiers = T.external_id_properties(pids)
     raw_properties = T.properties()
+
+    polities = P.polities(raw_polities)
+    P.announce(raw_polities, polities)
 
     individuals = [C.individual(raw) for raw in raw_individuals]
 
     tables = {
         "individual": individuals,
         "individual_enriched": [],
-        "polity": [],
+        "polity": polities,
         "place": [C.place(raw) for raw in raw_places] + [C.country(raw) for raw in raw_countries],
         "occupation": [C.occupation(raw) for raw in raw_occupations],
         "work": [C.work(raw) for raw in raw_works],
