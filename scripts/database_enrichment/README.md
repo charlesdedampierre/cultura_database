@@ -28,6 +28,7 @@ cannot drift apart.
 | 02 | `02_wikipedia_dates.py` | `Individual.entity` | one more entry in `Individual.birth_date`, `.death_date`, `.floruit_date` | `data/humans_clean.duckdb` columns `birthdate_from_wikipedia`, `deathdate_from_wikipedia`, `floruit_from_wikipedia` |
 | 03 | `03_works_period.py` | `Individual.work`, `Work.publication_date`, `Work.inception` | `Individual.works_period` | the database itself |
 | 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
+| 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity` | the database itself |
 | 05 | `05_is_human.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.instance_of` | `Individual.is_human` | `city_entity_types.json` |
 
 01 and 02 are the fields a language model produced. Neither script calls one:
@@ -51,7 +52,28 @@ character. A False is evidence, a True is only the absence of it.
 `CULTURA_DB` points them at another database; `SCRATCH` at another staging
 directory.
 
+## The peak activity window
+
+06 is the one to read closely. Its priority is the order of two tuples and
+nothing else:
+
+- `RULES` — `from_floruit`, `from_works`, `from_birth_and_death`, `from_birth`,
+  `from_death`. The first that yields a window wins.
+- `SOURCE_PRIORITY` — `property`, `description`, `cross_verified`, `wikipedia`,
+  `life_expectancy`. Within a rule, the date from the earliest source in this
+  list is the one used. Each date's source is read off its own provenance, so
+  moving a source is moving one name in this tuple.
+
+Year-precise dates are tried before coarse ones: the whole of `RULES` runs over
+day, month and year precision first, and only then over decade, century and
+millennium. `assignation_method` on the row names the rule and the source that
+won, `works_span` or `birth_death_property`, so every window says how it was
+made. An individual no rule fits gets `no_data`.
+
+The window inferred from a birth year runs from age 29 to age 55. The
+per-occupation windows in `PRODUCTIVE_AGE` are not applied: they are keyed by
+the cross-verified occupation category, which this database does not carry.
+
 ## Still to write
 
-`IndividualEnriched` is empty until the two rule-based steps are written: the
-peak activity window, and the polity assignment that reads it.
+The polity assignment, which reads the peak activity window.
