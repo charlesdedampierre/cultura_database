@@ -2,9 +2,9 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "datamodels"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "datamodels"))
 
-import datamodel_in_duckdb as D
+import datamodel_in_duckdb
 
 PRECISION = {11: "day", 10: "month", 9: "year", 8: "decade", 7: "century", 6: "millennium"}
 STAMP = re.compile(r"^-?\d{1,6}(-\d{2}(-\d{2})?)?$")
@@ -24,13 +24,13 @@ def year(stamp):
 
 
 def read_from(*raw_fields):
-    return D.Provenance(raw=raw_fields)
+    return datamodel_in_duckdb.Provenance(raw=raw_fields)
 
 
 def date(stamp, precision, *raw_fields):
     if iso(stamp) is None:
         return None
-    return D.Date(
+    return datamodel_in_duckdb.Date(
         iso=iso(stamp),
         year=year(stamp),
         precision=PRECISION.get(precision),
@@ -44,20 +44,20 @@ def dates(stamp, precision, *raw_fields):
 
 
 def entity(qid, label=None, description=None):
-    return D.WikidataEntity(qid=qid, label_en=label, description=description)
+    return datamodel_in_duckdb.WikidataEntity(qid=qid, label_en=label, description=description)
 
 
 def individual(raw):
-    return D.Individual(
+    return datamodel_in_duckdb.Individual(
         entity=entity(raw.qid, raw.label, raw.description),
         birth_date=dates(raw.date_of_birth, raw.date_of_birth_precision, "IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_birth_precision"),
         death_date=dates(raw.date_of_death, raw.date_of_death_precision, "IndividualWikidata.date_of_death", "IndividualWikidata.date_of_death_precision"),
         floruit_date=dates(raw.floruit, raw.floruit_precision, "IndividualWikidata.floruit", "IndividualWikidata.floruit_precision"),
-        place_of_birth=D.Place(entity=entity(raw.place_of_birth)) if raw.place_of_birth else None,
-        place_of_death=D.Place(entity=entity(raw.place_of_death)) if raw.place_of_death else None,
+        place_of_birth=datamodel_in_duckdb.Place(entity=entity(raw.place_of_birth)) if raw.place_of_birth else None,
+        place_of_death=datamodel_in_duckdb.Place(entity=entity(raw.place_of_death)) if raw.place_of_death else None,
         sex_or_gender=raw.sex_or_gender,
-        occupation=tuple(D.Occupation(entity=entity(qid)) for qid in raw.occupation),
-        country_of_citizenship=tuple(D.Place(entity=entity(qid)) for qid in raw.country_of_citizenship),
+        occupation=tuple(datamodel_in_duckdb.Occupation(entity=entity(qid)) for qid in raw.occupation),
+        country_of_citizenship=tuple(datamodel_in_duckdb.Place(entity=entity(qid)) for qid in raw.country_of_citizenship),
         writing_language=raw.writing_language,
         external_id=tuple(individual_identifier(raw.qid, pid, value) for pid, values in sorted(raw.external_id.items()) for value in values),
         sitelink=tuple(individual_sitelink(raw.qid, link) for link in raw.sitelink),
@@ -81,7 +81,7 @@ def individual(raw):
 
 
 def individual_identifier(qid, pid, value):
-    return D.IndividualIdentifier(
+    return datamodel_in_duckdb.IndividualIdentifier(
         qid=qid,
         pid=pid,
         value=value,
@@ -90,7 +90,7 @@ def individual_identifier(qid, pid, value):
 
 
 def individual_sitelink(qid, link):
-    return D.IndividualSitelink(
+    return datamodel_in_duckdb.IndividualSitelink(
         qid=qid,
         url=link.url,
         site_url=f"https://{link.site}" if link.site else None,
@@ -100,25 +100,25 @@ def individual_sitelink(qid, link):
 
 
 def individual_work(qid, credit):
-    return D.IndividualWork(
+    return datamodel_in_duckdb.IndividualWork(
         qid=qid,
         work_qid=credit.work,
-        credit_property=D.WikidataProperty(pid=credit.property) if credit.property else None,
+        credit_property=datamodel_in_duckdb.WikidataProperty(pid=credit.property) if credit.property else None,
         field_provenance={"credit_property": read_from("IndividualWikidata.work")},
     )
 
 
 def sitelink(site):
-    return D.Sitelink(url=f"https://{site}", field_provenance={"url": read_from("IndividualWikidata.sitelink")})
+    return datamodel_in_duckdb.Sitelink(url=f"https://{site}", field_provenance={"url": read_from("IndividualWikidata.sitelink")})
 
 
 def place(raw):
-    return D.Place(
+    return datamodel_in_duckdb.Place(
         entity=entity(raw.qid, raw.label),
-        coordinates=D.Coordinates(latitude=raw.latitude, longitude=raw.longitude) if raw.latitude is not None else None,
+        coordinates=datamodel_in_duckdb.Coordinates(latitude=raw.latitude, longitude=raw.longitude) if raw.latitude is not None else None,
         country=entity(raw.country) if raw.country else None,
         instance_of=tuple(entity(qid) for qid in raw.instance_of),
-        existence=D.ExistencePeriod(
+        existence=datamodel_in_duckdb.ExistencePeriod(
             inception=date(raw.inception, raw.inception_precision, "PlaceWikidata.inception", "PlaceWikidata.inception_precision"),
             dissolution=date(raw.dissolved_abolished_or_demolished_date, raw.dissolved_abolished_or_demolished_date_precision, "PlaceWikidata.dissolved_abolished_or_demolished_date", "PlaceWikidata.dissolved_abolished_or_demolished_date_precision"),
         ),
@@ -133,17 +133,17 @@ def place(raw):
 
 
 def country(raw):
-    return D.Place(
+    return datamodel_in_duckdb.Place(
         entity=entity(raw.qid, raw.label, raw.description),
-        coordinates=D.Coordinates(latitude=raw.latitude, longitude=raw.longitude) if raw.latitude is not None else None,
+        coordinates=datamodel_in_duckdb.Coordinates(latitude=raw.latitude, longitude=raw.longitude) if raw.latitude is not None else None,
         country=entity(raw.country) if raw.country else None,
         instance_of=tuple(entity(qid) for qid in raw.instance_of),
-        existence=D.ExistencePeriod(
+        existence=datamodel_in_duckdb.ExistencePeriod(
             inception=date(raw.inception, raw.inception_precision, "CountryWikidata.inception", "CountryWikidata.inception_precision"),
             dissolution=date(raw.dissolved_abolished_or_demolished_date, raw.dissolved_abolished_or_demolished_date_precision, "CountryWikidata.dissolved_abolished_or_demolished_date", "CountryWikidata.dissolved_abolished_or_demolished_date_precision"),
         ),
         present_day_state=(
-            D.PresentDayState(
+            datamodel_in_duckdb.PresentDayState(
                 name=raw.label,
                 iso_3166_1_alpha_3_code=raw.iso_3166_1_alpha_3_code,
                 continent=raw.continent,
@@ -151,7 +151,7 @@ def country(raw):
             if raw.iso_3166_1_alpha_3_code
             else None
         ),
-        sitelink=D.Sitelink(url=raw.sitelink[0].url) if raw.sitelink else None,
+        sitelink=datamodel_in_duckdb.Sitelink(url=raw.sitelink[0].url) if raw.sitelink else None,
         field_provenance={
             "entity": read_from("CountryWikidata.qid", "CountryWikidata.label", "CountryWikidata.description"),
             "coordinates": read_from("CountryWikidata.latitude", "CountryWikidata.longitude"),
@@ -165,7 +165,7 @@ def country(raw):
 
 
 def occupation(raw):
-    return D.Occupation(
+    return datamodel_in_duckdb.Occupation(
         entity=entity(raw.qid, raw.label, raw.description),
         subclass_of=tuple(entity(qid) for qid in raw.subclass_of),
         field_provenance={
@@ -176,7 +176,7 @@ def occupation(raw):
 
 
 def work(raw):
-    return D.Work(
+    return datamodel_in_duckdb.Work(
         entity=entity(raw.qid, raw.label),
         instance_of=tuple(entity(qid) for qid in raw.instance_of),
         inception=date(raw.inception, raw.inception_precision, "WorkWikidata.inception", "WorkWikidata.inception_precision"),
@@ -191,11 +191,11 @@ def work(raw):
 
 
 def identifier(raw):
-    return D.Identifier(
-        property=D.WikidataProperty(pid=raw.pid, label_en=raw.label),
+    return datamodel_in_duckdb.Identifier(
+        property=datamodel_in_duckdb.WikidataProperty(pid=raw.pid, label_en=raw.label),
         formatter_url=raw.formatter_url,
         issuer=entity(raw.subject_item_of_this_property) if raw.subject_item_of_this_property else None,
-        issuer_country=D.PresentDayState(name=raw.country) if raw.country else None,
+        issuer_country=datamodel_in_duckdb.PresentDayState(name=raw.country) if raw.country else None,
         official_website=raw.official_website,
         number_of_records=int(raw.number_of_records) if (raw.number_of_records or "").isdigit() else None,
         inception=date(raw.inception, None, "ExternalIdPropertyWikidata.inception"),
@@ -212,11 +212,11 @@ def identifier(raw):
 
 
 def wikidata_property(raw):
-    return D.WikidataProperty(pid=raw.pid, label_en=raw.label, description=raw.definition)
+    return datamodel_in_duckdb.WikidataProperty(pid=raw.pid, label_en=raw.label, description=raw.definition)
 
 
 def territory(raw):
-    return D.Territory(
+    return datamodel_in_duckdb.Territory(
         start_year=raw.from_year,
         end_year=raw.to_year,
         area=raw.area,
@@ -232,12 +232,12 @@ def territory(raw):
 
 def polity(cliopatria_id, spans):
     first = spans[0]
-    return D.Polity(
+    return datamodel_in_duckdb.Polity(
         cliopatria_id=cliopatria_id,
         name=first.name,
         type=first.type,
         entity=entity(first.wikidata) if first.wikidata else None,
-        sitelink=D.Sitelink(url="https://en.wikipedia.org/wiki/" + first.wikipedia.replace(" ", "_")) if first.wikipedia else None,
+        sitelink=datamodel_in_duckdb.Sitelink(url="https://en.wikipedia.org/wiki/" + first.wikipedia.replace(" ", "_")) if first.wikipedia else None,
         territories=tuple(territory(span) for span in spans),
         field_provenance={
             "name": read_from("PolityCliopatria.name"),

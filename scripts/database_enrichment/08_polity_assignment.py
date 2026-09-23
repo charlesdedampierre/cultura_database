@@ -6,7 +6,7 @@ from shapely.geometry import shape
 import json
 
 from common import D, Enrichment, ROOT, as_json, open_database, provenance_column, stage
-from write import columns_of
+from pydantic_to_duckdb_schema import columns_of
 
 PHASES = (
     "polygon_containing_the_place",

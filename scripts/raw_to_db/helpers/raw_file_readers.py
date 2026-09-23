@@ -2,7 +2,7 @@ from pathlib import Path
 
 import ijson
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 WIKIDATA = ROOT / "data" / "raw_data_from_wikidata"
 EXTRACTION_V2 = WIKIDATA / "wikidata_extraction_scripts_v2"
 
