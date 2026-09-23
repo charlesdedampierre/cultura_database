@@ -1,6 +1,8 @@
 import csv
 from dataclasses import dataclass
 
+from tqdm import tqdm
+
 from common import D, Enrichment, ROOT, as_json, open_database, provenance_column, stage
 from pydantic_to_duckdb_schema import columns_of
 
@@ -230,7 +232,7 @@ def main():
     counts = {}
 
     def assigned():
-        for batch in reader:
+        for batch in tqdm(reader, desc="peak window", unit=" batches of 200k", mininterval=5):
             for row in batch.to_pylist():
                 window = peak_productivity(row, low, high)
                 method = window.method if window else NO_RULE_APPLIES

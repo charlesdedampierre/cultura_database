@@ -5,6 +5,8 @@ from shapely.geometry import shape
 
 import json
 
+from tqdm import tqdm
+
 from common import D, Enrichment, ROOT, as_json, open_database, provenance_column, stage
 from pydantic_to_duckdb_schema import columns_of
 
@@ -147,7 +149,7 @@ def main():
         return polygons_at[qid]
 
     assigned, counts, unmatched, total = {}, {}, 0, 0
-    for person in (row for batch in people for row in batch.to_pylist()):
+    for person in tqdm((row for batch in people for row in batch.to_pylist()), desc="polity", unit=" people", mininterval=5):
         total += 1
         window_start, window_end = person["window_start"], person["window_end"]
         found = []
@@ -199,14 +201,15 @@ def main():
 
     connection.execute(
         """
-        UPDATE individual_enriched SET
-            polity = assigned.polity,
-            polity_count = assigned.polity_count,
-            field_provenance = map_concat(
-                individual_enriched.field_provenance,
-                MAP {'polity': assigned.provenance, 'polity_count': assigned.provenance}
-            )
-        FROM assigned WHERE individual_enriched.entity.qid = assigned.qid
+        CREATE OR REPLACE TABLE individual_enriched AS
+        SELECT enriched.* REPLACE (
+            coalesce(assigned.polity, enriched.polity) AS polity,
+            coalesce(assigned.polity_count, enriched.polity_count) AS polity_count,
+            CASE WHEN assigned.qid IS NULL THEN enriched.field_provenance
+                 ELSE map_concat(enriched.field_provenance, MAP {'polity': assigned.provenance, 'polity_count': assigned.provenance})
+            END AS field_provenance
+        )
+        FROM individual_enriched enriched LEFT JOIN assigned ON enriched.entity.qid = assigned.qid
         """
     )
 
