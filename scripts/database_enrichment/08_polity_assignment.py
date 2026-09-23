@@ -25,6 +25,8 @@ METHOD = {
 
 COUNT_YEARS_ONCE = True
 
+BATCH = 200_000
+
 ENRICHMENT = Enrichment(
     reads=("Individual.place_of_birth", "Individual.place_of_death", "Individual.country_of_citizenship", "Place.coordinates", "Place.sitelink", "Polity.territories", "Polity.sitelink", "IndividualEnriched.peak_productivity"),
     writes=("IndividualEnriched.polity", "IndividualEnriched.polity_count"),
@@ -110,7 +112,7 @@ def main():
     tree, territories, by_url = load_polities(connection)
     print(f"{len(territories):,} territories indexed\n")
 
-    people = connection.execute(
+    people = connection.cursor().execute(
         """
         SELECT individual.entity.qid AS qid,
                enriched.peak_productivity.start_year AS window_start,
@@ -121,7 +123,7 @@ def main():
         FROM individual JOIN individual_enriched enriched ON enriched.entity.qid = individual.entity.qid
         WHERE enriched.peak_productivity.start_year IS NOT NULL
         """
-    ).arrow().read_all().to_pylist()
+    ).fetch_record_batch(BATCH)
 
     place_rows = connection.execute(
         "SELECT entity.qid, coordinates.latitude, coordinates.longitude, sitelink.url FROM place"
@@ -136,8 +138,17 @@ def main():
             return [person["birthplace"]] if person["birthplace"] else []
         return list(person["country_of_citizenship"] or [])
 
-    assigned, counts, unmatched = {}, {}, 0
-    for person in people:
+    polygons_at = {}
+
+    def touching_polygons(qid):
+        if qid not in polygons_at:
+            point = points(*coordinates[qid])
+            polygons_at[qid] = [territories[i] for i in tree.query(point) if tree.geometries[i].contains(point)]
+        return polygons_at[qid]
+
+    assigned, counts, unmatched, total = {}, {}, 0, 0
+    for person in (row for batch in people for row in batch.to_pylist()):
+        total += 1
         window_start, window_end = person["window_start"], person["window_end"]
         found = []
         for phase in PHASES:
@@ -146,8 +157,7 @@ def main():
                     if phase == PHASES[0]:
                         if qid not in coordinates:
                             continue
-                        point = points(*coordinates[qid])
-                        touching = [territories[i] for i in tree.query(point) if tree.geometries[i].contains(point)]
+                        touching = touching_polygons(qid)
                     else:
                         touching = by_url.get(article.get(qid), [])
                     found = grouped_by_polity(touching, window_start, window_end, f"{METHOD[phase]}_of_{location}")
@@ -164,7 +174,7 @@ def main():
         counts[found[0].method] = counts.get(found[0].method, 0) + 1
         assigned[person["qid"]] = found
 
-    matches = [
+    matches = (
         {
             "qid": qid,
             "polity": [
@@ -179,7 +189,7 @@ def main():
             "provenance": as_json(ENRICHMENT.provenance()),
         }
         for qid, found in assigned.items()
-    ]
+    )
     stage(connection, "assigned", {
         "qid": "VARCHAR",
         "polity": columns_of(D.IndividualEnriched)["polity"],
@@ -200,7 +210,7 @@ def main():
         """
     )
 
-    print(f"{len(people):,} individuals had a peak activity window; {len(assigned):,} matched a polity, {unmatched:,} matched none")
+    print(f"{total:,} individuals had a peak activity window; {len(assigned):,} matched a polity, {unmatched:,} matched none")
     print("\nby the location that settled it:")
     for method, count in sorted(counts.items(), key=lambda pair: -pair[1]):
         print(f"   {method:36} {count:>6,}")
