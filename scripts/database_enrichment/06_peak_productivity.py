@@ -2,6 +2,7 @@ import csv
 from dataclasses import dataclass
 
 from common import D, Enrichment, ROOT, as_json, open_database, provenance_column, stage
+from pydantic_to_duckdb_schema import columns_of
 
 CURRENT_YEAR = 2026
 
@@ -31,6 +32,8 @@ PRECISION_PRIORITY = (
 )
 
 NO_RULE_APPLIES = "no_data"
+
+BATCH = 200_000
 
 ENRICHMENT = Enrichment(
     reads=("Individual.birth_date", "Individual.death_date", "Individual.floruit_date", "Individual.works_period"),
@@ -219,41 +222,39 @@ def main():
     print()
 
     connection = open_database()
-    rows = connection.execute("""
+    reader = connection.cursor().execute("""
         SELECT entity.qid AS qid, entity.label_en AS label, entity.description AS description,
                birth_date, death_date, floruit_date, works_period
         FROM individual
-        """).arrow().read_all().to_pylist()
+        """).fetch_record_batch(BATCH)
+    counts = {}
 
-    assigned, counts = [], {}
-    for row in rows:
-        window = peak_productivity(row, low, high)
-        method = window.method if window else NO_RULE_APPLIES
-        counts[method] = counts.get(method, 0) + 1
-        assigned.append(
-            as_json(
-                D.IndividualEnriched(
-                    entity=D.WikidataEntity(qid=row["qid"], label_en=row["label"], description=row["description"]),
-                    peak_productivity=(
-                        D.PeakProductivity(
-                            start_year=window.start_year,
-                            end_year=window.end_year,
-                            assignation_method=method,
-                        )
-                        if window
-                        else None
-                    ),
-                    field_provenance={"peak_productivity": ENRICHMENT.provenance()},
+    def assigned():
+        for batch in reader:
+            for row in batch.to_pylist():
+                window = peak_productivity(row, low, high)
+                method = window.method if window else NO_RULE_APPLIES
+                counts[method] = counts.get(method, 0) + 1
+                yield as_json(
+                    D.IndividualEnriched(
+                        entity=D.WikidataEntity(qid=row["qid"], label_en=row["label"], description=row["description"]),
+                        peak_productivity=(
+                            D.PeakProductivity(
+                                start_year=window.start_year,
+                                end_year=window.end_year,
+                                assignation_method=method,
+                            )
+                            if window
+                            else None
+                        ),
+                        field_provenance={"peak_productivity": ENRICHMENT.provenance()},
+                    )
                 )
-            )
-        )
 
-    from write import columns_of
-
-    stage(connection, "assigned", columns_of(D.IndividualEnriched), assigned)
+    total = stage(connection, "assigned", columns_of(D.IndividualEnriched), assigned())
     connection.execute("CREATE OR REPLACE TABLE individual_enriched AS SELECT * FROM assigned")
 
-    print(f"{len(assigned):,} individuals, by the rule that decided each one:")
+    print(f"{total:,} individuals, by the rule that decided each one:")
     for method, count in sorted(counts.items(), key=lambda pair: -pair[1]):
         print(f"   {method:34} {count:>6,}")
     connection.close()
