@@ -8,10 +8,10 @@ import duckdb
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "datamodels"))
-sys.path.insert(0, str(ROOT / "scripts" / "raw_to_db"))
+sys.path.insert(0, str(ROOT / "scripts" / "raw_to_db" / "helpers"))
 
 import datamodel_in_duckdb as D
-from write import duck_type
+from pydantic_to_duckdb_schema import duck_type
 
 DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura_v2.duckdb"))
 SCRATCH = Path(os.environ.get("SCRATCH", "/tmp")) / "database_enrichment"
@@ -47,7 +47,7 @@ class Enrichment:
 
 def open_database(read_only=False):
     if not DATABASE.exists():
-        raise SystemExit(f"{DATABASE} does not exist; build it with scripts/raw_to_db/build.py")
+        raise SystemExit(f"{DATABASE} does not exist; build it with scripts/raw_to_db/build_database.py")
     return duckdb.connect(str(DATABASE), read_only=read_only)
 
 

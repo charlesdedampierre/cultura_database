@@ -1,7 +1,7 @@
 # database_enrichment/
 
 Enrichment steps that read `data/cultura_v2.duckdb` — the database
-`scripts/raw_to_db/build.py` writes from the raw files — and add to it the
+`scripts/raw_to_db/build_database.py` writes from the raw files — and add to it the
 fields that are not stated by any source. The raw build computes nothing; every
 computed field in `datamodel_in_duckdb.py` is written here.
 

@@ -26,10 +26,7 @@ def duck_type(annotation, seen=()):
     if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         if annotation in seen:
             return "STRUCT(cliopatria_id BIGINT, name VARCHAR)"
-        fields = ", ".join(
-            f'"{name}" {duck_type(field.annotation, seen + (annotation,))}'
-            for name, field in annotation.model_fields.items()
-        )
+        fields = ", ".join(f'"{name}" {duck_type(field.annotation, seen + (annotation,))}' for name, field in annotation.model_fields.items())
         return f"STRUCT({fields})"
     raise TypeError(annotation)
 

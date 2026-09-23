@@ -1,7 +1,7 @@
 import duckdb
 
 from common import D, Enrichment, ROOT, as_json, open_database, stage
-from write import duck_type
+from pydantic_to_duckdb_schema import duck_type
 
 ENRICHMENT = Enrichment(
     reads=("Individual.entity",),
