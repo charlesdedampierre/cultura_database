@@ -1,3 +1,4 @@
+import functools
 import itertools
 import json
 import sys
@@ -120,17 +121,24 @@ def occupations(qids):
     return [datamodel_raw.OccupationWikidata(qid=qid, label=raw_file_readers.literal(label.get(qid))) for qid in qids]
 
 
+@functools.cache
+def work_class_labels():
+    return raw_file_readers.whole(raw_file_readers.WORK_INSTANCE_LABEL)
+
+
 def works(qids):
     label = raw_file_readers.subset(raw_file_readers.WORK_LABEL, qids)
     instance_of = raw_file_readers.subset(raw_file_readers.WORK_INSTANCE_OF, qids)
     inception = raw_file_readers.subset(raw_file_readers.WORK_INCEPTION, qids)
     publication_date = raw_file_readers.subset(raw_file_readers.WORK_PUBLICATION_DATE, qids)
+    class_label = work_class_labels()
 
     return [
         datamodel_raw.WorkWikidata(
             qid=qid,
             label=raw_file_readers.literal(label.get(qid)),
             instance_of=(instance_of[qid],) if instance_of.get(qid) else (),
+            instance_of_label=(class_label.get(instance_of[qid]),) if instance_of.get(qid) else (),
             inception=(inception.get(qid) or {}).get("date"),
             inception_precision=(inception.get(qid) or {}).get("precision"),
             publication_date=(publication_date.get(qid) or {}).get("date"),

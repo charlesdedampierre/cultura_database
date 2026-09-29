@@ -207,12 +207,12 @@ def occupation(raw):
 def work(raw):
     return datamodel_in_duckdb.Work(
         entity=entity(raw.qid, raw.label),
-        instance_of=tuple(entity(qid) for qid in raw.instance_of),
+        instance_of=tuple(entity(qid, label) for qid, label in zip(raw.instance_of, raw.instance_of_label, strict=True)),
         inception=date(raw.inception, raw.inception_precision, "WorkWikidata.inception", "WorkWikidata.inception_precision"),
         publication_date=date(raw.publication_date, raw.publication_date_precision, "WorkWikidata.publication_date", "WorkWikidata.publication_date_precision"),
         field_provenance={
             "entity": read_from("WorkWikidata.qid", "WorkWikidata.label"),
-            "instance_of": read_from("WorkWikidata.instance_of"),
+            "instance_of": read_from("WorkWikidata.instance_of", "WorkWikidata.instance_of_label"),
             "inception": read_from("WorkWikidata.inception", "WorkWikidata.inception_precision"),
             "publication_date": read_from("WorkWikidata.publication_date", "WorkWikidata.publication_date_precision"),
         },
