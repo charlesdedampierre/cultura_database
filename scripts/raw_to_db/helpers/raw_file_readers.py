@@ -41,6 +41,7 @@ OCCUPATION_LABEL = WIKIDATA / "occupation_labels.json"
 
 WORK_LABEL = WIKIDATA / "work_labels.json"
 WORK_INSTANCE_OF = EXTRACTION_V2 / "work_instance_of.json"
+WORK_INSTANCE_LABEL = EXTRACTION_V2 / "work_instance_labels.json"
 WORK_INCEPTION = EXTRACTION_V2 / "work_inception.json"
 WORK_PUBLICATION_DATE = EXTRACTION_V2 / "work_publication.json"
 

@@ -82,6 +82,7 @@ class WorkWikidata(BaseModel):
     qid: str = Field(..., description="The work's Wikidata item, as the credit properties name it. A few keys in the raw file are lexeme URIs rather than qids.")
     label: str | None = None
     instance_of: tuple[str, ...] = ()
+    instance_of_label: tuple[str | None, ...] = Field((), description="English label of each instance_of class, index-aligned with it, from work_instance_labels.json.")
     inception: str | None = None
     inception_precision: int | None = Field(None, description="Precision of P571's time value.")
     publication_date: str | None = None
