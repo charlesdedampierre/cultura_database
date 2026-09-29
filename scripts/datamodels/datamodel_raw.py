@@ -291,6 +291,7 @@ class SeshatPolity(BaseModel):
     in_: bool | None = Field(None, alias="in (Instability Events)", description="'IN', Instability Events. The field is in_ in Python because 'in' is a keyword; the stored key is the alias.")
     polity_tag: str | None = Field(None, description="'polity_tag', the batch the polity was added in: 'Equinox 2020 Polities' on 564, 'Other Polities' on 200, and 'NEW ... Polities' for regional additions.")
     shapefile_name: str | None = Field(None, description="'shapefile_name', the name of the polity's shape in Seshat's own maps, 'Aghlabid Dynasty'. Filled on 81.")
+    link_to_cliopatria: bool | None = Field(None, description="Not in Seshat's list: added by this project. True when polity_new_id is one of the SeshatID values of Cliopatria v3 (cliopatria_polities_only_v3.geojson, the file the Cultura pipeline reads), after splitting the fields that pack two ids, 'de_empire_2;it_sicily_k_2'. A true polity has at least one Cliopatria shape to join to.")
 
 
 class SeshatInformation(BaseModel):
