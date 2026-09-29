@@ -48,10 +48,11 @@ ENGLISH = ("en", "mul")
 
 
 def entity(qid, label=None, description=None, language="en"):
+    english = language in ENGLISH
     return datamodel_in_duckdb.WikidataEntity(
         qid=qid,
-        label_en=label if language in ENGLISH else None,
-        label=label,
+        label_en=label if english else None,
+        label_non_en=label if not english else None,
         label_language=language if label else None,
         description=description,
     )
