@@ -7,7 +7,7 @@ ENRICHMENT = Enrichment(
     reads=("Individual.entity",),
     writes=("Individual.birth_date[]", "Individual.death_date[]", "Individual.floruit_date[]"),
     rule="A language model was given the individual's English Wikipedia article and asked for the year they were born, died and were at work. Its answers were saved as three columns and are appended here as one more entry in each date list, beside the Wikidata property and the other sources. A bare year is taken as a year-precision date; an answer giving a range rather than a year is left out, since a Date holds one year and nothing wider.",
-    answers=ROOT / "data" / "humans_clean.duckdb",
+    answers=ROOT / "data" / "cultura" / "humans_clean.duckdb",
     prompt_id="wikipedia_dates",
 )
 

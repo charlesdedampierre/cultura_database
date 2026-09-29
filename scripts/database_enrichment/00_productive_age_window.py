@@ -5,7 +5,7 @@ import duckdb
 
 from common import Enrichment, ROOT
 
-SOURCE_DATABASE = ROOT / "data" / "humans_clean.duckdb"
+SOURCE_DATABASE = ROOT / "data" / "cultura" / "humans_clean.duckdb"
 CROSS_VERIFIED = ROOT / "data" / "similar_databases" / "cross-verified-database" / "cross-verified-database.utf8.csv.gz"
 DATASET = ROOT / "data" / "productive_age_window.csv"
 
