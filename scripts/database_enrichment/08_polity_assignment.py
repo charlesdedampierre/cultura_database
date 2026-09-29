@@ -34,7 +34,7 @@ ENRICHMENT = Enrichment(
     writes=("IndividualEnriched.polity", "IndividualEnriched.polity_count"),
     rule="Every polity whose ground the individual stood on while they were at work. A place is tested against the territories a polity held during the peak activity window, in the two phases named in PHASES and, within a phase, over the locations named in LOCATION_PRIORITY: the first location that matches anything ends the search, so a deathplace inside a polygon settles it and the birthplace is never tried. The second phase runs only for individuals the first left unmatched, and matches on a Wikipedia article shared between the place and the polity. years_spent_in_polity counts each calendar year of the window once, however many territories of that polity cover it.",
     inputs=("IndividualEnriched.peak_productivity",),
-    answers=ROOT / "data" / "cultura_v2.duckdb",
+    answers=ROOT / "data" / "cultura" / "cultura_v2.duckdb",
 )
 
 

@@ -8,6 +8,7 @@ EXTRACTION_V2 = WIKIDATA / "wikidata_extraction_scripts_v2"
 
 INDIVIDUAL_IDS = WIKIDATA / "all_human_ids.json"
 LABEL = WIKIDATA / "all_human_names.json"
+MISSING_LABEL = EXTRACTION_V2 / "missing_labels.json"
 DESCRIPTION = WIKIDATA / "all_human_descriptions.json"
 DATE_OF_BIRTH = WIKIDATA / "all_human_birthdates.json"
 DATE_OF_BIRTH_PRECISION = WIKIDATA / "all_human_birthdate_precision.json"
@@ -29,6 +30,7 @@ PLACE_LOCATION = WIKIDATA / "place_locations.json"
 PLACE_INSTANCE_OF = WIKIDATA / "city_entity_types.json"
 PLACE_INCEPTION = EXTRACTION_V2 / "place_inception.json"
 PLACE_DISSOLUTION = EXTRACTION_V2 / "place_dissolution.json"
+PLACE_SITELINK = EXTRACTION_V2 / "place_sitelinks.json"
 
 COUNTRY_LOCATION = WIKIDATA / "nationality_locations.json"
 COUNTRY_OF_PLACE = WIKIDATA / "nationality_countries.json"
@@ -44,9 +46,13 @@ WORK_PUBLICATION_DATE = EXTRACTION_V2 / "work_publication.json"
 
 EXTERNAL_ID_PROPERTY = WIKIDATA / "all_external_id_properties.json"
 EXTERNAL_ID_PROPERTY_METADATA = WIKIDATA / "identifier_types_backup_20260502_135617.json"
+EXTERNAL_ID_PROPERTY_DETAILS = EXTRACTION_V2 / "identifier_metadata.json"
+
+WIKIMEDIA_SITE = EXTRACTION_V2 / "wiki_editions.json"
 
 PROPERTY = ROOT / "scripts" / "_one_off" / "properties.json"
-POLITY = ROOT / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
+POLITY = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
+POLITY_EXISTENCE = EXTRACTION_V2 / "polity_existence.json"
 
 
 def pairs(path):
@@ -81,10 +87,19 @@ def whole(path):
     return dict(pairs(path))
 
 
+def repaired(text):
+    """Undo UTF-8 read as Latin-1, which the older extractions did: 'JosÃ©' -> 'José'.
+    Text that is not garbled this way fails the round trip and is returned unchanged."""
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
+
+
 def literal(value):
     if value is None:
         return None
     text = str(value)
     if text.startswith('"') and '"@' in text:
-        return text[1 : text.rindex('"@')]
-    return text
+        text = text[1 : text.rindex('"@')]
+    return repaired(text)

@@ -29,11 +29,12 @@ def main():
     credit = Table(connection, "individual_work", datamodel_in_duckdb.IndividualWork)
     tables = [individual, identifier, sitelink, credit]
     sites = set()
+    formatter_url = json_to_raw_models.formatter_urls()
 
     for number, batch in enumerate(build_helpers.chunks(qids), start=1):
         for raw in json_to_raw_models.individuals(batch):
             sites.update(link.site for link in raw.sitelink if link.site)
-            one = raw_to_duckdb_models.individual(raw)
+            one = raw_to_duckdb_models.individual(raw, formatter_url)
             individual.add(one)
             identifier.extend(one.external_id)
             sitelink.extend(one.sitelink)
@@ -43,8 +44,9 @@ def main():
         build_helpers.check_disk()
         build_helpers.report(STEP, f"chunk {number}: {individual.count:,}/{total:,} individuals, {credit.count:,} work credits")
 
+    known = json_to_raw_models.wikimedia_sites()
     with Table(connection, "sitelink", datamodel_in_duckdb.Sitelink) as sites_table:
-        sites_table.extend(raw_to_duckdb_models.sitelink(site) for site in sorted(sites))
+        sites_table.extend(raw_to_duckdb_models.sitelink(site, known) for site in sorted(sites))
     Table(connection, "individual_enriched", datamodel_in_duckdb.IndividualEnriched)
 
     build_helpers.done(STEP, tables + [sites_table])

@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "raw_to_db" / "helpers"))
 import datamodel_in_duckdb as D
 from pydantic_to_duckdb_schema import duck_type
 
-DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura_v2.duckdb"))
+DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura" / "cultura_v2.duckdb"))
 SCRATCH = Path(os.environ.get("SCRATCH", "/tmp")) / "database_enrichment"
 
 

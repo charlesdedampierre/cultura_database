@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote
 import sys
 from pathlib import Path
 
@@ -47,7 +48,7 @@ def entity(qid, label=None, description=None):
     return datamodel_in_duckdb.WikidataEntity(qid=qid, label_en=label, description=description)
 
 
-def individual(raw):
+def individual(raw, formatter_url=None):
     return datamodel_in_duckdb.Individual(
         entity=entity(raw.qid, raw.label, raw.description),
         birth_date=dates(raw.date_of_birth, raw.date_of_birth_precision, "IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_birth_precision"),
@@ -59,7 +60,7 @@ def individual(raw):
         occupation=tuple(datamodel_in_duckdb.Occupation(entity=entity(qid)) for qid in raw.occupation),
         country_of_citizenship=tuple(datamodel_in_duckdb.Place(entity=entity(qid)) for qid in raw.country_of_citizenship),
         writing_language=raw.writing_language,
-        external_id=tuple(individual_identifier(raw.qid, pid, value) for pid, values in sorted(raw.external_id.items()) for value in values),
+        external_id=tuple(individual_identifier(raw.qid, pid, value, (formatter_url or {}).get(pid)) for pid, values in sorted(raw.external_id.items()) for value in values),
         sitelink=tuple(individual_sitelink(raw.qid, link) for link in raw.sitelink),
         work=tuple(individual_work(raw.qid, credit) for credit in raw.work),
         field_provenance={
@@ -80,13 +81,18 @@ def individual(raw):
     )
 
 
-def individual_identifier(qid, pid, value):
-    return datamodel_in_duckdb.IndividualIdentifier(
-        qid=qid,
-        pid=pid,
-        value=value,
-        field_provenance={"value": read_from("IndividualWikidata.external_id")},
-    )
+def record_url(formatter_url, value):
+    if not formatter_url or "$1" not in formatter_url or value is None:
+        return None
+    return formatter_url.replace("$1", quote(value, safe="/:@-._~!$&'()*+,;="))
+
+
+def individual_identifier(qid, pid, value, formatter_url=None):
+    url = record_url(formatter_url, value)
+    provenance = {"value": read_from("IndividualWikidata.external_id")}
+    if url:
+        provenance["url"] = read_from("IndividualWikidata.external_id", "ExternalIdPropertyWikidata.formatter_url")
+    return datamodel_in_duckdb.IndividualIdentifier(qid=qid, pid=pid, value=value, url=url, field_provenance=provenance)
 
 
 def individual_sitelink(qid, link):
@@ -108,8 +114,19 @@ def individual_work(qid, credit):
     )
 
 
-def sitelink(site):
-    return datamodel_in_duckdb.Sitelink(url=f"https://{site}", field_provenance={"url": read_from("IndividualWikidata.sitelink")})
+def sitelink(site, known=None):
+    url = f"https://{site}"
+    about = (known or {}).get(url)
+    provenance = {"url": read_from("IndividualWikidata.sitelink")}
+    if about:
+        provenance["label_en"] = read_from("WikimediaSiteWikidata.label")
+        provenance["language"] = read_from("WikimediaSiteWikidata.language")
+    return datamodel_in_duckdb.Sitelink(
+        url=url,
+        label_en=about.label if about else None,
+        language=about.language if about else None,
+        field_provenance=provenance,
+    )
 
 
 def place(raw):
@@ -118,6 +135,7 @@ def place(raw):
         coordinates=datamodel_in_duckdb.Coordinates(latitude=raw.latitude, longitude=raw.longitude) if raw.latitude is not None else None,
         country=entity(raw.country) if raw.country else None,
         instance_of=tuple(entity(qid) for qid in raw.instance_of),
+        sitelink=datamodel_in_duckdb.Sitelink(url=raw.sitelink[0].url) if raw.sitelink else None,
         existence=datamodel_in_duckdb.ExistencePeriod(
             inception=date(raw.inception, raw.inception_precision, "PlaceWikidata.inception", "PlaceWikidata.inception_precision"),
             dissolution=date(raw.dissolved_abolished_or_demolished_date, raw.dissolved_abolished_or_demolished_date_precision, "PlaceWikidata.dissolved_abolished_or_demolished_date", "PlaceWikidata.dissolved_abolished_or_demolished_date_precision"),
@@ -128,6 +146,7 @@ def place(raw):
             "country": read_from("PlaceWikidata.country"),
             "instance_of": read_from("PlaceWikidata.instance_of"),
             "existence": read_from("PlaceWikidata.inception", "PlaceWikidata.dissolved_abolished_or_demolished_date"),
+            "sitelink": read_from("PlaceWikidata.sitelink"),
         },
     )
 
@@ -190,6 +209,21 @@ def work(raw):
     )
 
 
+def whole_number(text):
+    try:
+        return int(float(text))
+    except (TypeError, ValueError):
+        return None
+
+
+ISSUER_FIELD = {"official_website": "website", "number_of_records": "number_of_records", "inception": "inception"}
+
+
+def issuer_or_property(raw, field):
+    read_on = "subject_item_of_this_property" if ISSUER_FIELD[field] in raw.read_from_issuer else "pid"
+    return read_from(f"ExternalIdPropertyWikidata.{field}", f"ExternalIdPropertyWikidata.{read_on}")
+
+
 def identifier(raw):
     return datamodel_in_duckdb.Identifier(
         property=datamodel_in_duckdb.WikidataProperty(pid=raw.pid, label_en=raw.label),
@@ -197,16 +231,16 @@ def identifier(raw):
         issuer=entity(raw.subject_item_of_this_property) if raw.subject_item_of_this_property else None,
         issuer_country=datamodel_in_duckdb.PresentDayState(name=raw.country) if raw.country else None,
         official_website=raw.official_website,
-        number_of_records=int(raw.number_of_records) if (raw.number_of_records or "").isdigit() else None,
-        inception=date(raw.inception, None, "ExternalIdPropertyWikidata.inception"),
+        number_of_records=whole_number(raw.number_of_records),
+        inception=date(raw.inception, raw.inception_precision, "ExternalIdPropertyWikidata.inception", "ExternalIdPropertyWikidata.inception_precision"),
         field_provenance={
             "property": read_from("ExternalIdPropertyWikidata.pid", "ExternalIdPropertyWikidata.label"),
             "formatter_url": read_from("ExternalIdPropertyWikidata.formatter_url"),
             "issuer": read_from("ExternalIdPropertyWikidata.subject_item_of_this_property"),
             "issuer_country": read_from("ExternalIdPropertyWikidata.country"),
-            "official_website": read_from("ExternalIdPropertyWikidata.official_website"),
-            "number_of_records": read_from("ExternalIdPropertyWikidata.number_of_records"),
-            "inception": read_from("ExternalIdPropertyWikidata.inception"),
+            "official_website": issuer_or_property(raw, "official_website"),
+            "number_of_records": issuer_or_property(raw, "number_of_records"),
+            "inception": issuer_or_property(raw, "inception"),
         },
     )
 
