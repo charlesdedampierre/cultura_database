@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import raw_file_readers
 
-DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura_v2.duckdb"))
+DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura" / "cultura_v2.duckdb"))
 TASK_LOG = ROOT / "task.log"
 CHUNK = int(os.environ.get("CHUNK", "1000000"))
 FLOOR_GB = float(os.environ.get("FLOOR_GB", "3"))

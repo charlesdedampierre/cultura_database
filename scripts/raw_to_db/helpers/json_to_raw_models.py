@@ -15,6 +15,7 @@ def sample_qids(size):
 
 def individuals(qids):
     label = raw_file_readers.subset(raw_file_readers.LABEL, qids)
+    missing_label = raw_file_readers.subset(raw_file_readers.MISSING_LABEL, set(qids) - set(label))
     description = raw_file_readers.subset(raw_file_readers.DESCRIPTION, qids)
     date_of_birth = raw_file_readers.subset(raw_file_readers.DATE_OF_BIRTH, qids)
     date_of_birth_precision = raw_file_readers.subset(raw_file_readers.DATE_OF_BIRTH_PRECISION, qids)
@@ -35,7 +36,7 @@ def individuals(qids):
     return [
         datamodel_raw.IndividualWikidata(
             qid=qid,
-            label=raw_file_readers.literal(label.get(qid)),
+            label=raw_file_readers.literal(label.get(qid)) or (missing_label.get(qid) or {}).get("label"),
             description=raw_file_readers.literal(description.get(qid)),
             date_of_birth=date_of_birth.get(qid),
             date_of_birth_precision=date_of_birth_precision.get(qid),
@@ -62,6 +63,7 @@ def places(qids):
     instance_of = raw_file_readers.subset(raw_file_readers.PLACE_INSTANCE_OF, qids)
     inception = raw_file_readers.subset(raw_file_readers.PLACE_INCEPTION, qids)
     dissolution = raw_file_readers.subset(raw_file_readers.PLACE_DISSOLUTION, qids)
+    sitelink = raw_file_readers.subset(raw_file_readers.PLACE_SITELINK, qids)
 
     return [
         datamodel_raw.PlaceWikidata(
@@ -75,6 +77,7 @@ def places(qids):
             inception_precision=(inception.get(qid) or {}).get("precision"),
             dissolved_abolished_or_demolished_date=(dissolution.get(qid) or {}).get("date"),
             dissolved_abolished_or_demolished_date_precision=(dissolution.get(qid) or {}).get("precision"),
+            sitelink=((datamodel_raw.Sitelink(site="en.wikipedia.org", title=None, url=sitelink[qid]),) if sitelink.get(qid) else ()),
         )
         for qid in qids
     ]
@@ -136,6 +139,10 @@ def works(qids):
     ]
 
 
+def formatter_urls():
+    return {p["property_id"]: p.get("formatter_url") for p in raw_file_readers.items(raw_file_readers.EXTERNAL_ID_PROPERTY, "properties.item") if p.get("formatter_url")}
+
+
 def external_id_properties(pids):
     wanted = set(pids)
     formatter = {p["property_id"]: p.get("formatter_url") for p in raw_file_readers.items(raw_file_readers.EXTERNAL_ID_PROPERTY, "properties.item") if p["property_id"] in wanted}
@@ -146,17 +153,20 @@ def external_id_properties(pids):
         record = dict(zip(names, row))
         if record["property_id"] in wanted:
             metadata[record["property_id"]] = record
+    details = raw_file_readers.whole(raw_file_readers.EXTERNAL_ID_PROPERTY_DETAILS)
 
     return [
         datamodel_raw.ExternalIdPropertyWikidata(
             pid=pid,
             label=(metadata.get(pid) or {}).get("name_en"),
             formatter_url=formatter.get(pid),
-            subject_item_of_this_property=(metadata.get(pid) or {}).get("issuer_id"),
-            country=(metadata.get(pid) or {}).get("country_id"),
-            official_website=(metadata.get(pid) or {}).get("website"),
-            number_of_records=(metadata.get(pid) or {}).get("database_records"),
-            inception=(metadata.get(pid) or {}).get("inception"),
+            subject_item_of_this_property=(details.get(pid) or {}).get("issuer") or (metadata.get(pid) or {}).get("issuer_id"),
+            country=(details.get(pid) or {}).get("country") or (metadata.get(pid) or {}).get("country_id"),
+            official_website=(details.get(pid) or {}).get("website") or (metadata.get(pid) or {}).get("website"),
+            number_of_records=str((details.get(pid) or {}).get("number_of_records") or (metadata.get(pid) or {}).get("database_records") or "") or None,
+            inception=((details.get(pid) or {}).get("inception") or {}).get("date"),
+            inception_precision=((details.get(pid) or {}).get("inception") or {}).get("precision"),
+            read_from_issuer=tuple((details.get(pid) or {}).get("read_from_issuer", ())),
         )
         for pid in sorted(wanted)
     ]
@@ -183,3 +193,24 @@ def polities():
         )
         for feature in raw_file_readers.items(raw_file_readers.POLITY, "features.item")
     ]
+
+
+def polity_existence(qids):
+    found = raw_file_readers.subset(raw_file_readers.POLITY_EXISTENCE, qids)
+    return {
+        qid: datamodel_raw.PolityWikidata(
+            qid=qid,
+            inception=(entry.get("inception") or {}).get("date"),
+            inception_precision=(entry.get("inception") or {}).get("precision"),
+            dissolution=(entry.get("dissolution") or {}).get("date"),
+            dissolution_precision=(entry.get("dissolution") or {}).get("precision"),
+        )
+        for qid, entry in found.items()
+    }
+
+
+def wikimedia_sites():
+    return {
+        url: datamodel_raw.WikimediaSiteWikidata(url=url, qid=entry.get("qid"), label=entry.get("label_en"), language=entry.get("language"))
+        for url, entry in raw_file_readers.pairs(raw_file_readers.WIKIMEDIA_SITE)
+    }

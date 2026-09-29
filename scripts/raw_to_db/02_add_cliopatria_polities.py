@@ -50,7 +50,15 @@ def english_wikipedia(title):
     return ENGLISH_WIKIPEDIA + quote((title or "").replace(" ", "_")) if title else None
 
 
-def a_polity(cliopatria_id, key, spans):
+def existence_wikidata(found):
+    date = raw_to_duckdb_models.date
+    return datamodel_in_duckdb.ExistencePeriod(
+        inception=date(found.inception, found.inception_precision, "PolityWikidata.inception", "PolityWikidata.inception_precision"),
+        dissolution=date(found.dissolution, found.dissolution_precision, "PolityWikidata.dissolution", "PolityWikidata.dissolution_precision"),
+    )
+
+
+def a_polity(cliopatria_id, key, spans, existence):
     name, wikidata = key
     first = spans[0]
     read_from = raw_to_duckdb_models.read_from
@@ -59,6 +67,7 @@ def a_polity(cliopatria_id, key, spans):
         name=name,
         type=first.type,
         entity=raw_to_duckdb_models.entity(wikidata) if wikidata else None,
+        existence_wikidata=existence_wikidata(existence[wikidata]) if wikidata in existence else None,
         sitelink=datamodel_in_duckdb.Sitelink(url=english_wikipedia(first.wikipedia)) if first.wikipedia else None,
         territories=tuple(raw_to_duckdb_models.territory(span) for span in spans),
         field_provenance={
@@ -66,6 +75,7 @@ def a_polity(cliopatria_id, key, spans):
             "name": read_from("PolityCliopatria.name"),
             "type": read_from("PolityCliopatria.type"),
             "entity": read_from("PolityCliopatria.wikidata"),
+            "existence_wikidata": read_from("PolityWikidata.inception", "PolityWikidata.dissolution"),
             "sitelink": read_from("PolityCliopatria.wikipedia"),
             "territories": read_from(
                 "PolityCliopatria.from_year", "PolityCliopatria.to_year",
@@ -80,7 +90,8 @@ def polities(spans):
     named = strip_enclosing_parentheses(kept)
     grouped = key_on_name_and_wikidata(named)
     numbered = number_by_first_appearance(grouped)
-    return [a_polity(numbered[key], key, group) for key, group in grouped.items()]
+    existence = json_to_raw_models.polity_existence({wikidata for _, wikidata in grouped if wikidata})
+    return [a_polity(numbered[key], key, group, existence) for key, group in grouped.items()]
 
 
 def announce(spans, built):

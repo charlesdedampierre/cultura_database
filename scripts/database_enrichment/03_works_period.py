@@ -4,7 +4,7 @@ ENRICHMENT = Enrichment(
     reads=("Individual.work", "Work.publication_date", "Work.inception"),
     writes=("Individual.works_period",),
     rule="The year of a work is its publication date where it has one and its inception otherwise. The period is the earliest and the latest of those years over every work credited to the individual. A work carrying neither date counts for nothing, so the span is narrower than a working life and empty for an individual none of whose works is dated.",
-    answers=ROOT / "data" / "cultura_v2.duckdb",
+    answers=ROOT / "data" / "cultura" / "cultura_v2.duckdb",
 )
 
 

@@ -56,7 +56,7 @@ class Sitelink(BaseModel):
     url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 pages, and an individual reaches at most 341. They are not all Wikipedia — 349 are, and the rest are Wikiquote (81), Wikisource (76), Wikibooks (43), Wikinews (30) and Wikivoyage (10). Counting a person's pages without filtering on the project counts their quotations and their transcribed works alongside the articles about them.")
     label_en: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
     language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
-    is_western: bool | None = Field(None, description="Whether the edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 208 editions are Western, 204 are not, and 200 are on neither list — 9.4 per cent of all pages — so a split computed from this column leaves a residue.")
+    is_western: bool | None = Field(None, description="Whether a Wikipedia edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 75 editions are Western and 98 are not; the other Wikipedias are on neither list, and every non-Wikipedia site (Commons, Wikiquote...) is left empty.")
     number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
@@ -80,7 +80,7 @@ class Polity(BaseModel):
     cliopatria_id: int | None = Field(None, description="Cliopatria's identifier for the polity — assigned by this project when the GeoJSON was loaded, since Cliopatria itself numbers nothing. One row per polity here — 1 633 of them — with the changes of borders nested in `territories` rather than spread over 13 755 rows that repeat the name.")
     name: str | None = Field(None, description="The polity's name as Cliopatria spells it — 'Ottoman Empire', 'Magadha - Shaishunaga dynasty'. Its own spelling, not Wikidata's.")
     type: Literal["POLITY", "RELATION"] | None = Field(None, description="'POLITY' for a polity in its own right, 'RELATION' for a dependency between two of them — 13 370 against 385. A relation is not somewhere a person can be born, so filter on it before counting.")
-    existence: ExistencePeriod | None = Field(None, description="The years the polity existed, read off its territories — the earliest start and the latest end. Cliopatria states years and nothing finer, so the precision is always 'year' and the day in the ISO string carries no information.")
+    existence_wikidata: ExistencePeriod | None = Field(None, description="When the polity began and ended according to Wikidata — P571 inception and P576 dissolution of its item, at the precision Wikidata states them. Empty where Cliopatria resolved no item or Wikidata states neither. The years Cliopatria itself gives are on the territories, and the two need not agree: Wikidata dates the polity, Cliopatria the ground it held.")
     entity: WikidataEntity | None = Field(None, description="The Wikidata item Cliopatria resolved for the polity, where it resolved one — the join out to Wikidata and to the other tables here. Empty for a polity it could not resolve, which is why cliopatria_id and not a qid is this table's key.")
     sitelink: Sitelink | None = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it; matching a place to a polity by URL is one of the two ways it is done, the other being a territory's polygon.")
     territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 8.4 of them and one reaches 212.")
@@ -93,8 +93,8 @@ class WorksPeriod(BaseModel):
 
 
 class Notability(BaseModel):
-    number_of_western_editions: int | None = Field(None, description="How many Western-language editions the individual appears in. One caution before using it: it does not agree with individual_sitelink, whose rows it appears to count — the two counts sum to more pages than the individual has on 499 of 500 sampled rows, by 37.8 on average, and Shakespeare has 332 pages against 228 Western and 348 non-Western. Take this column as published and do not recompute it from that table.")
-    number_of_non_western_editions: int | None = Field(None, description="How many non-Western-language editions, on the same caution.")
+    number_of_western_editions: int | None = Field(None, description="How many Western Wikipedia editions have a page on the individual, each edition counted once, from individual_sitelink and Sitelink.is_western.")
+    number_of_non_western_editions: int | None = Field(None, description="How many non-Western Wikipedia editions, on the same terms. Editions on neither list count in neither.")
     cross_cultural_score: float | None = Field(None, description="The geometric mean of the two counts, 0 to about 282, and the project's headline ranking. A geometric mean is what makes it cross-cultural: 100 Western and 100 non-Western scores 100, while 200 Western and none scores 0 — so it measures reach across the divide, not reach in total.")
 
 
@@ -127,9 +127,9 @@ class Identifier(BaseModel):
     formatter_url: str | None = Field(None, description="P1630, the template that turns an identifier into a link — 'https://viaf.org/viaf/$1', with $1 standing for the value. It is why IndividualIdentifier need not store a URL per row.")
     issuer: WikidataEntity | None = Field(None, description="P1629, the organisation that issues the identifiers — a national library, a museum.")
     issuer_country: PresentDayState | None = Field(None, description="P17 of that issuer, as a present-day state — every database here exists now, so there is no historical case. Use it to weigh how national a database's coverage is: a French library indexes French lives more densely, and a count of identifiers is not a count of importance. Its continent makes that weighing coarse but immediate.")
-    official_website: str | None = Field(None, description="P856 of the database.")
-    number_of_records: int | None = Field(None, description="P4876, how many records it holds. Together with the count of individuals carrying one of its identifiers, this says what share of the database Cultura reaches.")
-    inception: Date | None = Field(None, description="When the database was founded, P571.")
+    official_website: str | None = Field(None, description="P856 of the property, or of its issuer (P1629) where the property has none — field_provenance says which.")
+    number_of_records: int | None = Field(None, description="P4876, how many records the database holds, read from the property or else from its issuer; the largest where several are stated. Together with the count of individuals carrying one of its identifiers, this says what share of the database Cultura covers.")
+    inception: Date | None = Field(None, description="When the database was founded, P571 of the property or else of its issuer.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
@@ -137,7 +137,7 @@ class IndividualIdentifier(BaseModel):
     qid: str = Field(..., description="The individual, joining to Individual.qid.")
     pid: str = Field(..., description="Which database, joining to Identifier.pid. The qid and the pid do not make a key: Wikidata lets one property carry several identifiers for one person — two library records never merged into one — so the same pair recurs with a different `value` on 9 per cent of the individuals sampled. Counting rows here counts records held, not databases reached; count distinct pids for that.")
     value: str | None = Field(None, description="The identifier as that database issued it, '75121530'. A string, never a number: many carry leading zeros or letters.")
-    url: str | None = Field(None, description="The record's URL where Wikidata gives one. It is otherwise Identifier.formatter_url with the value substituted, so this column is mostly empty by design.")
+    url: str | None = Field(None, description="The record's URL: Identifier.formatter_url with $1 replaced by the value. Empty where the property has no formatter URL.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 
