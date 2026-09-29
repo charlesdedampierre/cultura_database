@@ -273,7 +273,30 @@ class SeshatValue(BaseModel):
 
 
 class SeshatPolity(BaseModel):
-    polity: str = Field(..., description="'Polity', Seshat's seven-character polity id, 'AfDurrn' for the Durrani Empire. It is the key: 373 polities, 46 to 167 coded rows each. Not the same form as PolityCliopatria.seshat_id, 'eg_dynasty_1', so joining the two needs a crosswalk. The raw file is long, one row per coded value; every field below gathers the rows of one 'Variable', and the file's 'Section' and 'Subsection' are dropped because the variable implies them. What each variable means is in the variable table of data/seshat/seshat.duckdb, joined through equinox_value.variable_id — the few rows filed elsewhere are clerical: 115 Warfare rows with no subsection, 14 ideology rows under a misspelled or wrong subsection.")
+    id: int = Field(..., description="'id', the polity's number on seshat-db.com — the n of seshat-db.com/core/polity/n. 864 polities, the whole of Seshat's list on 2026-09-29, not only the 373 Equinox codes.")
+    url: str | None = Field(None, description="'url', the polity's page on seshat-db.com. The page is where the new and old ids stand side by side, 'af_durrani_emp / AfDurrn'; the API returns only the new one.")
+    macro_region: str | None = Field(None, description="'macro_region', 'Southwest Asia'.")
+    home_seshat_region: str | None = Field(None, description="'home_seshat_region', a region inside the macro region, 'Mesopotamia'.")
+    polity_new_id: str = Field(..., description="'polity_new_ID', the id Seshat uses today, 'af_durrani_emp'. It is the form Cliopatria's SeshatID takes, so it is the join to PolityCliopatria.seshat_id: 540 of Cliopatria's 546 distinct ids are here. Cliopatria sometimes packs two in one field, 'de_empire_2;it_sicily_k_2', which must be split first.")
+    polity_old_id: str = Field(..., description="'polity_old_ID', the id Equinox uses, 'AfDurrn', and the join to SeshatInformation.polity. On 313 polities it simply repeats the new id — mostly those added after Equinox, which never had an old one, but also 36 tagged Equinox 2020.")
+    polity_long_name: str | None = Field(None, description="'polity_long_name', 'Abbasid Caliphate I'.")
+    start_year: int | None = Field(None, description="'start_year', negative before the common era.")
+    end_year: int | None = Field(None, description="'end_year'.")
+    home_nga: str | None = Field(None, description="'home_nga', the Natural Geographic Area the polity was sampled from. Filled on 376 of 864: only the polities of the NGA sample have one.")
+    g: bool | None = Field(None, description="'G', whether the polity has General Variables coded. This and the seven flags below are the section badges of Seshat's polity list; their meanings come from the tooltips there.")
+    sc: bool | None = Field(None, description="'SC', Social Complexity Variables.")
+    wf: bool | None = Field(None, description="'WF', Warfare Variables (MilTech).")
+    rt: bool | None = Field(None, description="'RT', Religion Variables.")
+    hs: bool | None = Field(None, description="'HS'. True on 323 polities. The site's tooltips do not name it.")
+    cc: bool | None = Field(None, description="'CC', Crisis Consequences.")
+    pt: bool | None = Field(None, description="'PT', Power Transition.")
+    in_: bool | None = Field(None, description="'IN', Instability Events. The trailing underscore is there because 'in' is a Python keyword.")
+    polity_tag: str | None = Field(None, description="'polity_tag', the batch the polity was added in: 'Equinox 2020 Polities' on 564, 'Other Polities' on 200, and 'NEW ... Polities' for regional additions.")
+    shapefile_name: str | None = Field(None, description="'shapefile_name', the name of the polity's shape in Seshat's own maps, 'Aghlabid Dynasty'. Filled on 81.")
+
+
+class SeshatInformation(BaseModel):
+    polity: str = Field(..., description="'Polity', Seshat's old polity id, 'AfDurrn' for the Durrani Empire. It is the key: 373 polities, 46 to 167 coded rows each. Join it to SeshatPolity.polity_old_id, which resolves 370 of them — GbEmpr2, InGurjr and InKanau are missing from Seshat's polity list — and SeshatPolity.polity_new_id is the id Cliopatria's SeshatID uses. The raw file is long, one row per coded value; every field below gathers the rows of one 'Variable', and the file's 'Section' and 'Subsection' are dropped because the variable implies them. What each variable means is in SeshatVariable. The few rows filed elsewhere are clerical: 115 Warfare rows with no subsection, 14 ideology rows under a misspelled or wrong subsection.")
     nga: str | None = Field(None, description="'NGA', the Natural Geographic Area the polity was sampled from — a region of roughly 100 by 100 km, 'Kachi Plain'. 35 of them. The codebook uses it purely as a sampling scheme: codes describe the polity, not the NGA. Each polity sits in exactly one.")
     ra: dict[str, tuple[str, ...]] = Field({}, description="'RA', the research assistants who coded the polity, keyed by the section they coded: {'Warfare variables': ('Enrico Cioni',)}. The file repeats RA once per section, so it is a map rather than a list.")
     ritual_duration: dict[str, tuple[SeshatValue, ...]] = Field({}, description="'Duration' as published under the ritual subsections — 'Most euphoric collective ritual of the official cult' — and filed under Warfare variables. It is the duration of the ritual in hours, not of the polity, so it cannot share the duration field. Six rows in the whole file.")
