@@ -2,17 +2,12 @@ import json
 
 from tqdm import tqdm
 
-from common import D, Enrichment, ROOT, as_json, open_database, provenance_column
-
-WESTERN = set(D.WESTERN_WIKIPEDIA_LANGUAGES)
-NON_WESTERN = set(D.NON_WESTERN_WIKIPEDIA_LANGUAGES)
-
-EDITION_CODE = r"^https://([^.]+)\.wikipedia\.org$"
+from common import Enrichment, ROOT, as_json, open_database, provenance_column
 
 SITELINK = Enrichment(
     reads=("IndividualSitelink.site_url",),
-    writes=("Sitelink.is_western", "Sitelink.number_of_articles"),
-    rule="is_western: the language code of a Wikipedia edition read against WESTERN_WIKIPEDIA_LANGUAGES and NON_WESTERN_WIKIPEDIA_LANGUAGES in datamodel_in_duckdb.py, lists drawn up by Claude, Anthropic's language model, for this project; empty for codes on neither list and for every edition that is not a Wikipedia. number_of_articles: how many individuals in Cultura the edition has a page on.",
+    writes=("Sitelink.number_of_articles",),
+    rule="How many individuals in Cultura the edition has a page on.",
     answers=ROOT / "scripts" / "database_enrichment" / "07_notability.py",
 )
 
@@ -26,8 +21,6 @@ NOTABILITY = Enrichment(
 
 
 def fill_sitelink(connection):
-    connection.execute("CREATE OR REPLACE TEMP TABLE western AS SELECT unnest(?) AS code, true AS is_western", [sorted(WESTERN)])
-    connection.execute("INSERT INTO western SELECT unnest(?), false", [sorted(NON_WESTERN)])
     connection.execute(
         f"""
         CREATE OR REPLACE TABLE sitelink AS
@@ -37,15 +30,13 @@ def fill_sitelink(connection):
             GROUP BY site_url
         )
         SELECT sitelink.* REPLACE (
-            western.is_western AS is_western,
             coalesce(articles.n, 0) AS number_of_articles,
-            map_concat(sitelink.field_provenance, MAP {{'is_western': ?::{provenance_column()}, 'number_of_articles': ?::{provenance_column()}}}) AS field_provenance
+            map_concat(sitelink.field_provenance, MAP {{'number_of_articles': ?::{provenance_column()}}}) AS field_provenance
         )
         FROM sitelink
-        LEFT JOIN western ON western.code = regexp_extract(sitelink.url, '{EDITION_CODE}', 1)
         LEFT JOIN articles ON articles.site_url = sitelink.url
         """,
-        [json.dumps(as_json(SITELINK.provenance()))] * 2,
+        [json.dumps(as_json(SITELINK.provenance()))],
     )
 
 
