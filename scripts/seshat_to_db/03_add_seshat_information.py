@@ -92,16 +92,17 @@ def build_sql(columns):
         {variable_columns}
         FROM rows GROUP BY polity
     )
-    SELECT f.polity, f.nga, coalesce(ra.ra, MAP {{}}) AS ra, coalesce(ritual.ritual_duration, MAP {{}}) AS ritual_duration,
+    SELECT f.polity, CASE WHEN p.id IS NULL THEN NULL ELSE p END AS seshat_polity, f.nga, coalesce(ra.ra, MAP {{}}) AS ra, coalesce(ritual.ritual_duration, MAP {{}}) AS ritual_duration,
         f.* EXCLUDE (polity, nga)
     FROM fields f LEFT JOIN ra USING (polity) LEFT JOIN ritual USING (polity)
+    LEFT JOIN polity p ON p.polity_old_id = f.polity
     ORDER BY f.polity
     """
 
 
 def main():
     rows = read_rows()
-    columns = [c for c in SeshatInformation.model_fields if c not in ("polity", "nga", "ra", "ritual_duration")]
+    columns = [c for c in SeshatInformation.model_fields if c not in ("polity", "seshat_polity", "nga", "ra", "ritual_duration")]
     missing = set(rows.column_name) - set(columns) - {"ra", "ritual_duration"}
     assert not missing, f"variables without a SeshatInformation field: {missing}"
     with duckdb.connect(str(DB)) as con:
@@ -114,7 +115,7 @@ def main():
         ra = con.sql("SELECT sum(len(flatten(map_values(ra)))) FROM seshat_information").fetchone()[0]
         ritual = con.sql("SELECT sum(len(flatten(map_values(ritual_duration)))) FROM seshat_information").fetchone()[0]
         polities = con.sql("SELECT count(*) FROM seshat_information").fetchone()[0]
-        orphans = con.sql("SELECT polity FROM seshat_information WHERE polity NOT IN (SELECT polity_old_id FROM polity)").fetchall()
+        orphans = con.sql("SELECT polity FROM seshat_information WHERE seshat_polity IS NULL").fetchall()
     assert stored + ra + ritual == len(rows), f"{stored + ra + ritual} of {len(rows)} rows stored"
     print(f"{polities} polities, {len(rows)} values written to seshat_information in {DB.name}")
     print(f"polities missing from the polity table: {[o[0] for o in orphans]}")
