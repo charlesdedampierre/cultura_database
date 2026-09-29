@@ -27,8 +27,8 @@ class Date(BaseModel):
 class WikidataEntity(BaseModel):
     qid: str = Field(..., description="The item's Wikidata identifier, 'Q937'. Everything Wikidata knows hangs off it, and it is the join key between every table here.")
     label_en: str | None = Field(None, description="Its English label — 'Albert Einstein', 'Kingdom of Prussia', 'astronomer'. The raw files give it as the RDF literal '\"Ulm\"@en'; the quotes and the language tag are stripped.")
-    label: str | None = Field(None, description="Its name in the best language Wikidata gives: the English label, else the language-neutral 'mul' label, else a label in another language (the alphabetically first language code). Use it where any name is better than none; label_en where the name must be English.")
-    label_language: str | None = Field(None, description="The language code of `label` — 'en', 'mul', 'ru', 'zh'. Empty only where the item has no label at all.")
+    label_non_en: str | None = Field(None, description="Its name in another language, for an item with no English or 'mul' label — 'Кузюлев Николай Николаевич'. Filled only where label_en is empty; the language is the alphabetically first code Wikidata has a label in, so reruns agree.")
+    label_language: str | None = Field(None, description="The language of the label the item has: 'en' or 'mul' (the language-neutral label Wikidata uses in place of many English ones) for label_en, another code — 'ru', 'zh', 'ja' — for label_non_en. Empty only where the item has no label at all.")
     description: str | None = Field(None, description="Its English one-line description, 'city in Baden-Württemberg, Germany'. Wikidata writes one for most items, and it is often the shortest way to tell two items with the same label apart.")
 
 
