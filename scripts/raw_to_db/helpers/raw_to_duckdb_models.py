@@ -187,7 +187,10 @@ def country(raw):
             "country": read_from("CountryWikidata.country"),
             "instance_of": read_from("CountryWikidata.instance_of"),
             "existence": read_from("CountryWikidata.inception", "CountryWikidata.dissolved_abolished_or_demolished_date"),
-            "present_day_state": read_from("CountryWikidata.iso_3166_1_alpha_3_code", "CountryWikidata.continent"),
+            "present_day_state": datamodel_in_duckdb.Provenance(
+                raw=("CountryWikidata.label", "CountryWikidata.iso_3166_1_alpha_3_code", "CountryWikidata.continent"),
+                rule=f"{datamodel_in_duckdb.CLAUDE_CLASSIFICATION}: continent regrouped with LATIN_AMERICAN_COUNTRIES and MIDDLE_EAST_COUNTRIES, is_western read off WESTERN_COUNTRIES, both matched on the name.",
+            ),
             "sitelink": read_from("CountryWikidata.sitelink"),
         },
     )
