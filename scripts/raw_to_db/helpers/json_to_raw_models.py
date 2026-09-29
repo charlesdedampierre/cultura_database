@@ -13,13 +13,6 @@ def sample_qids(size):
     return sorted(qid for qid, _ in itertools.islice(raw_file_readers.pairs(raw_file_readers.WORK), size))
 
 
-ENGLISH = ("en", "mul")
-
-
-def english_label(found):
-    return found["label"] if found and found["language"] in ENGLISH else None
-
-
 def individuals(qids):
     label = raw_file_readers.subset(raw_file_readers.LABEL, qids)
     missing_label = raw_file_readers.subset(raw_file_readers.MISSING_LABEL, set(qids) - set(label))
@@ -43,7 +36,8 @@ def individuals(qids):
     return [
         datamodel_raw.IndividualWikidata(
             qid=qid,
-            label=raw_file_readers.literal(label.get(qid)) or english_label(missing_label.get(qid)),
+            label=raw_file_readers.literal(label.get(qid)) or (missing_label.get(qid) or {}).get("label"),
+            label_language="en" if label.get(qid) else (missing_label.get(qid) or {}).get("language"),
             description=raw_file_readers.literal(description.get(qid)),
             date_of_birth=date_of_birth.get(qid),
             date_of_birth_precision=date_of_birth_precision.get(qid),
