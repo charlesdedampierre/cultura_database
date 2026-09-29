@@ -110,6 +110,36 @@ POLITY_MATCH_COLORS = {
     'without_polity': ORANGE,
 }
 
+OTHER_CATEGORY_COLOR = LIGHT_GREY
+
+ASTRONOMER_NETWORK_COLORS = {
+    'astronomer': BLUE,
+    'astrologer': PINK,
+    'writer': LIGHT_GREEN,
+    'other_node': PALE_BLUE,
+    'node_edge': SLATE,
+    'edge': SLATE,
+}
+
+SCHEMATIC_COLORS = {
+    'primary': NAVY,
+    'chosen': TEAL,
+    'crossing': ORANGE,
+    'neutral': SLATE,
+    'fill': PALE_GREY,
+    'inner_fill': PALE_BLUE,
+    'chosen_fill': LIGHT_TEAL,
+}
+
+BASEMAP_COLOR = GREY
+MAP_BORDER_COLOR = SLATE
+MAP_LABEL_COLOR = 'white'
+MAP_LABEL_HALO_COLOR = TEXT
+
+TABLE_RULE_COLOR = 'black'
+TABLE_RULE_THICK = 2.0
+TABLE_RULE_THIN = 0.7
+
 TABLE_FONT_BODY = 14
 TABLE_FONT_HEAD = 15
 
@@ -119,6 +149,10 @@ LONG_TICK_LABEL_FONTSIZE = 12
 SMALL_LEGEND_FONTSIZE = 11
 PANEL_LABEL_FONTSIZE = 16
 DONUT_CENTER_FONTSIZE = 20
+POLITY_TITLE_FONTSIZE = 26
+MAP_PANEL_LABEL_FONTSIZE = 18
+MAP_LABEL_FONTSIZE = 10
+SCHEMATIC_FONTSIZE = 13
 PLOTLY_FONT = {'family': FONT_FAMILY, 'size': 15, 'color': TEXT}
 
 THOUSANDS = FuncFormatter(lambda x, _: f'{x:,.0f}')
