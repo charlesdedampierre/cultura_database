@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Property(BaseModel):
@@ -274,24 +274,26 @@ class SeshatValue(BaseModel):
 
 
 class SeshatPolity(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    polity_long_name: str | None = Field(None, description="'polity_long_name', 'Abbasid Caliphate I'.")
     id: int = Field(..., description="'id', the polity's number on seshat-db.com — the n of seshat-db.com/core/polity/n. 864 polities, the whole of Seshat's list on 2026-09-29, not only the 373 Equinox codes.")
     url: str | None = Field(None, description="'url', the polity's page on seshat-db.com. The page is where the new and old ids stand side by side, 'af_durrani_emp / AfDurrn'; the API returns only the new one.")
     macro_region: str | None = Field(None, description="'macro_region', 'Southwest Asia'.")
     home_seshat_region: str | None = Field(None, description="'home_seshat_region', a region inside the macro region, 'Mesopotamia'.")
     polity_new_id: str = Field(..., description="'polity_new_ID', the id Seshat uses today, 'af_durrani_emp'. It is the form Cliopatria's SeshatID takes, so it is the join to PolityCliopatria.seshat_id: 540 of Cliopatria's 546 distinct ids are here. Cliopatria sometimes packs two in one field, 'de_empire_2;it_sicily_k_2', which must be split first.")
     polity_old_id: str = Field(..., description="'polity_old_ID', the id Equinox uses, 'AfDurrn', and the join to SeshatInformation.polity. On 313 polities it simply repeats the new id — mostly those added after Equinox, which never had an old one, but also 36 tagged Equinox 2020.")
-    polity_long_name: str | None = Field(None, description="'polity_long_name', 'Abbasid Caliphate I'.")
     start_year: int | None = Field(None, description="'start_year', negative before the common era.")
     end_year: int | None = Field(None, description="'end_year'.")
     home_nga: str | None = Field(None, description="'home_nga', the Natural Geographic Area the polity was sampled from. Filled on 376 of 864: only the polities of the NGA sample have one.")
-    g: bool | None = Field(None, description="'G', whether the polity has General Variables coded. This and the seven flags below are the section badges of Seshat's polity list; their meanings come from the tooltips there.")
-    sc: bool | None = Field(None, description="'SC', Social Complexity Variables.")
-    wf: bool | None = Field(None, description="'WF', Warfare Variables (MilTech).")
-    rt: bool | None = Field(None, description="'RT', Religion Variables.")
-    hs: bool | None = Field(None, description="'HS'. True on 323 polities. The site's tooltips do not name it.")
-    cc: bool | None = Field(None, description="'CC', Crisis Consequences.")
-    pt: bool | None = Field(None, description="'PT', Power Transition.")
-    in_: bool | None = Field(None, description="'IN', Instability Events. The trailing underscore is there because 'in' is a Python keyword.")
+    g: bool | None = Field(None, alias="g (General Variables)", description="'G', whether the polity has General Variables coded. This and the seven flags below are the section badges of Seshat's polity list; their meanings come from the tooltips there. Each flag is stored under its code and meaning, 'g (General Variables)', so a record reads without this model.")
+    sc: bool | None = Field(None, alias="sc (Social Complexity Variables)", description="'SC', Social Complexity Variables.")
+    wf: bool | None = Field(None, alias="wf (Warfare Variables)", description="'WF', Warfare Variables (MilTech).")
+    rt: bool | None = Field(None, alias="rt (Religion Variables)", description="'RT', Religion Variables.")
+    hs: bool | None = Field(None, alias="hs (Human Sacrifice)", description="'HS', Human Sacrifice. The site's tooltips do not name it; the meaning is inferred from the data: the 323 polities flagged are exactly those in Seshat's rt/human-sacrifices API.")
+    cc: bool | None = Field(None, alias="cc (Crisis Consequences)", description="'CC', Crisis Consequences.")
+    pt: bool | None = Field(None, alias="pt (Power Transition)", description="'PT', Power Transition.")
+    in_: bool | None = Field(None, alias="in (Instability Events)", description="'IN', Instability Events. The field is in_ in Python because 'in' is a keyword; the stored key is the alias.")
     polity_tag: str | None = Field(None, description="'polity_tag', the batch the polity was added in: 'Equinox 2020 Polities' on 564, 'Other Polities' on 200, and 'NEW ... Polities' for regional additions.")
     shapefile_name: str | None = Field(None, description="'shapefile_name', the name of the polity's shape in Seshat's own maps, 'Aghlabid Dynasty'. Filled on 81.")
 
