@@ -50,13 +50,12 @@ def main():
         pairs["variable_id"] = [pick_variable(r, by_name.get(key(r.variable), [])) for r in pairs.itertuples()]
         values = values.merge(pairs, on=["section", "subsection", "variable"], how="left")
         values["variable_id"] = values["variable_id"].astype("Int64")
-        polities = values[["polity", "nga"]].drop_duplicates().sort_values("polity")
-        assert polities.polity.is_unique
-        con.execute("CREATE OR REPLACE TABLE polity AS SELECT * FROM polities")
         con.execute("CREATE OR REPLACE TABLE equinox_value AS SELECT * FROM values ORDER BY value_id")
         unmatched = values[values.variable_id.isna()].variable.unique()
-    print(f"{len(values)} values for {len(polities)} polities written to {DB.name}")
+        orphans = con.sql("SELECT DISTINCT polity FROM equinox_value WHERE polity NOT IN (SELECT polity_old_id FROM polity)").fetchall()
+    print(f"{len(values)} values for {values.polity.nunique()} polities written to {DB.name}")
     print(f"unmatched to the codebook: {list(unmatched)}")
+    print(f"polities missing from the polity table: {[o[0] for o in orphans]}")
 
 
 if __name__ == "__main__":
