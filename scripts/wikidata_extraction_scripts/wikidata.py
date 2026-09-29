@@ -143,6 +143,7 @@ def qlever_stream(query: str, timeout: int = DEFAULT_TIMEOUT) -> Iterator[list[s
     else:
         raise RuntimeError(f"QLever giving up after {MAX_RETRIES} retries")
 
+    response.encoding = "utf-8"
     lines = response.iter_lines(decode_unicode=True)
     try:
         next(lines)  # header
@@ -245,3 +246,54 @@ def chunk(seq: Iterable, size: int) -> Iterator[list]:
             buf = []
     if buf:
         yield buf
+
+
+PREFIXES = """PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX psv: <http://www.wikidata.org/prop/statement/value/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+"""
+
+
+def values_rows(qids: list[str], template: str, *, size: int = 10_000,
+                threads: int = 8, desc: str = "chunks") -> tuple[list[list[str]], list[list[str]]]:
+    """Run ``template`` (with a ``{values}`` slot) over ``qids`` in parallel
+    VALUES chunks. Failed chunks are retried once. Returns (rows, failed)."""
+    from concurrent.futures import ThreadPoolExecutor
+    from tqdm import tqdm
+
+    def fetch(batch):
+        query = PREFIXES + template.format(values=" ".join(f"wd:{q}" for q in batch))
+        return list(qlever_stream(query))
+
+    def run(batches):
+        rows, failed = [], []
+        with ThreadPoolExecutor(max_workers=threads) as pool:
+            futures = {pool.submit(fetch, b): b for b in batches}
+            for future in tqdm(futures, desc=desc, unit=" chunk"):
+                try:
+                    rows.extend(future.result())
+                except Exception:
+                    failed.append(futures[future])
+        return rows, failed
+
+    rows, failed = run(list(chunk(qids, size)))
+    if failed:
+        retried, failed = run(failed)
+        rows.extend(retried)
+    return rows, failed
+
+
+def time_value(token: str) -> str:
+    """'"1453-05-29T00:00:00Z"^^<...>' -> '1453-05-29T00:00:00Z'."""
+    return token.split("^^", 1)[0].strip().strip('"')
+
+
+def number(token: str) -> float | None:
+    try:
+        return float(time_value(token))
+    except ValueError:
+        return None
