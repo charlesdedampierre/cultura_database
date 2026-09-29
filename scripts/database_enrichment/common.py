@@ -32,7 +32,7 @@ class Enrichment:
             raw=self.reads if not self.inputs else (),
             inputs=self.inputs,
             rule=self.rule,
-            ai_answer=D.AIAnswer(model_name=self.model_name, prompt_id=self.prompt_id) if self.prompt_id else None,
+            ai_answer=D.AIAnswer(model_name=self.model_name, prompt_id=self.prompt_id) if self.prompt_id or self.model_name else None,
         )
 
     def announce(self):

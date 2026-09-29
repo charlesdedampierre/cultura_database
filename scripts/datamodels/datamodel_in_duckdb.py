@@ -1,135 +1,7 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
-
-# The classifications below were drawn up by Claude, Anthropic's language model, for this project.
-# They are decisions, not facts any source states, and the models apply them themselves.
-
-CLAUDE_CLASSIFICATION = "Drawn up by Claude, Anthropic's language model, for this project"
-
-WESTERN_WIKIPEDIA_LANGUAGES = (
-    'en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'sv', 'no', 'nb', 'nn',
-    'fi', 'da', 'is', 'fo', 'ga', 'gd', 'cy', 'kw', 'gv', 'br', 'co', 'oc',
-    'ca', 'eu', 'gl', 'ast', 'an', 'ext', 'lad', 'mwl', 'rm', 'fur', 'lij',
-    'lmo', 'nap', 'pms', 'scn', 'vec', 'sc', 'lb', 'wa', 'fy', 'li', 'nds',
-    'vls', 'frr', 'stq', 'dsb', 'hsb', 'ksh', 'bar', 'pdc', 'pfl', 'gsw',
-    'frp', 'csb', 'szl', 'cs', 'sk', 'sl', 'hr', 'bs', 'sr', 'sh', 'mk',
-    'bg', 'ro', 'mo', 'hu', 'et', 'lv', 'lt', 'el', 'grc', 'la', 'simple',
-    'eo',
-)
-
-NON_WESTERN_WIKIPEDIA_LANGUAGES = (
-    'ar', 'arz', 'ru', 'uk', 'be', 'be-tarask', 'kk', 'ky', 'uz', 'tg',
-    'tk', 'mn', 'ja', 'zh', 'zh-yue', 'yue', 'wuu', 'hak', 'lzh', 'ko',
-    'id', 'ms', 'jv', 'su', 'min', 'ace', 'vi', 'th', 'lo', 'km', 'my',
-    'tr', 'az', 'azb', 'ckb', 'fa', 'he', 'ur', 'pnb', 'ps', 'sd', 'hi',
-    'bn', 'as', 'or', 'ta', 'te', 'ml', 'kn', 'mr', 'gu', 'pa', 'ne', 'si',
-    'dv', 'ka', 'hy', 'yi', 'tl', 'ceb', 'war', 'ig', 'yo', 'ha', 'sw',
-    'zu', 'xh', 'st', 'sn', 'ny', 'rw', 'lg', 'tn', 'ts', 've', 'nso',
-    'ss', 'om', 'so', 'ti', 'am', 'tw', 'ee', 'fon', 'kg', 'lua', 'sg',
-    'ln', 'mg', 'kab', 'sat', 'bho', 'mai', 'new', 'anp', 'doi', 'ks',
-    'sa', 'pi', 'dty', 'awa', 'shn', 'tcy', 'kok',
-)
-
-WESTERN_COUNTRIES = (
-    'United States', 'Washington, D.C.', 'Germany', 'France', 'Poland',
-    'Netherlands', 'Kingdom of the Netherlands', 'United Kingdom', 'Wales',
-    'Italy', 'Kingdom of Italy', 'Spain', 'Sweden', 'Norway', 'Finland',
-    'Denmark', 'Faroe Islands', 'Austria', 'Belgium', 'Switzerland',
-    'Portugal', 'Czech Republic', 'Slovakia', 'Greece', 'Hungary',
-    'Ireland', 'Canada', 'Australia', 'New Zealand', 'Romania', 'Croatia',
-    'Serbia', 'Slovenia', 'Lithuania', 'Latvia', 'Estonia', 'Bulgaria',
-    'Iceland', 'Luxembourg', 'Liechtenstein', 'Andorra', 'Cyprus',
-    'Vatican City', 'Weimar Republic', 'German Reich',
-)
-
-LATIN_AMERICAN_COUNTRIES = (
-    'Mexico', 'Belize', 'Costa Rica', 'Cuba', 'Dominica', 'Dominican Republic',
-    'El Salvador', 'Guatemala', 'Haiti', 'Honduras', 'Jamaica', 'Nicaragua',
-    'Panama', 'Antigua and Barbuda', 'Aruba', 'Barbados', 'Curaçao',
-    'Grenada', 'Saint Kitts and Nevis', 'Saint Lucia',
-    'Saint Vincent and the Grenadines', 'The Bahamas', 'Trinidad and Tobago',
-    'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Ecuador',
-    'Guyana', 'Paraguay', 'Peru', 'Suriname', 'Uruguay', 'Venezuela',
-)
-
-MIDDLE_EAST_COUNTRIES = (
-    'Bahrain', 'Cyprus', 'Egypt', 'Iran', 'Islamic Republic of Iran',
-    'Iraq', 'Israel', 'Jordan', 'Hashemite Kingdom of Jordan',
-    'Kuwait', 'Lebanon', 'Lebanese Republic', 'Oman', 'Sultanate of Oman',
-    'Palestine', 'State of Palestine', 'Qatar', 'Saudi Arabia',
-    'Syria', 'Syrian Arab Republic', 'Turkey', 'Republic of Turkey',
-    'United Arab Emirates', 'Yemen', 'Republic of Yemen',
-)
-
-WORLDS = {
-    'Chinese world': (
-        'Shang Dynasty', 'Zhou Dynasty', 'Qin Dynasty', 'Han Dynasty', 'Xin Dynasty',
-        'Western Jin', 'Eastern Jin', 'Liu Song Dynasty', 'Liang Dynasty', 'Chen Dynasty',
-        'Northern Wei', 'Eastern Wei', 'Western Wei', 'Northern Zhou', 'Northern Qi',
-        'Sui Dynasty', 'Tang Dynasty', 'Five Dynasties and Ten Kingdoms',
-        'Northern Song', 'Southern Song', 'Liao Dynasty', 'Western Xia',
-        'Yuan Dynasty', 'Ming Dynasty', 'Qing Dynasty',
-    ),
-    'Greek world': (
-        'Greek City-States', 'Greek Colonies', 'Greek Dark Ages',
-        'Athenian Coalition', 'Second Athenian League',
-        'Antigonid Dynasty', 'Antigonid Macedonia', 'Macedonian Empire',
-        'Ptolemaic Kingdom', 'Seleucid Empire',
-        'Achaean League', 'Despotate of Epirus',
-        'Duchy of Athens', 'Principality of Achaea',
-        'Byzantine Empire', 'Indo-Greeks',
-    ),
-    'Muslim world': (
-        'Rashidun Caliphate', 'Umayyad Caliphate', 'Abbasid Caliphate',
-        'Caliphate of Córdoba', 'Fatimid Caliphate', 'Almohad Caliphate',
-        'Sokoto Caliphate', 'Ayyubid Sultanate', 'Mamluk Sultanate', 'Mamluk Dynasty',
-        'Almoravid Dynasty', 'Idrisids', 'Aghlabid Dynasty', 'Tahirid Sultanate',
-        'Saffarid Dynasty', 'Samanid Empire', 'Buyid Dynasty', 'Ghaznavid Empire',
-        'Great Seljuk Empire', 'Seljuk Dynasty', 'Sultanate of Rum', 'Ilkhanate',
-        'Khwarezmid Empire', 'Khwarezmid Dynasty', 'Timurid Empire', 'Jalayirid Sultanate',
-        'Safavid Dynasty', 'Ottoman Empire', 'Ottoman Tripolitania',
-        'Hafsid Dynasty', 'Marinid Sultanate', 'Wattasid dynasty', 'Saadi Sultanate',
-        'Delhi Sultanate', 'Bahmani Sultanate', 'Mughal Empire',
-        'Islamic Republic of Iran', 'Islamic Republic of Pakistan',
-    ),
-    'Japan': (
-        'Asuka Japan', 'Nara Japan', 'Heian Japan',
-        'Kamakura Shogunate', 'Ashikaga Shogunate',
-        'Warring States Japan', 'Tokugawa Shogunate',
-        'Empire of Japan', 'Japan',
-    ),
-    'Korea': (
-        'Gojoseon', 'Goguryeo', 'Baekje', 'Silla', 'Unified Silla',
-        'Balhae', 'Hubaekje', 'Goryeo', 'Joseon',
-        'Korean Empire', 'Republic of Korea', "Democratic People's Republic of Korea",
-    ),
-    'India': (
-        'Maurya Empire', 'Gupta Empire',
-        'Magadha - Haryanka dynasty', 'Magadha - Shaishunaga dynasty',
-        'Kushan Empire', 'Western Kushans', 'Eastern Kushans',
-        'Satavahana Dynasty', 'Late Pallava Empire',
-        'Early Cholas', 'Chola Empire',
-        'Pandya Dynasty', 'Pandya Empire', 'Early Pandyas',
-        'Chalukya Dynasty', 'Western Chalukya Empire',
-        'Rashtrakuta Dynasty', 'Pala Empire', 'Sena Dynasty',
-        'Hoysala Kingdom', 'Kakatiya Dynasty', 'Vijayanagara Empire',
-        'Maratha Empire', 'Sikh Empire', 'Mughal Empire', 'Republic of India',
-    ),
-}
-
-
-def continent_of(name, continent):
-    if name in LATIN_AMERICAN_COUNTRIES:
-        return "Latin America"
-    if name in MIDDLE_EAST_COUNTRIES:
-        return "Middle East"
-    return continent
-
-
-def worlds_of(polity_name):
-    return tuple(world for world, polities in WORLDS.items() if polity_name in polities)
+from pydantic import BaseModel, Field
 
 
 class AIAnswer(BaseModel):
@@ -179,21 +51,15 @@ class ExistencePeriod(BaseModel):
 class PresentDayState(BaseModel):
     name: str | None = Field(None, description="The state's name in English, 'Russia'.")
     iso_3166_1_alpha_3_code: str | None = Field(None, description="Its ISO 3166-1 alpha-3 code, 'RUS'. Empty where the geocoder found none, which happens at sea and in Antarctica.")
-    continent: str | None = Field(None, description="The continent it sits on, 'Europe'. It is the coarsest grouping in the schema and the one most analyses reach for first, so it is here rather than left to a lookup a reader has to supply. Wikidata's continent (P30) is kept except for two regroupings drawn up by Claude, Anthropic's language model, for this project: a state named in LATIN_AMERICAN_COUNTRIES reads 'Latin America' (Wikidata puts Mexico in North America and Brazil in South America) and one named in MIDDLE_EAST_COUNTRIES reads 'Middle East' (Wikidata puts Egypt in Africa and Turkey in Asia). The model applies both itself, matching on `name`, so every PresentDayState carries them wherever it is built.")
-    is_western: bool | None = Field(None, description="Whether the state counts as Western: True when `name` is in WESTERN_COUNTRIES, False for any other named state, empty when there is no name. The list was drawn up by Claude, Anthropic's language model, for this project — a decision to be read and argued with, not a fact a source states — and the model applies it itself. It carries a few historical states (Weimar Republic, German Reich, Kingdom of Italy) because Wikidata names them as countries of citizenship.")
-
-    @model_validator(mode="after")
-    def apply_claude_classification(self):
-        self.continent = continent_of(self.name, self.continent)
-        self.is_western = self.name in WESTERN_COUNTRIES if self.name else None
-        return self
+    continent: str | None = Field(None, description="The continent it sits on, 'Europe'. It is the coarsest grouping in the schema and the one most analyses reach for first, so it is here rather than left to a lookup a reader has to supply. Wikidata's continent (P30) is kept except for two regroupings Claude, Anthropic's language model, drew up for this project: a list of states that read 'Latin America' (Wikidata puts Mexico in North America and Brazil in South America) and a list that read 'Middle East' (Wikidata puts Egypt in Africa and Turkey in Asia). The lists and the rule are in database_enrichment/06b_western_continents_and_worlds.py, which writes them, and the field_provenance of the row holding the state says so.")
+    is_western: bool | None = Field(None, description="Whether the state counts as Western: True for a state on the list of Western countries Claude, Anthropic's language model, drew up for this project, False for any other named state, empty where there is no name. A decision to be read and argued with, not a fact a source states. The list carries a few historical states (Weimar Republic, German Reich, Kingdom of Italy) because Wikidata names them as countries of citizenship. Written by database_enrichment/06b_western_continents_and_worlds.py.")
 
 
 class Sitelink(BaseModel):
     url: str = Field(..., description="A Wikimedia edition, by its URL — 'https://fr.wikipedia.org'. This is the key: 612 of them carry the 15 551 839 pages, and an individual reaches at most 341. They are not all Wikipedia — 349 are, and the rest are Wikiquote (81), Wikisource (76), Wikibooks (43), Wikinews (30) and Wikivoyage (10). Counting a person's pages without filtering on the project counts their quotations and their transcribed works alongside the articles about them.")
     label_en: str | None = Field(None, description="The edition's name in English, 'French Wikipedia'.")
     language: str | None = Field(None, description="The language it is written in, as a qid — joining to the same items Individual.writing_language names.")
-    is_western: bool | None = Field(None, description="Whether a Wikipedia edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 75 editions are Western and 98 are not; the other Wikipedias are on neither list, and every non-Wikipedia site (Commons, Wikiquote...) is left empty. The two lists, WESTERN_WIKIPEDIA_LANGUAGES and NON_WESTERN_WIKIPEDIA_LANGUAGES at the top of this file, were drawn up by Claude, Anthropic's language model, for this project; 07_notability.py reads them from here.")
+    is_western: bool | None = Field(None, description="Whether a Wikipedia edition counts as Western, from its language code. Drawing this line is a decision this project made, not a fact Wikidata states, which is why it is a column to be read and argued with rather than a rule buried in the code. 75 editions are Western and 98 are not; the other Wikipedias are on neither list, and every non-Wikipedia site (Commons, Wikiquote...) is left empty. The two lists of language codes were drawn up by Claude, Anthropic's language model, for this project; database_enrichment/06b_western_continents_and_worlds.py holds them and writes this column.")
     number_of_articles: int | None = Field(None, description="How many of the individuals in Cultura this edition covers. A count of articles is a measure of the edition as much as of the people in it: a large edition makes everyone in it look better known.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
@@ -221,15 +87,8 @@ class Polity(BaseModel):
     entity: WikidataEntity | None = Field(None, description="The Wikidata item Cliopatria resolved for the polity, where it resolved one — the join out to Wikidata and to the other tables here. Empty for a polity it could not resolve, which is why cliopatria_id and not a qid is this table's key.")
     sitelink: Sitelink | None = Field(None, description="Its English Wikipedia article. Cliopatria publishes the title and this is the URL built from it; matching a place to a polity by URL is one of the two ways it is done, the other being a territory's polygon.")
     territories: tuple[Territory, ...] = Field((), description="The ground the polity held, one entry per change of borders, oldest first — each with its own years, area, polygon and the polities holding that ground today. A polity averages 8.4 of them and one reaches 212.")
-    world: tuple[str, ...] = Field((), description="The cultural world the polity belongs to — 'Chinese world', 'Greek world', 'Muslim world', 'Japan', 'Korea', 'India' — read off its `name` in WORLDS, a grouping drawn up by Claude, Anthropic's language model, for this project. Most polities belong to none and carry an empty tuple. It is a tuple because a polity can sit in two: the Mughal Empire is in both the Muslim world and India. The model fills it itself from the name, so the polities nested in IndividualEnriched.polity carry it too.")
+    world: tuple[str, ...] = Field((), description="The cultural world the polity belongs to — 'Chinese world', 'Greek world', 'Muslim world', 'Japan', 'Korea', 'India' — from a grouping of polity names Claude, Anthropic's language model, drew up for this project. Most polities belong to none and carry an empty tuple. It is a tuple because a polity can sit in two: the Mughal Empire is in both the Muslim world and India. Written by database_enrichment/06b_western_continents_and_worlds.py, and copied onto the polities nested in IndividualEnriched.polity by 08_polity_assignment.py.")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
-
-    @model_validator(mode="after")
-    def apply_claude_classification(self):
-        self.world = worlds_of(self.name)
-        if self.world:
-            self.field_provenance = {**self.field_provenance, "world": Provenance(raw=("PolityCliopatria.name",), rule=f"{CLAUDE_CLASSIFICATION}: the polity's name looked up in WORLDS.")}
-        return self
 
 
 class WorksPeriod(BaseModel):

@@ -30,7 +30,7 @@ COUNT_YEARS_ONCE = True
 BATCH = 200_000
 
 ENRICHMENT = Enrichment(
-    reads=("Individual.place_of_birth", "Individual.place_of_death", "Individual.country_of_citizenship", "Place.coordinates", "Place.sitelink", "Polity.territories", "Polity.sitelink", "IndividualEnriched.peak_productivity"),
+    reads=("Polity.world", "Individual.place_of_birth", "Individual.place_of_death", "Individual.country_of_citizenship", "Place.coordinates", "Place.sitelink", "Polity.territories", "Polity.sitelink", "IndividualEnriched.peak_productivity"),
     writes=("IndividualEnriched.polity", "IndividualEnriched.polity_count"),
     rule="Every polity whose ground the individual stood on while they were at work. A place is tested against the territories a polity held during the peak activity window, in the two phases named in PHASES and, within a phase, over the locations named in LOCATION_PRIORITY: the first location that matches anything ends the search, so a deathplace inside a polygon settles it and the birthplace is never tried. The second phase runs only for individuals the first left unmatched, and matches on a Wikipedia article shared between the place and the polity. years_spent_in_polity counts each calendar year of the window once, however many territories of that polity cover it.",
     inputs=("IndividualEnriched.peak_productivity",),
@@ -112,6 +112,7 @@ def main():
 
     connection = open_database()
     tree, territories, by_url = load_polities(connection)
+    worlds = dict(connection.execute("SELECT cliopatria_id, world FROM polity").fetchall())
     print(f"{len(territories):,} territories indexed\n")
 
     people = connection.cursor().execute(
@@ -181,7 +182,7 @@ def main():
             "qid": qid,
             "polity": [
                 as_json(D.PolityMatch(
-                    polity=D.Polity(cliopatria_id=match.polity_id, name=match.polity_name),
+                    polity=D.Polity(cliopatria_id=match.polity_id, name=match.polity_name, world=worlds.get(match.polity_id) or ()),
                     years_spent_in_polity=match.years,
                     assignation_method=match.method,
                 ))
