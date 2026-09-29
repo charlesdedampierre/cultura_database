@@ -2,28 +2,17 @@ import json
 
 from tqdm import tqdm
 
-from common import Enrichment, ROOT, as_json, open_database, provenance_column
+from common import D, Enrichment, ROOT, as_json, open_database, provenance_column
 
-WESTERN = {
-    "en","de","fr","es","it","pt","nl","pl","sv","no","nb","nn","fi","da","is","fo","ga","gd","cy","kw","gv","br","co",
-    "oc","ca","eu","gl","ast","an","ext","lad","mwl","rm","fur","lij","lmo","nap","pms","scn","vec","sc","lb","wa","fy",
-    "li","nds","vls","frr","stq","dsb","hsb","ksh","bar","pdc","pfl","gsw","frp","csb","szl","cs","sk","sl","hr","bs",
-    "sr","sh","mk","bg","ro","mo","hu","et","lv","lt","el","grc","la","simple","eo",
-}
-NON_WESTERN = {
-    "ar","arz","ru","uk","be","be-tarask","kk","ky","uz","tg","tk","mn","ja","zh","zh-yue","yue","wuu","hak","lzh","ko",
-    "id","ms","jv","su","min","ace","vi","th","lo","km","my","tr","az","azb","ckb","fa","he","ur","pnb","ps","sd","hi",
-    "bn","as","or","ta","te","ml","kn","mr","gu","pa","ne","si","dv","ka","hy","yi","tl","ceb","war","ig","yo","ha","sw",
-    "zu","xh","st","sn","ny","rw","lg","tn","ts","ve","nso","ss","om","so","ti","am","tw","ee","fon","kg","lua","sg",
-    "ln","mg","kab","sat","bho","mai","new","anp","doi","ks","sa","pi","dty","awa","shn","tcy","kok",
-}
+WESTERN = set(D.WESTERN_WIKIPEDIA_LANGUAGES)
+NON_WESTERN = set(D.NON_WESTERN_WIKIPEDIA_LANGUAGES)
 
 EDITION_CODE = r"^https://([^.]+)\.wikipedia\.org$"
 
 SITELINK = Enrichment(
     reads=("IndividualSitelink.site_url",),
     writes=("Sitelink.is_western", "Sitelink.number_of_articles"),
-    rule="is_western: the language code of a Wikipedia edition read against the WESTERN and NON_WESTERN lists this project drew up; empty for codes on neither list and for every edition that is not a Wikipedia. number_of_articles: how many individuals in Cultura the edition has a page on.",
+    rule="is_western: the language code of a Wikipedia edition read against WESTERN_WIKIPEDIA_LANGUAGES and NON_WESTERN_WIKIPEDIA_LANGUAGES in datamodel_in_duckdb.py, lists drawn up by Claude, Anthropic's language model, for this project; empty for codes on neither list and for every edition that is not a Wikipedia. number_of_articles: how many individuals in Cultura the edition has a page on.",
     answers=ROOT / "scripts" / "database_enrichment" / "07_notability.py",
 )
 
