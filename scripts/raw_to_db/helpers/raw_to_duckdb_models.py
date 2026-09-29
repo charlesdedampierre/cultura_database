@@ -44,13 +44,22 @@ def dates(stamp, precision, *raw_fields):
     return (found,) if found else ()
 
 
-def entity(qid, label=None, description=None):
-    return datamodel_in_duckdb.WikidataEntity(qid=qid, label_en=label, description=description)
+ENGLISH = ("en", "mul")
+
+
+def entity(qid, label=None, description=None, language="en"):
+    return datamodel_in_duckdb.WikidataEntity(
+        qid=qid,
+        label_en=label if language in ENGLISH else None,
+        label=label,
+        label_language=language if label else None,
+        description=description,
+    )
 
 
 def individual(raw, formatter_url=None):
     return datamodel_in_duckdb.Individual(
-        entity=entity(raw.qid, raw.label, raw.description),
+        entity=entity(raw.qid, raw.label, raw.description, raw.label_language),
         birth_date=dates(raw.date_of_birth, raw.date_of_birth_precision, "IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_birth_precision"),
         death_date=dates(raw.date_of_death, raw.date_of_death_precision, "IndividualWikidata.date_of_death", "IndividualWikidata.date_of_death_precision"),
         floruit_date=dates(raw.floruit, raw.floruit_precision, "IndividualWikidata.floruit", "IndividualWikidata.floruit_precision"),

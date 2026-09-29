@@ -21,6 +21,7 @@ class WorkCredit(BaseModel):
 class IndividualWikidata(BaseModel):
     qid: str = Field(..., description="The individual's Wikidata item. It is the key every raw file is indexed by.")
     label: str | None = None
+    label_language: str | None = Field(None, description="Language of `label`: 'en' from all_human_names.json, or the language missing_labels.json recovered it in.")
     description: str | None = None
     date_of_birth: str | None = None
     date_of_birth_precision: int | None = Field(None, description="Precision of P569's time value: 11 for a day, 9 for a year, 7 for a century. Not a property of its own — it is part of the time value — and it arrives in its own file, so a date and its precision can be present without each other.")

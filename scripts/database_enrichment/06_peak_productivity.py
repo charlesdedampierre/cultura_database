@@ -225,7 +225,7 @@ def main():
 
     connection = open_database()
     reader = connection.cursor().execute("""
-        SELECT entity.qid AS qid, entity.label_en AS label, entity.description AS description,
+        SELECT entity,
                birth_date, death_date, floruit_date, works_period
         FROM individual
         """).fetch_record_batch(BATCH)
@@ -239,7 +239,7 @@ def main():
                 counts[method] = counts.get(method, 0) + 1
                 yield as_json(
                     D.IndividualEnriched(
-                        entity=D.WikidataEntity(qid=row["qid"], label_en=row["label"], description=row["description"]),
+                        entity=D.WikidataEntity(**row["entity"]),
                         peak_productivity=(
                             D.PeakProductivity(
                                 start_year=window.start_year,
