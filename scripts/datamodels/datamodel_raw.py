@@ -251,16 +251,11 @@ class PolityModernCountry(BaseModel):
 
 
 class SeshatVariable(BaseModel):
-    variable_id: int = Field(..., description="The variable's position in the Legacy Codebook (Equinox), counted from 1. Assigned by this project: the codebook numbers its headings, not its variables.")
-    name: str = Field(..., description="The variable's name as the codebook writes it between ♠ and ♣, 'Polity territory'. Not unique: 'RA', 'Duration' or 'Iron' recur under several headings, so a name alone does not identify a variable.")
-    definition: str | None = Field(None, description="The text the codebook gives after ♥, in its own wording: the allowed codes ('absent/present/unknown'), the unit ('in squared kilometers'), or a definition. Empty on 165 of 1 555 variables, which the codebook lists without one.")
-    notes: str | None = Field(None, description="The lines that follow the definition up to the next variable or heading, such as the meaning of each code of 'Degree of centralization'. Taken as they fall in the file, so an introduction to the next group of variables can land here.")
-    heading_number: str | None = Field(None, description="The number of the deepest codebook heading the variable sits under, '2.3.1.1'.")
-    part: str | None = Field(None, description="The top-level heading, 'Phase I Variables (polity-based)'. Phase I and II are coded per polity; parts 5 to 7 per NGA, and Equinox carries none of them.")
-    section: str | None = Field(None, description="The second-level heading, 'Warfare variables'.")
-    subsection: str | None = Field(None, description="The third-level heading, 'Military Technologies'.")
-    subsubsection: str | None = Field(None, description="The fourth-level heading, 'Military use of Metals'.")
-    codebook_line: int | None = Field(None, description="The line of the codebook text file the variable was read from, so a definition can be checked against its source.")
+    section: str = Field(..., description="'Section' as the Equinox file gives it, 'Warfare variables'. Only the variables Equinox codes are kept — 145 of the codebook's 1 555 — each under the section and subsection where most of its rows sit, so the clerical strays (a Copper row with no subsection) do not make variables of their own.")
+    subsection: str | None = Field(None, description="'Subsection' as the Equinox file gives it, 'Military Technologies'. Empty for the variables Equinox files directly under a section, such as RA or Capital.")
+    name: str = Field(..., description="'Variable' as the Equinox file gives it, 'Polity territory'. With section and subsection it is the key: RA recurs once per section, Duration once for the polity and once per ritual. It is also the comment on the matching seshat_information column, which is how a column finds its definition.")
+    definition: str | None = Field(None, description="The text the Legacy Codebook (Equinox) gives after ♥ for this variable, in its own wording: the allowed codes ('absent/present/unknown'), the unit ('in squared kilometers'), or a definition. Matched on the name, under the codebook heading that bears the subsection or section. Empty where the codebook lists the variable without one.")
+    notes: str | None = Field(None, description="The codebook lines that follow the definition up to the next variable or heading, such as the meaning of each code of 'Degree of centralization'. Taken as they fall in the file, so an introduction to the next group of variables can land here.")
 
 
 class SeshatValue(BaseModel):

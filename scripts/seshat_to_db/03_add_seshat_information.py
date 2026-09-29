@@ -30,25 +30,12 @@ VALUE = "struct_pack(value_from, value_to, date_from, date_to, fact_type, value_
 GENERAL = "General variables"
 
 
-def key(text):
-    return re.sub(r"[^a-z0-9]+", " ", str(text).lower()).strip()
-
-
 def column_name(variable):
     return re.sub(r"[^a-z0-9]+", "_", variable.lower()).strip("_")
 
 
 def is_ritual_duration(row):
     return row.variable == "Duration" and row.section != GENERAL
-
-
-def pick_variable(row, candidates):
-    headings = lambda c: {key(c[h]) for h in ("section", "subsection", "subsubsection") if c[h]}
-    for wanted in (row.subsection, row.section):
-        hits = [c for c in candidates if pd.notna(wanted) and key(wanted) in headings(c)]
-        if hits:
-            return hits[0]["variable_id"]
-    return candidates[0]["variable_id"] if candidates else None
 
 
 def read_rows():
@@ -63,14 +50,9 @@ def read_rows():
     return rows
 
 
-def variable_ids(con, rows):
-    by_name = {}
-    for c in con.sql("SELECT variable_id, name, section, subsection, subsubsection FROM variable ORDER BY variable_id").df().to_dict("records"):
-        by_name.setdefault(key(c["name"]), []).append(c)
+def variable_names(rows):
     fields = rows[~rows.column_name.isin(["ra", "ritual_duration"])]
-    main = fields.groupby(["column_name", "section", "subsection", "variable"], dropna=False).size().reset_index(name="n")
-    main = main.sort_values("n").drop_duplicates("column_name", keep="last")
-    return {r.column_name: pick_variable(r, by_name.get(key(r.variable), [])) for r in main.itertuples()}
+    return fields.groupby("column_name").variable.agg(lambda v: v.value_counts().index[0]).to_dict()
 
 
 def build_sql(columns):
@@ -113,8 +95,9 @@ def main():
         con.register("rows", rows)
         con.execute(build_sql(columns))
         con.execute("DROP TABLE IF EXISTS equinox_value")
-        for column, variable_id in variable_ids(con, rows).items():
-            con.execute(f"COMMENT ON COLUMN seshat_information.{column} IS 'variable_id {variable_id}'")
+        for column, name in variable_names(rows).items():
+            quoted = name.replace("'", "''")
+            con.execute(f"COMMENT ON COLUMN seshat_information.{column} IS '{quoted}'")
         stored = con.sql(f"SELECT sum({' + '.join(f'len({c})' for c in columns)}) FROM seshat_information").fetchone()[0]
         ra = con.sql("SELECT sum(len(flatten(map_values(ra)))) FROM seshat_information").fetchone()[0]
         ritual = con.sql("SELECT sum(len(flatten(map_values(ritual_duration)))) FROM seshat_information").fetchone()[0]
