@@ -12,7 +12,7 @@ OCCUPATIONS = ("Culture", "Discovery/Science", "Leadership", "Sports/Games", "Ot
 ALL = "All"
 YEAR_OR_FINER = ("day", "month", "year")
 BIN_WIDTH = 50
-FIRST_BIN, LAST_BIN = -3500, 2000
+FIRST_BIN, LAST_BIN = -3500, 1900
 LIFESPAN_RANGE = (0, 110)
 FLORUIT_AGE_RANGE = (10, 100)
 MIN_LIVES = 10
@@ -58,6 +58,7 @@ SELECT cv.level1_main_occ AS occupation,
 FROM wikidata_dates AS w
 LEFT JOIN cv.individuals AS cv ON cv.wikidata_code = w.qid
 WHERE list_contains($year_or_finer, w.birth.precision)
+  AND w.birth.year < $last_bin + $bin_width
 """
 
 
@@ -70,7 +71,7 @@ def arrays(frame, column=None):
 def load_people(connection):
     connection.execute(f"ATTACH '{CROSS_VERIFIED}' AS cv (READ_ONLY)")
     connection.execute(FRAC_YEAR)
-    connection.execute(PEOPLE, {"year_or_finer": list(YEAR_OR_FINER), "bin_width": BIN_WIDTH})
+    connection.execute(PEOPLE, {"year_or_finer": list(YEAR_OR_FINER), "bin_width": BIN_WIDTH, "last_bin": LAST_BIN})
     people = connection.sql("SELECT * FROM people").pl()
     return {
         "everyone": arrays(people),
