@@ -1,15 +1,14 @@
 """Build annotations/interfaces/polity_window_review.html.
 
-100 individuals from humans_clean_v2.duckdb (15 per productive-window rule, 10 with no
-window), each shown as a field/value table: the dates and places that were used, the
-productive window and the polity it produced, and why.
+100 individuals from humans_clean_v2.duckdb, the only input. 92 have a productive window and
+are spread over period x region cells (round-robin, so rare cells come first); 8 have none.
+Each is shown as a field/value table: the dates and places used, the productive window and
+the polity it produced, and why.
 
 Usage: .venv/bin/python annotations/building_scripts/build_polity_window_review.py
 """
 
 import html
-import importlib.util
-import sys
 from pathlib import Path
 
 import duckdb
@@ -18,36 +17,78 @@ from tqdm import tqdm
 ROOT = Path(__file__).resolve().parents[2]
 DB = ROOT / "data" / "cultura" / "humans_clean_v2.duckdb"
 OUT = ROOT / "annotations" / "interfaces" / "polity_window_review.html"
-ENRICHMENT = ROOT / "scripts" / "database_enrichment"
 
-PER_METHOD = 15
-NO_WINDOW = 10
+WITH_WINDOW = 92
+NO_WINDOW = 8
 SEED = 42
 
-sys.path.insert(0, str(ENRICHMENT))
-spec = importlib.util.spec_from_file_location("peak", ENRICHMENT / "06_peak_productivity.py")
-peak = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(peak)
-LOW, HIGH, MEASURED_ON = peak.productive_age()
+RULES = ("floruit", "works_span", "works_single", "birth_death", "birth_only", "death_only")
 
 LOCATION_ORDER = {
     "polygon": ("deathplace", "birthplace", "country_of_citizenship"),
     "url": ("country_of_citizenship", "deathplace", "birthplace"),
 }
 
+PERIOD = """CASE WHEN s < 500 THEN 'before 500' WHEN s < 1000 THEN '500-1000' WHEN s < 1500 THEN '1000-1500'
+    WHEN s < 1800 THEN '1500-1800' WHEN s < 1900 THEN '1800-1900' ELSE 'after 1900' END"""
+
+REGION = """CASE WHEN lon IS NULL THEN 'unknown location'
+    WHEN lon < -30 THEN 'Americas'
+    WHEN lat < -10 AND lon > 110 THEN 'Oceania'
+    WHEN lat < 12 AND lon < 55 THEN 'Sub-Saharan Africa'
+    WHEN lat >= 35 AND lon < 45 THEN 'Europe'
+    WHEN lon < 65 THEN 'Middle East & North Africa'
+    WHEN lon < 95 THEN 'South & Central Asia'
+    ELSE 'East & Southeast Asia' END"""
+
 
 def sample_qids(con):
-    methods = [m for (m,) in con.sql(
-        "SELECT DISTINCT peak_productivity.assignation_method FROM individual_enriched "
-        "WHERE peak_productivity IS NOT NULL ORDER BY 1").fetchall()]
-    qids = []
-    for method in tqdm(methods + [None], desc="sampling"):
-        where = "peak_productivity IS NULL" if method is None else f"peak_productivity.assignation_method = '{method}'"
-        n = NO_WINDOW if method is None else PER_METHOD
-        qids += [q for (q,) in con.sql(
-            f"SELECT qid FROM (SELECT entity.qid AS qid FROM individual_enriched WHERE {where}) "
-            f"USING SAMPLE reservoir({n} ROWS) REPEATABLE ({SEED})").fetchall()]
-    return qids
+    rows = con.sql(f"""
+        WITH base AS (
+            SELECT e.entity.qid AS qid, e.peak_productivity.start_year AS s,
+                   coalesce(pd.coordinates, pb.coordinates, pc.coordinates).latitude AS lat,
+                   coalesce(pd.coordinates, pb.coordinates, pc.coordinates).longitude AS lon
+            FROM individual_enriched e JOIN individual i ON i.entity.qid = e.entity.qid
+            LEFT JOIN place pd ON pd.entity.qid = i.place_of_death.entity.qid
+            LEFT JOIN place pb ON pb.entity.qid = i.place_of_birth.entity.qid
+            LEFT JOIN place pc ON pc.entity.qid = i.country_of_citizenship[1].entity.qid
+            WHERE e.peak_productivity IS NOT NULL),
+        cells AS (SELECT qid, {PERIOD} AS period, {REGION} AS region FROM base),
+        ranked AS (SELECT *, row_number() OVER (PARTITION BY period, region ORDER BY hash(qid || '{SEED}')) AS rn FROM cells)
+        SELECT qid, period, region FROM ranked ORDER BY rn, hash(qid || '{SEED}') LIMIT {WITH_WINDOW}
+    """).fetchall()
+    cell = {q: (period, region) for q, period, region in rows}
+    for (q,) in con.sql(f"""
+            SELECT entity.qid FROM individual_enriched WHERE peak_productivity IS NULL
+            ORDER BY hash(entity.qid || '{SEED}') LIMIT {NO_WINDOW}""").fetchall():
+        cell[q] = ("no window", "-")
+    return cell
+
+
+def as_dict(value):
+    if isinstance(value, list):
+        return {pair["key"]: pair["value"] for pair in value}
+    return value or {}
+
+
+def source_of(entry):
+    provenance = as_dict(entry.get("field_provenance")).get("year") or {}
+    rule_text = (provenance.get("rule") or "").lower()
+    if (provenance.get("ai_answer") or {}).get("prompt_id") == "wikipedia_dates":
+        return "wikipedia_article"
+    if "CrossVerified" in " ".join(provenance.get("raw") or ()):
+        return "cross_verified_database"
+    if "life expectancy" in rule_text:
+        return "life_expectancy_estimate"
+    if "description" in rule_text:
+        return "wikidata_entity_description"
+    return "wikidata_property"
+
+
+def used_year(entries, source):
+    found = [e for e in entries or () if e.get("year") is not None and source_of(e) == source]
+    found.sort(key=lambda e: e["precision"] not in ("day", "month", "year"))
+    return found[0]["year"] if found else None
 
 
 def load_people(con, qids):
@@ -95,7 +136,7 @@ def wd(qid):
 def date_list(entries):
     if not entries:
         return "—"
-    return "<br>".join(f"{e['year']} <span class=m>({e['precision']}, {peak.source_of(e)})</span>" for e in entries)
+    return "<br>".join(f"{e['year']} <span class=m>({e['precision']}, {source_of(e)})</span>" for e in entries)
 
 
 def place_cell(qid, places):
@@ -107,44 +148,44 @@ def place_cell(qid, places):
     return f"{html.escape(p.get('label') or '?')} {wd(qid)}{coords}{wiki}"
 
 
-def used_dates(person):
-    for label, precisions in peak.PRECISION_PRIORITY:
-        birth = peak.preferred(person["birth_date"], precisions)
-        death = peak.preferred(person["death_date"], precisions)
-        floruit = peak.preferred(person["floruit_date"], precisions)
-        for name in peak.RULES:
-            if peak.IMPLEMENTATIONS[name](birth, death, floruit, person["works_period"], LOW, HIGH):
-                return name, label, birth, death, floruit
-    return None, None, None, None, None
-
-
 def explain_window(person):
     w = person["peak_productivity"]
     if not w:
-        return "No rule applied: no usable birth, death, floruit or dated work."
-    rule, precision, birth, death, floruit = used_dates(person)
+        return "No rule applied: no usable birth, death or floruit date and no dated work."
+    method, start, end = w["assignation_method"], w["start_year"], w["end_year"]
+    rule = next(r for r in RULES if method.startswith(r))
+    source = method[len(rule) + 1:]
+    birth = used_year(person["birth_date"], source)
+    death = used_year(person["death_date"], source)
     works = person["works_period"] or {}
-    span = HIGH - LOW
-    text = {
-        "floruit": f"Floruit {floruit and floruit.year} ({floruit and floruit.source}) placed within the age window {LOW}–{HIGH}"
-                   + (f" from birth {birth.year}" if birth else f", extended forward by {span} years (no birth year)")
-                   + (f", cut at death {death.year}" if death and death.year < w["end_year"] + 1 else ""),
-        "works_span": f"First to last dated work: {works.get('first_year')}–{works.get('last_year')}.",
-        "works_single": f"Single dated work year {works.get('first_year')}, extended forward by {span} years.",
-        "birth_and_death": f"Birth {birth and birth.year} + {LOW} to birth + {HIGH}, cut at death {death and death.year} if earlier.",
-        "birth_only": f"Birth {birth and birth.year} + {LOW} to birth + {HIGH} (no death year).",
-        "death_only": f"Death {death and death.year} minus {span} years to death.",
-    }.get(rule, "")
-    order = " → ".join(peak.RULES)
-    return (f"{text}<br><span class=m>Rule “{rule}” was the first to apply, using dates {precision}. "
-            f"Rules tried in order: {order}. Age window {LOW}–{HIGH} = quartiles of age at Wikidata floruit "
-            f"over {MEASURED_ON:,} individuals.</span>")
+    ages = f"age {start - birth} to {end - birth}" if birth is not None else ""
+    if rule == "floruit":
+        floruit = used_year(person["floruit_date"], source)
+        text = (f"Floruit {floruit} ({source}), born {birth}: window placed at {ages} around it." if birth is not None
+                else f"Floruit {floruit} ({source}), no birth year: window runs {end - start} years from it.")
+    elif rule == "works_span":
+        text = f"First to last dated work: {works.get('first_year')}–{works.get('last_year')}."
+    elif rule == "works_single":
+        text = f"Only one dated work year ({works.get('first_year')}), extended forward by {end - start} years."
+    elif rule == "birth_death":
+        cut = f", cut at death {death}" if death == end else ""
+        text = f"Born {birth}, died {death} ({source}): window = {ages}{cut}."
+    elif rule == "birth_only":
+        text = f"Born {birth} ({source}), no death year: window = {ages}."
+    else:
+        text = f"Died {death} ({source}), no birth year: window runs back {end - start} years from death."
+    return (f"{text}<br><span class=m>Rule “{rule}” was the first that applied. Rules are tried in order "
+            f"{' → '.join(RULES)}, year-precise dates before coarser ones; the first that yields a window wins.</span>")
 
 
 def explain_polity(person, places):
     matches = person["polity"] or []
     if not person["peak_productivity"]:
         return "No polity: without a productive window there is no period to test the places against."
+    present = {"deathplace": person["deathplace"], "birthplace": person["birthplace"],
+               "country_of_citizenship": person["citizenship"]}
+    if not matches and not any(present.values()):
+        return "No polity: the individual has no birthplace, deathplace or country of citizenship."
     if not matches:
         return ("No polity: none of deathplace, birthplace or citizenship fell inside a Cliopatria polity "
                 "during the window, and no Wikipedia article was shared with one.")
@@ -154,7 +195,7 @@ def explain_polity(person, places):
     skipped = order[:order.index(location)]
     how = ("its coordinates fall inside the polity's territory" if kind == "polygon"
            else "its Wikipedia article is the polity's article")
-    tried = f" Tried before without a match: {', '.join(skipped)}." if skipped else ""
+    tried = "".join(f" {name.replace('_', ' ').capitalize()}: {'no match' if present[name] else 'absent'}." for name in skipped)
     main = matches[0]["polity"]["name"]
     return (f"Settled by the <b>{location.replace('_', ' ')}</b>: {how} during the window.{tried} "
             f"Main polity = the one covering the most years of the window ({html.escape(main)}).<br>"
@@ -172,11 +213,12 @@ def polity_list(matches):
         for m in matches)
 
 
-def card(i, p, places):
+def card(i, p, places, cell):
     e, w, matches = p["entity"], p["peak_productivity"], p["polity"] or []
     wiki = p["wiki_en"] or p["wiki_any"]
     works = p["works_period"] or {}
     rows = [
+        ("Sample cell", f"{cell[0]} · {cell[1]}"),
         ("Wikidata", wd(e["qid"])),
         ("Wikipedia", link(wiki)),
         ("Description", html.escape(fix_encoding(e["description"]) or "—")),
@@ -212,7 +254,7 @@ td{{padding:5px 0;vertical-align:top;word-break:break-word}} tr{{border-bottom:1
 .m{{color:#888;font-size:12.5px}} a{{color:#2a5db0;text-decoration:none}}
 </style></head><body>
 <h1>Polity of assignation & productive window — 100 individuals</h1>
-<p class="intro">Source: <code>humans_clean_v2.duckdb</code>. Sample: {per} per productive-window rule + {none} with no window (seed {seed}).
+<p class="intro">Source: <code>humans_clean_v2.duckdb</code>. Only input. Sample: {per} individuals spread over period (window start) × region (coordinates of death-, birth- or citizenship place) + {none} with no window (seed {seed}).
 Logic: <code>scripts/database_enrichment/06_peak_productivity.py</code> and <code>08_polity_assignment.py</code>.
 Date sources in brackets: precision, source.</p>
 {cards}
@@ -221,12 +263,13 @@ Date sources in brackets: precision, source.</p>
 
 def main():
     con = duckdb.connect(str(DB), read_only=True)
-    qids = sample_qids(con)
-    print(f"loading {len(qids)} individuals (full scan of individual, ~1 min)")
-    people = sorted(load_people(con, qids), key=lambda p: p["entity"]["label_en"] or "")
+    cells = sample_qids(con)
+    order = ["before 500", "500-1000", "1000-1500", "1500-1800", "1800-1900", "after 1900", "no window"]
+    people = load_people(con, list(cells))
+    people.sort(key=lambda p: (order.index(cells[p["entity"]["qid"]][0]), cells[p["entity"]["qid"]][1], (p["peak_productivity"] or {}).get("start_year") or 0))
     places = load_places(con, people)
-    cards = "\n".join(card(i, p, places) for i, p in enumerate(tqdm(people, desc="cards"), start=1))
-    OUT.write_text(PAGE.format(per=PER_METHOD, none=NO_WINDOW, seed=SEED, cards=cards), encoding="utf-8")
+    cards = "\n".join(card(i, p, places, cells[p["entity"]["qid"]]) for i, p in enumerate(tqdm(people, desc="cards"), start=1))
+    OUT.write_text(PAGE.format(per=WITH_WINDOW, none=NO_WINDOW, seed=SEED, cards=cards), encoding="utf-8")
     print(f"wrote {OUT} ({len(people)} individuals)")
 
 
