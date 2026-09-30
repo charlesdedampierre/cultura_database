@@ -202,4 +202,26 @@ class IndividualEnriched(BaseModel):
     field_provenance: dict[str, Provenance] = Field({}, description="Where every value on this row came from, keyed by field name. Each one carries the rule that produced it and the raw fields it was built on, which is the whole method: nothing here is read from a source, so nothing here is beyond argument.")
 
 
-TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink, "individual_work": IndividualWork}
+class AgeRange(BaseModel):
+    low: float | None = Field(None, description="The first quartile, in years of age. A quartile and not the minimum, because the minimum of thousands of lives is a data error or an infant death and says nothing about the group — the same choice data/productive_age_window.csv makes for its low_age.")
+    median: float | None = Field(None, description="The median, in years of age.")
+    high: float | None = Field(None, description="The third quartile, in years of age.")
+
+
+class DateRange(BaseModel):
+    start_year: int = Field(..., description="First birth year of the cohort, 1650. Negative before the common era.")
+    end_year: int = Field(..., description="Last birth year of the cohort, start_year + 49.")
+
+
+class OccupationStats(BaseModel):
+    cv_occupation: Literal["Culture", "Discovery/Science", "Leadership", "Sports/Games", "Other", "Missing", "All"] = Field(..., description="The occupation category, as the cross-verified database's level1_main_occ gives it — CrossVerifiedPerson.level1_main_occ. Cultura's own occupations are 18 227 Wikidata items; these six are the grouping the paper's figures use, and an individual has one only where the cross-verified database holds them. 'All' is every individual with a Wikidata birth year, in the cross-verified database or not, measured at once.")
+    date_range: DateRange = Field(..., description="The fifty-year birth cohort. The key is the occupation and this: every occupation has a row for every cohort from 3500 BCE to 2049, so the table is a complete lookup and never returns nothing. Cohorts are by birth year for both measures, so a life expectancy and a productivity window on the same row are about the same people.")
+    life_expectancy_from_wikidata_birth_death: AgeRange | None = Field(None, description="Age at death, in fractional years, of the individuals whose Wikidata P569 birth and P570 death are both stated to the year or finer — no year read off a description, the cross-verified database or Wikipedia — kept between 0 and 110. Measured up to the most recent cohort, where it runs low: only those who have already died carry a death date, so a cohort born after about 1930 is measured on the ones who died young.")
+    productivity_window_from_wikidata_floruit: AgeRange | None = Field(None, description="Age at floruit — floruit year minus birth year — of the individuals whose Wikidata P569 birth and P1317 floruit are both stated to the year or finer, kept between 10 and 100. The quartiles are the window, as in data/productive_age_window.csv, which is this measure over all periods at once. Recent cohorts run low on the same terms: someone born in 1990 has a floruit only if it came early.")
+    birth_n: int | None = Field(None, description="How many individuals of this occupation — or of any, for 'All' — carry a Wikidata birth year in the cohort — the pool both measures draw from. Counted on the cohort itself, however wide the pool a measure had to borrow.")
+    death_n: int | None = Field(None, description="How many lives the life expectancy on this row was measured on — the cohort's own where it was measured on the cohort, the wider pool's where it was not.")
+    floruit_n: int | None = Field(None, description="How many individuals the productivity window was measured on, on the same terms. Small everywhere: about 3 900 individuals carry both a cross-verified occupation and a usable floruit, so most cohorts before 1700 borrow the occupation over all periods.")
+    field_provenance: dict[str, Provenance] = Field({}, description="How each measure on this row came to be, keyed by column. A cohort rarely holds enough lives to be measured on its own, so the rule names the pool the value was measured on, the first of these to reach 10 lives for life expectancy or 5 for the productivity window: the cohort alone; the cohort with the one on each side; with three on each side; the occupation over all cohorts; every individual over all cohorts. Filter on a rule naming the cohort alone for a figure about this cohort and nothing else.")
+
+
+TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink, "individual_work": IndividualWork, "occupation_stats": OccupationStats}
