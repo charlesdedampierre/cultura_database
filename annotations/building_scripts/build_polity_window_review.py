@@ -74,7 +74,14 @@ def load_places(con, people):
     rows = con.execute(
         "SELECT entity.qid, entity.label_en, coordinates.latitude, coordinates.longitude, sitelink.url "
         "FROM place WHERE entity.qid IN (SELECT unnest(?))", [list(qids)]).fetchall()
-    return {q: {"label": l, "lat": lat, "lon": lon, "url": u} for q, l, lat, lon, u in rows}
+    return {q: {"label": fix_encoding(l), "lat": lat, "lon": lon, "url": u} for q, l, lat, lon, u in rows}
+
+
+def fix_encoding(text):
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
+        return text
 
 
 def link(url, text=None):
