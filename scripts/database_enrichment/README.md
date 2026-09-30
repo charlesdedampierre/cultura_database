@@ -69,12 +69,12 @@ count beside each window so a category measured on 10 people is visible as such.
 
 05b writes `occupation_stats`: one row per cross-verified occupation category
 (plus `All`, every individual) and fifty-year birth cohort, from 3500 BCE to
-2049 — 777 rows, none empty. Each holds the quartiles of age at death (Wikidata
+1949 — 763 rows, none empty. Cohorts born from 1950 on are left out, most of them being still alive. Each holds the quartiles of age at death (Wikidata
 birth and death) and of age at floruit (Wikidata birth and floruit). A cohort
 with fewer than 10 lives, or 5 floruits, borrows a wider pool — one cohort on
 each side, three, the occupation over all cohorts, every individual — and the
-rule in `field_provenance` names the pool used. Recent cohorts run low: only
-those who have already died carry a death date. It runs before 06 so that the
+rule in `field_provenance` names the pool used. People born from 1950 on are
+left out of every pool, not only of their own cohort. It runs before 06 so that the
 peak-productivity window can read it.
 
 ## The peak activity window
