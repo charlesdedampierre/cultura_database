@@ -21,14 +21,14 @@ NEIGHBOUR_BINS = (0, 1, 3)
 
 LIFE_EXPECTANCY = Enrichment(
     reads=("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death", "CrossVerifiedPerson.level1_main_occ"),
-    writes=("OccupationStats.life_expectancy_from_wikidata_birth_death",),
+    writes=("CohortAgeStats.life_expectancy_from_wikidata_birth_death",),
     rule=f"Age at death in fractional years, death minus birth, for the individuals whose Wikidata birth and death are both stated to the year or finer, kept between {LIFESPAN_RANGE[0]} and {LIFESPAN_RANGE[1]}, quartered.",
     answers=Path(__file__).resolve(),
 )
 
 PRODUCTIVITY_WINDOW = Enrichment(
     reads=("IndividualWikidata.date_of_birth", "IndividualWikidata.floruit", "CrossVerifiedPerson.level1_main_occ"),
-    writes=("OccupationStats.productivity_window_from_wikidata_floruit",),
+    writes=("CohortAgeStats.productivity_window_from_wikidata_floruit",),
     rule=f"Age at floruit, floruit year minus birth year, for the individuals whose Wikidata birth and floruit are both stated to the year or finer, kept between {FLORUIT_AGE_RANGE[0]} and {FLORUIT_AGE_RANGE[1]}, quartered.",
     answers=Path(__file__).resolve(),
 )
@@ -118,7 +118,7 @@ def compute(people):
     for occupation, start_year in tqdm(grid, desc="occupation x cohort", unit=" cell"):
         life, death_n, life_pool = measure(people["lifespan"], MIN_LIVES, occupation, start_year)
         window, floruit_n, window_pool = measure(people["age_at_floruit"], MIN_FLORUITS, occupation, start_year)
-        rows.append(D.OccupationStats(
+        rows.append(D.CohortAgeStats(
             cv_occupation=occupation,
             date_range=D.DateRange(start_year=start_year, end_year=start_year + BIN_WIDTH - 1),
             life_expectancy_from_wikidata_birth_death=life,
@@ -139,7 +139,7 @@ def report(connection):
         print(f"\n{column}, rows by pool:")
         for pool, n in connection.execute(f"""
             SELECT regexp_extract(field_provenance['{column}'].rule, 'Measured on (.*)\\.$', 1) AS pool, count(*)
-            FROM occupation_stats GROUP BY pool ORDER BY count(*) DESC
+            FROM cohort_age_stats GROUP BY pool ORDER BY count(*) DESC
         """).fetchall():
             print(f"   {n:>4}  {pool}")
     print("\nCulture, 1600 to 1950:")
@@ -147,7 +147,7 @@ def report(connection):
         SELECT date_range.start_year AS cohort, birth_n,
                life_expectancy_from_wikidata_birth_death.median AS life_median, death_n,
                productivity_window_from_wikidata_floruit AS window, floruit_n
-        FROM occupation_stats
+        FROM cohort_age_stats
         WHERE cv_occupation = 'Culture' AND date_range.start_year BETWEEN 1600 AND 1950
         ORDER BY cohort
     """))
@@ -159,8 +159,8 @@ def main():
     connection = open_database()
     people = load_people(connection)
     print(f"{len(people['everyone'][0]):,} individuals with a Wikidata birth year, {len(people['lifespan'][0]):,} with a lifespan, {len(people['age_at_floruit'][0]):,} with an age at floruit")
-    written = write_table(connection, "occupation_stats", D.OccupationStats, compute(people), SCRATCH)
-    print(f"occupation_stats: {written:,} rows")
+    written = write_table(connection, "cohort_age_stats", D.CohortAgeStats, compute(people), SCRATCH)
+    print(f"cohort_age_stats: {written:,} rows")
     report(connection)
     connection.close()
 

@@ -29,7 +29,7 @@ cannot drift apart.
 | 03 | `03_works_period.py` | `Individual.work`, `Work.publication_date`, `Work.inception` | `Individual.works_period` | the database itself |
 | 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
 | 00 | `00_productive_age_window.py` | `IndividualWikidata.date_of_birth`, `.floruit`, `CrossVerifiedPerson.level1_main_occ` | `data/productive_age_window.csv` | the measurement itself |
-| 05b | `05b_occupation_stats.py` | `Individual.birth_date`, `.death_date`, `.floruit_date` (Wikidata entries only), `CrossVerifiedPerson.level1_main_occ` | `OccupationStats`, the table `occupation_stats` | the measurement itself |
+| 05b | `05b_cohort_age_stats.py` | `Individual.birth_date`, `.death_date`, `.floruit_date` (Wikidata entries only), `CrossVerifiedPerson.level1_main_occ` | `CohortAgeStats`, the table `cohort_age_stats` | the measurement itself |
 | 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity` | the database itself |
 | 06b | `06b_western_continents_and_worlds.py` | `Sitelink.url`, `PresentDayState.name`, `Polity.name` | `Sitelink.is_western`, `PresentDayState.continent`, `PresentDayState.is_western`, `Polity.world` (and the polities nested in `IndividualEnriched.polity`) | the lists in the script itself, drawn up by Claude |
 | 08 | `08_polity_assignment.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.coordinates`, `Place.sitelink`, `Polity.territories`, `Polity.sitelink`, `IndividualEnriched.peak_productivity` | `IndividualEnriched.polity`, `.polity_count` | the database itself |
@@ -67,7 +67,7 @@ count beside each window so a category measured on 10 people is visible as such.
 
 ## Life expectancy and productivity window per occupation and cohort
 
-05b writes `occupation_stats`: one row per cross-verified occupation category
+05b writes `cohort_age_stats`: one row per cross-verified occupation category
 (plus `All`, every individual) and fifty-year birth cohort, from 3500 BCE to
 1949 — 763 rows, none empty. Cohorts born from 1950 on are left out, most of them being still alive. Each holds the quartiles of age at death (Wikidata
 birth and death) and of age at floruit (Wikidata birth and floruit). A cohort
@@ -104,7 +104,7 @@ millennium. `assignation_method` on the row names the rule and the source that
 won, `works_span` or `birth_death_property`, so every window says how it was
 made. An individual no rule fits gets `no_data`.
 
-The productive-age window is read from `occupation_stats` (step 05b): the
+The productive-age window is read from `cohort_age_stats` (step 05b): the
 quartiles of age at floruit for the individual's cross-verified occupation and
 fifty-year birth cohort. Culture, Discovery/Science, Leadership and
 Sports/Games have windows of their own; an individual in Other, Missing or not
