@@ -271,7 +271,7 @@ def card(i, p, places, cell):
         ("Birthplace", place_cell(p["birthplace"], places)),
         ("Deathplace", place_cell(p["deathplace"], places)),
         ("Citizenship", "<br>".join(place_cell(q, places) for q in p["citizenship"] or []) or "—"),
-        ("<b>Productive window</b>", f"<b>{w['start_year']}–{w['end_year']}</b> <span class=m>({w['assignation_method']})</span>" if w else "<b>none</b>"),
+        ("<b>Productive window</b>", f"<b>{w['start_year']}–{w['end_year']}</b> · {w['end_year'] - w['start_year']} years <span class=m>({w['assignation_method']})</span>" if w else "<b>none</b>"),
         ("How the window was found", explain_window(p)),
         *cohort_rows(p),
         ("<b>Polity of assignation</b>", f"<b>{html.escape(matches[0]['polity']['name'])}</b>" if matches else "<b>none</b>"),
