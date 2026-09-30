@@ -45,14 +45,14 @@ REGION = """CASE WHEN lon IS NULL THEN 'unknown location'
 def sample_qids(con):
     rows = con.sql(f"""
         WITH base AS (
-            SELECT e.entity.qid AS qid, e.peak_productivity.start_year AS s,
-                   coalesce(pd.coordinates, pb.coordinates, pc.coordinates).latitude AS lat,
-                   coalesce(pd.coordinates, pb.coordinates, pc.coordinates).longitude AS lon
-            FROM individual_enriched e JOIN individual i ON i.entity.qid = e.entity.qid
-            LEFT JOIN place pd ON pd.entity.qid = i.place_of_death.entity.qid
-            LEFT JOIN place pb ON pb.entity.qid = i.place_of_birth.entity.qid
-            LEFT JOIN place pc ON pc.entity.qid = i.country_of_citizenship[1].entity.qid
-            WHERE e.peak_productivity IS NOT NULL),
+            SELECT individual_enriched.entity.qid AS qid, individual_enriched.peak_productivity.start_year AS s,
+                   coalesce(death_place.coordinates, birth_place.coordinates, citizenship_place.coordinates).latitude AS lat,
+                   coalesce(death_place.coordinates, birth_place.coordinates, citizenship_place.coordinates).longitude AS lon
+            FROM individual_enriched JOIN individual ON individual.entity.qid = individual_enriched.entity.qid
+            LEFT JOIN place AS death_place ON death_place.entity.qid = individual.place_of_death.entity.qid
+            LEFT JOIN place AS birth_place ON birth_place.entity.qid = individual.place_of_birth.entity.qid
+            LEFT JOIN place AS citizenship_place ON citizenship_place.entity.qid = individual.country_of_citizenship[1].entity.qid
+            WHERE individual_enriched.peak_productivity IS NOT NULL),
         cells AS (SELECT qid, {PERIOD} AS period, {REGION} AS region FROM base),
         ranked AS (SELECT *, row_number() OVER (PARTITION BY period, region ORDER BY hash(qid || '{SEED}')) AS rn FROM cells)
         SELECT qid, period, region FROM ranked ORDER BY rn, hash(qid || '{SEED}') LIMIT {WITH_WINDOW}
@@ -94,17 +94,18 @@ def used_year(entries, source):
 def load_people(con, qids):
     con.execute("CREATE TEMP TABLE picked AS SELECT unnest(?) AS qid", [qids])
     return con.sql("""
-        SELECT i.entity, i.birth_date, i.death_date, i.floruit_date, i.works_period,
-               len(i.work) AS n_works,
-               list_transform(i.occupation, o -> o.entity.label_en) AS occupations,
-               i.place_of_birth.entity.qid AS birthplace,
-               i.place_of_death.entity.qid AS deathplace,
-               list_transform(i.country_of_citizenship, c -> c.entity.qid) AS citizenship,
-               list_filter(i.sitelink, s -> s.site_url = 'https://en.wikipedia.org')[1].url AS wiki_en,
-               list_filter(i.sitelink, s -> s.site_url LIKE '%wikipedia.org')[1].url AS wiki_any,
-               e.peak_productivity, e.polity, e.polity_count
-        FROM individual i JOIN picked p ON i.entity.qid = p.qid
-        JOIN individual_enriched e ON e.entity.qid = i.entity.qid
+        SELECT individual.entity, individual.birth_date, individual.death_date, individual.floruit_date,
+               individual.works_period, len(individual.work) AS n_works,
+               list_transform(individual.occupation, job -> job.entity.label_en) AS occupations,
+               individual.place_of_birth.entity.qid AS birthplace,
+               individual.place_of_death.entity.qid AS deathplace,
+               list_transform(individual.country_of_citizenship, country -> country.entity.qid) AS citizenship,
+               list_filter(individual.sitelink, link -> link.site_url = 'https://en.wikipedia.org')[1].url AS wiki_en,
+               list_filter(individual.sitelink, link -> link.site_url LIKE '%wikipedia.org')[1].url AS wiki_any,
+               individual_enriched.peak_productivity, individual_enriched.cohort_age_stats,
+               individual_enriched.polity, individual_enriched.polity_count
+        FROM individual JOIN picked ON individual.entity.qid = picked.qid
+        JOIN individual_enriched ON individual_enriched.entity.qid = individual.entity.qid
     """).pl().to_dicts()
 
 
@@ -173,9 +174,49 @@ def explain_window(person):
     elif rule == "birth_only":
         text = f"Born {birth} ({source}), no death year: window = {ages}."
     else:
-        text = f"Died {death} ({source}), no birth year: window runs back {end - start} years from death."
+        text = f"Died {death} ({source}), no year-precise birth year: window runs back {end - start} years from death."
     return (f"{text}<br><span class=m>Rule “{rule}” was the first that applied. Rules are tried in order "
             f"{' → '.join(RULES)}, year-precise dates before coarser ones; the first that yields a window wins.</span>")
+
+
+def quartiles(stats, unit):
+    return f"{stats['low']:g} / {stats['median']:g} / {stats['high']:g} {unit} <span class=m>(low / median / high quartile)</span>"
+
+
+def cohort_rows(person):
+    cohort, w = person["cohort_age_stats"], person["peak_productivity"]
+    if not cohort:
+        return [("Cohort", "none — no birth year, and no floruit, work or death to estimate one from")]
+    rule = next((r for r in RULES if w and w["assignation_method"].startswith(r)), None)
+    dates = [e for key in ("birth_date", "death_date") for e in person[key] or ()]
+    uses_life = any(source_of(e) == "life_expectancy_estimate" for e in dates)
+    window = cohort["productivity_window_from_wikidata_floruit"]
+    low, high = round(window["low"]), round(window["high"])
+    how_window = {
+        None: "no — no rule produced a window",
+        "works_span": "no — the window is the actual span of dated works",
+        "floruit": f"yes — floruit placed within ages {low}–{high}",
+        "works_single": f"yes — single work year extended by {high - low} years ({high} − {low})",
+        "birth_death": f"yes — birth + {low} to birth + {high}",
+        "birth_only": f"yes — birth + {low} to birth + {high}",
+        "death_only": f"yes — death minus {high - low} years ({high} − {low})",
+    }[rule]
+    occupation = cohort["cv_occupation"]
+    why_occ = ("cross-verified occupation of the individual" if occupation != "All"
+               else "individual's occupation is Other, missing or absent from the cross-verified database")
+    date_range = cohort["date_range"]
+    has_birth = any(date_range["start_year"] <= (e.get("year") or 0) <= date_range["end_year"] for e in person["birth_date"] or ())
+    why_year = ("birth year" if has_birth
+                else "estimated birth year = floruit, first work or death minus the typical age at floruit (no year-precise birth)")
+    return [
+        ("Cohort", f"{occupation} · born {date_range['start_year']}–{date_range['end_year']}"
+                   f"<br><span class=m>Occupation: {why_occ}. 50-year cohort from the {why_year}.</span>"),
+        ("Productivity window (cohort)", quartiles(window, "years of age") + "<br><span class=m>Age at Wikidata floruit in this cohort.</span>"),
+        ("<b>Productivity cohort used?</b>", how_window),
+        ("Life expectancy (cohort)", quartiles(cohort["life_expectancy_from_wikidata_birth_death"], "years") + "<br><span class=m>Age at death from Wikidata birth and death in this cohort.</span>"),
+        ("<b>Life expectancy used?</b>", "yes — a birth or death date was estimated from it" if uses_life
+         else "no — all birth and death dates are stated (Wikidata or Wikipedia), none estimated from life expectancy"),
+    ]
 
 
 def explain_polity(person, places):
@@ -232,12 +273,13 @@ def card(i, p, places, cell):
         ("Citizenship", "<br>".join(place_cell(q, places) for q in p["citizenship"] or []) or "—"),
         ("<b>Productive window</b>", f"<b>{w['start_year']}–{w['end_year']}</b> <span class=m>({w['assignation_method']})</span>" if w else "<b>none</b>"),
         ("How the window was found", explain_window(p)),
+        *cohort_rows(p),
         ("<b>Polity of assignation</b>", f"<b>{html.escape(matches[0]['polity']['name'])}</b>" if matches else "<b>none</b>"),
         ("All polities matched", polity_list(matches)),
         ("How the polity was chosen", explain_polity(p, places)),
     ]
     body = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
-    return f"<section><h2>{i}. {html.escape(fix_encoding(e['label_en']) or e['qid'])}</h2><table>{body}</table></section>"
+    return f"<section><h2>{i}. {html.escape(fix_encoding(e['label_en'] or e.get('label_non_en')) or e['qid'])}</h2><table>{body}</table></section>"
 
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
