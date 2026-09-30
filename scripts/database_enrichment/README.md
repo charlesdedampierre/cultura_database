@@ -29,6 +29,7 @@ cannot drift apart.
 | 03 | `03_works_period.py` | `Individual.work`, `Work.publication_date`, `Work.inception` | `Individual.works_period` | the database itself |
 | 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
 | 00 | `00_productive_age_window.py` | `IndividualWikidata.date_of_birth`, `.floruit`, `CrossVerifiedPerson.level1_main_occ` | `data/productive_age_window.csv` | the measurement itself |
+| 05b | `05b_occupation_stats.py` | `Individual.birth_date`, `.death_date`, `.floruit_date` (Wikidata entries only), `CrossVerifiedPerson.level1_main_occ` | `OccupationStats`, the table `occupation_stats` | the measurement itself |
 | 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity` | the database itself |
 | 06b | `06b_western_continents_and_worlds.py` | `Sitelink.url`, `PresentDayState.name`, `Polity.name` | `Sitelink.is_western`, `PresentDayState.continent`, `PresentDayState.is_western`, `Polity.world` (and the polities nested in `IndividualEnriched.polity`) | the lists in the script itself, drawn up by Claude |
 | 08 | `08_polity_assignment.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.coordinates`, `Place.sitelink`, `Polity.territories`, `Polity.sitelink`, `IndividualEnriched.peak_productivity` | `IndividualEnriched.polity`, `.polity_count` | the database itself |
@@ -63,6 +64,18 @@ the age at that floruit, quartered, globally and per cross-verified occupation
 category. It writes `data/productive_age_window.csv`, which 06 reads. The
 numbers are 29 to 53 over 16 106 individuals globally, and the file carries the
 count beside each window so a category measured on 10 people is visible as such.
+
+## Life expectancy and productivity window per occupation and cohort
+
+05b writes `occupation_stats`: one row per cross-verified occupation category
+(plus `All`, every individual) and fifty-year birth cohort, from 3500 BCE to
+2049 — 777 rows, none empty. Each holds the quartiles of age at death (Wikidata
+birth and death) and of age at floruit (Wikidata birth and floruit). A cohort
+with fewer than 10 lives, or 5 floruits, borrows a wider pool — one cohort on
+each side, three, the occupation over all cohorts, every individual — and the
+rule in `field_provenance` names the pool used. Recent cohorts run low: only
+those who have already died carry a death date. It runs before 06 so that the
+peak-productivity window can read it.
 
 ## The peak activity window
 

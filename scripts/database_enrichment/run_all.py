@@ -15,6 +15,7 @@ STEPS = (
     "03_works_period.py",
     "04_is_scientist_is_artist.py",
     "05_is_human.py",
+    "05b_occupation_stats.py",
     "06_peak_productivity.py",
     "06b_western_continents_and_worlds.py",
     "07_notability.py",
