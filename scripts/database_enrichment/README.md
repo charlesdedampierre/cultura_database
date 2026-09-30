@@ -104,10 +104,14 @@ millennium. `assignation_method` on the row names the rule and the source that
 won, `works_span` or `birth_death_property`, so every window says how it was
 made. An individual no rule fits gets `no_data`.
 
-The window inferred from a birth year is read from
-`data/productive_age_window.csv`, category `global`. The per-occupation windows
-in that file are not applied: they are keyed by the cross-verified occupation
-category, which this database does not carry.
+The productive-age window is read from `occupation_stats` (step 05b): the
+quartiles of age at floruit for the individual's cross-verified occupation and
+fifty-year birth cohort. Culture, Discovery/Science, Leadership and
+Sports/Games have windows of their own; an individual in Other, Missing or not
+in the cross-verified database takes the `All` row of the same cohort. Without
+a birth year, the cohort is the one born the median age at floruit
+(`data/productive_age_window.csv`, `global`) before the floruit, the first work
+or the death. Births after 1949 take the 1900–1949 cohort.
 
 ## The polity assignment
 

@@ -9,7 +9,10 @@ from pydantic_to_duckdb_schema import columns_of
 CURRENT_YEAR = 2026
 
 PRODUCTIVE_AGE_DATASET = ROOT / "data" / "productive_age_window.csv"
-PRODUCTIVE_AGE_CATEGORY = "global"
+CROSS_VERIFIED = ROOT / "data" / "similar_databases" / "cross_verified.duckdb"
+MAIN_OCCUPATIONS = ("Culture", "Discovery/Science", "Leadership", "Sports/Games")
+ALL = "All"
+BIN_WIDTH = 50
 
 RULES = (
     "floruit",
@@ -38,10 +41,10 @@ NO_RULE_APPLIES = "no_data"
 BATCH = 200_000
 
 ENRICHMENT = Enrichment(
-    reads=("Individual.birth_date", "Individual.death_date", "Individual.floruit_date", "Individual.works_period"),
+    reads=("Individual.birth_date", "Individual.death_date", "Individual.floruit_date", "Individual.works_period", "OccupationStats.productivity_window_from_wikidata_floruit", "CrossVerifiedPerson.level1_main_occ"),
     writes=("IndividualEnriched.peak_productivity",),
-    rule="The years the individual is taken to have been at work, as a start year, an end year, the single year that stands for them where one exists, and the name of the rule that produced them. Every rule in RULES is tried in the order written, over dates stated to the year before dates stated no finer than a decade; the first rule that yields a window wins. Where a rule needs a date the individual has from several sources, the source earliest in SOURCE_PRIORITY is the one used. An individual no rule fits is left with no window at all.",
-    answers=PRODUCTIVE_AGE_DATASET,
+    rule="The years the individual is taken to have been at work, as a start year, an end year, the single year that stands for them where one exists, and the name of the rule that produced them. Every rule in RULES is tried in the order written, over dates stated to the year before dates stated no finer than a decade; the first rule that yields a window wins. Where a rule needs a date the individual has from several sources, the source earliest in SOURCE_PRIORITY is the one used. An individual no rule fits is left with no window at all. The productive-age window is the quartiles of age at floruit in occupation_stats, for the individual's cross-verified occupation and fifty-year birth cohort; an individual whose occupation is Other, Missing or absent from the cross-verified database takes the All row of the same cohort. Without a birth year the cohort is the one born the all-period median age at floruit before the floruit, the first work or the death.",
+    answers=ROOT / "scripts" / "database_enrichment" / "05b_occupation_stats.py",
 )
 
 IMPLEMENTATIONS = {}
@@ -69,12 +72,37 @@ class Window:
     method: str
 
 
-def productive_age(category=PRODUCTIVE_AGE_CATEGORY):
+def typical_age_at_floruit():
     with PRODUCTIVE_AGE_DATASET.open() as handle:
         for row in csv.DictReader(handle):
-            if row["category"] == category:
-                return int(row["low_age"]), int(row["high_age"]), int(row["individuals"])
-    raise SystemExit(f"{category} is not a category of {PRODUCTIVE_AGE_DATASET}")
+            if row["category"] == "global":
+                return int(row["median_age"])
+    raise SystemExit(f"global is not a category of {PRODUCTIVE_AGE_DATASET}")
+
+
+def productive_age_windows(connection):
+    rows = connection.execute("""
+        SELECT cv_occupation, date_range.start_year,
+               productivity_window_from_wikidata_floruit.low, productivity_window_from_wikidata_floruit.high
+        FROM occupation_stats
+    """).fetchall()
+    windows = {(occupation, start): (round(low), round(high)) for occupation, start, low, high in rows}
+    starts = [start for _, start in windows]
+    return windows, min(starts), max(starts)
+
+
+def cohort_year(birth, death, floruit, works, typical_age):
+    if birth is not None:
+        return birth.year
+    anchor = floruit.year if floruit else (works or {}).get("first_year") or (death.year if death else None)
+    return None if anchor is None else anchor - typical_age
+
+
+def productive_age(windows, occupation, year):
+    table, first, last = windows
+    category = occupation if occupation in MAIN_OCCUPATIONS else ALL
+    start = last if year is None else min(max(year // BIN_WIDTH * BIN_WIDTH, first), last)
+    return table[category, start]
 
 
 def mapping(value):
@@ -194,11 +222,13 @@ def from_death_only(birth, death, floruit, works, low, high):
 assert tuple(IMPLEMENTATIONS) == RULES, f"{tuple(IMPLEMENTATIONS)} is not {RULES}"
 
 
-def peak_productivity(row, low, high):
+def peak_productivity(row, windows, typical_age):
     for _, precisions in PRECISION_PRIORITY:
         birth = preferred(row["birth_date"], precisions)
         death = preferred(row["death_date"], precisions)
         floruit = preferred(row["floruit_date"], precisions)
+        year = cohort_year(birth, death, floruit, row["works_period"], typical_age)
+        low, high = productive_age(windows, row["occupation"], year)
         for name in RULES:
             window = IMPLEMENTATIONS[name](birth, death, floruit, row["works_period"], low, high)
             if window is not None:
@@ -208,9 +238,13 @@ def peak_productivity(row, low, high):
 
 def main():
     ENRICHMENT.announce()
-    low, high, measured_on = productive_age()
-    print(f"productive age window: {low} to {high}, the quartiles of age at floruit over {measured_on:,} individuals")
-    print(f"read from {PRODUCTIVE_AGE_DATASET.name}, category {PRODUCTIVE_AGE_CATEGORY}\n")
+    connection = open_database()
+    connection.execute(f"ATTACH '{CROSS_VERIFIED}' AS cv (READ_ONLY)")
+    windows = productive_age_windows(connection)
+    typical_age = typical_age_at_floruit()
+    print(f"productive age windows: {len(windows[0]):,} occupation x cohort rows from occupation_stats, cohorts {windows[1]} to {windows[2]}")
+    print(f"occupations with their own window: {', '.join(MAIN_OCCUPATIONS)}; everyone else takes {ALL}")
+    print(f"cohort without a birth year: anchor year minus {typical_age}, the median age at floruit in {PRODUCTIVE_AGE_DATASET.name}\n")
     print("rules, in the order they are tried:")
     for position, name in enumerate(RULES, start=1):
         print(f"   {position}. {name}")
@@ -223,20 +257,24 @@ def main():
         print(f"   {position}. {name}")
     print()
 
-    connection = open_database()
     reader = connection.cursor().execute("""
-        SELECT entity,
-               birth_date, death_date, floruit_date, works_period
+        SELECT individual.entity,
+               individual.birth_date, individual.death_date, individual.floruit_date, individual.works_period,
+               cv.level1_main_occ AS occupation
         FROM individual
+        LEFT JOIN cv.individuals AS cv ON cv.wikidata_code = individual.entity.qid
         """).fetch_record_batch(BATCH)
     counts = {}
+    categories = {}
 
     def assigned():
         for batch in tqdm(reader, desc="peak window", unit=" batches of 200k", mininterval=5):
             for row in batch.to_pylist():
-                window = peak_productivity(row, low, high)
+                window = peak_productivity(row, windows, typical_age)
                 method = window.method if window else NO_RULE_APPLIES
                 counts[method] = counts.get(method, 0) + 1
+                category = row["occupation"] if row["occupation"] in MAIN_OCCUPATIONS else ALL
+                categories[category] = categories.get(category, 0) + 1
                 yield as_json(
                     D.IndividualEnriched(
                         entity=D.WikidataEntity(**row["entity"]),
@@ -259,6 +297,9 @@ def main():
     print(f"{total:,} individuals, by the rule that decided each one:")
     for method, count in sorted(counts.items(), key=lambda pair: -pair[1]):
         print(f"   {method:34} {count:>6,}")
+    print("\nproductive-age window used, by occupation:")
+    for category, count in sorted(categories.items(), key=lambda pair: -pair[1]):
+        print(f"   {category:34} {count:>6,}")
     connection.close()
 
 
