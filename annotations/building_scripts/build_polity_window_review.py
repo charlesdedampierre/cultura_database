@@ -179,8 +179,8 @@ def card(i, p, places):
     rows = [
         ("Wikidata", wd(e["qid"])),
         ("Wikipedia", link(wiki)),
-        ("Description", html.escape(e["description"] or "—")),
-        ("Occupations", html.escape(", ".join(o for o in p["occupations"] or [] if o) or "—")),
+        ("Description", html.escape(fix_encoding(e["description"]) or "—")),
+        ("Occupations", html.escape(", ".join(fix_encoding(o) for o in p["occupations"] or [] if o) or "—")),
         ("Birth date(s)", date_list(p["birth_date"])),
         ("Death date(s)", date_list(p["death_date"])),
         ("Floruit date(s)", date_list(p["floruit_date"])),
@@ -195,7 +195,7 @@ def card(i, p, places):
         ("How the polity was chosen", explain_polity(p, places)),
     ]
     body = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
-    return f"<section><h2>{i}. {html.escape(e['label_en'] or e['qid'])}</h2><table>{body}</table></section>"
+    return f"<section><h2>{i}. {html.escape(fix_encoding(e['label_en']) or e['qid'])}</h2><table>{body}</table></section>"
 
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
