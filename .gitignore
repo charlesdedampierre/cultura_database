@@ -59,3 +59,6 @@ _wt/
 # Schema reference data, small and versioned (the data model imports these)
 !properties.json
 !sources.json
+
+# Third-party packages (Cliopatria repo, ~430 MB with map images)
+External/
