@@ -48,7 +48,7 @@ ENRICHMENT = Enrichment(
     reads=("Individual.birth_date", "Individual.death_date", "Individual.floruit_date", "Individual.works_period", "CohortAgeStats.productivity_window_from_wikidata_floruit", "CohortAgeStats.life_expectancy_from_wikidata_birth_death", "CrossVerifiedPerson.level1_main_occ"),
     writes=("IndividualEnriched.peak_productivity",),
     rule="The years the individual is taken to have been at work, with how finely they are known and the name of the rule that produced them. Every rule in RULES is tried in the order written and the first that yields a window wins: first the rules on birth, death and floruit dates stated to the year or the decade, then the birth and death rules on dates stated only to the century or millennium, which give a window named in centuries ('late 4th century – early 5th century'), and only then the individual's dated works, the last resort. A floruit stated only to the century or millennium is never used. Someone who died aged 18 or younger is taken to have counted for their whole life. With a death and no birth, the birth is the death minus the median life expectancy of the cohort. Where a rule needs a date the individual has from several sources, the source earliest in SOURCE_PRIORITY is the one used. The productive-age window is the quartiles of age at floruit in cohort_age_stats, for the individual's cross-verified occupation and fifty-year birth cohort; an individual whose occupation is Other, Missing or absent from the cross-verified database takes the All row of the same cohort.",
-    answers=ROOT / "scripts" / "4-database_enrichment" / "05b_cohort_age_stats.py",
+    answers=ROOT / "scripts" / "4-database_enrichment" / "05_cohort_life_expectancy_and_floruit_age.py",
 )
 
 COHORT = Enrichment(
@@ -56,7 +56,7 @@ COHORT = Enrichment(
     writes=("IndividualEnriched.cohort_age_stats",),
     rule="The row of cohort_age_stats the individual's peak_productivity was computed from — their cross-verified occupation, or All for anyone outside the four main categories, and their fifty-year birth cohort — copied with its life expectancy and productivity window. The cohort is that of the birth year; without one, of the birth estimated from the floruit (by the cohort's median age at floruit), the death (by its median life expectancy) or the first work (by its median age at floruit), in that order, each stated to the year or the decade; each estimate is taken first on the cohort of the anchor year, then recomputed once on the cohort it falls in. A date stated only to the century or millennium never chooses a cohort, so an individual dated by nothing finer has none.",
     inputs=("CohortAgeStats.productivity_window_from_wikidata_floruit",),
-    answers=ROOT / "scripts" / "4-database_enrichment" / "05b_cohort_age_stats.py",
+    answers=ROOT / "scripts" / "4-database_enrichment" / "05_cohort_life_expectancy_and_floruit_age.py",
 )
 
 ESTIMATED_BIRTH = Enrichment(
@@ -64,7 +64,7 @@ ESTIMATED_BIRTH = Enrichment(
     writes=("Individual.birth_date",),
     rule="The birth year of an individual with a death year and no birth year stated to the year or the decade: the death year minus the median life expectancy of their cross-verified occupation and fifty-year birth cohort in cohort_age_stats, recomputed once on the cohort that first estimate falls in. An estimate, appended after every stated date.",
     inputs=("Individual.death_date", "CohortAgeStats.life_expectancy_from_wikidata_birth_death"),
-    answers=ROOT / "scripts" / "4-database_enrichment" / "05b_cohort_age_stats.py",
+    answers=ROOT / "scripts" / "4-database_enrichment" / "05_cohort_life_expectancy_and_floruit_age.py",
 )
 
 ESTIMATED_DEATH = Enrichment(
@@ -72,7 +72,7 @@ ESTIMATED_DEATH = Enrichment(
     writes=("Individual.death_date",),
     rule=f"The death year of an individual with a birth year and no death year stated to the year or the decade: the birth year plus the median life expectancy of their cross-verified occupation and fifty-year birth cohort in cohort_age_stats, given only to someone born more than {OLDEST_AGE} years before {CURRENT_YEAR}, who cannot still be alive. An estimate, appended after every stated date.",
     inputs=("Individual.birth_date", "CohortAgeStats.life_expectancy_from_wikidata_birth_death"),
-    answers=ROOT / "scripts" / "4-database_enrichment" / "05b_cohort_age_stats.py",
+    answers=ROOT / "scripts" / "4-database_enrichment" / "05_cohort_life_expectancy_and_floruit_age.py",
 )
 
 IMPLEMENTATIONS = {}

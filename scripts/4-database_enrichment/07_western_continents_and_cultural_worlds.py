@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from common import Enrichment, ROOT, as_json, open_database, provenance_column
 
-HERE = ROOT / "scripts" / "4-database_enrichment" / "06b_western_continents_and_worlds.py"
+HERE = ROOT / "scripts" / "4-database_enrichment" / "07_western_continents_and_cultural_worlds.py"
 CLAUDE = "claude-opus-5-5"
 
 # Every list below was drawn up by Claude, Anthropic's language model, for this project.
