@@ -24,7 +24,8 @@ class AIAnswer(BaseModel):
 class HumanAnnotation(BaseModel):
     location_ai_extracted_is_correct: bool | None = Field(None, description="The annotator judges location_ai_extracted correct after reading the text.")
     productivity_window_ai_extracted_is_correct: bool | None = Field(None, description="The annotator judges productivity_window_ai_extracted correct after reading the text.")
-    notes: str | None = Field(None, description="Free comments from the annotator.")
+    note_location: str | None = Field(None, description="The annotator's comment on location_ai_extracted.")
+    note_productivity_window: str | None = Field(None, description="The annotator's comment on productivity_window_ai_extracted.")
 
 
 class TreccaniAnnotation(BaseModel):
