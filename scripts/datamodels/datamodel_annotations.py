@@ -21,8 +21,8 @@ class AIAnswer(BaseModel):
 
 
 class HumanAnnotation(BaseModel):
-    location_ok: bool | None = Field(None, description="The annotator agrees with the location.")
-    peak_productivity_window_ok: bool | None = Field(None, description="The annotator agrees with the productivity window.")
+    location_ai_extracted_is_correct: bool | None = Field(None, description="The annotator judges location_ai_extracted correct after reading the text.")
+    productivity_window_ai_extracted_is_correct: bool | None = Field(None, description="The annotator judges productivity_window_ai_extracted correct after reading the text.")
     notes: str | None = Field(None, description="Free comments from the annotator.")
 
 
