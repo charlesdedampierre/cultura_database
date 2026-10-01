@@ -1,0 +1,18 @@
+[package]
+name = "add_works_period_to_individuals"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "add_works_period_to_individuals"
+path = "src/main.rs"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
+indicatif = "0.17"
+anyhow = "1.0"
+chrono = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
