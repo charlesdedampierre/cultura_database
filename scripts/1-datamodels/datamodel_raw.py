@@ -143,7 +143,7 @@ class CrossVerifiedPerson(BaseModel):
     number_wiki_editions: int | None = None
     total_noccur_links_b: float | None = None
     sum_visib_ln_5criteria: float | None = None
-    ranking_visib_5criteria: int | None = None
+    ranking_visib_5criteria: float | None = Field(None, description="Rank by sum_visib_ln_5criteria; tied individuals share the mean of their ranks, so a rank can end in .5.")
     all_geography_groups: str | None = None
     string_citizenship_raw_d: str | None = None
     citizenship_1_b: str | None = None
