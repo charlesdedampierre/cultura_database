@@ -4,16 +4,12 @@ TreccaniAnnotation is one row of the Treccani validation: an individual with a b
 the Dizionario Biografico degli Italiani, what a language model read from that biography in
 two steps (floruit and location, then the Cliopatria polity), the automatic checks on that
 reading, what Cultura holds for the same individual, and the human verdict. Its fields were
-drawn from treccani_validation/treccani_validation_sample20.tsv.
+drawn from annotations/treccani_validation/treccani_validation_sample20.tsv.
 """
 
-import sys
-from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "datamodels"))
 
 from datamodel_in_duckdb import AIAnswer, PeakProductivity, WikidataEntity
 
