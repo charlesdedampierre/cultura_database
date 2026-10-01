@@ -1,3 +1,5 @@
+"""Split each Cliopatria meta polity into a row of its own and link parent and child polities period by period."""
+
 import json
 from collections import Counter
 from dataclasses import dataclass

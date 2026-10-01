@@ -1,3 +1,5 @@
+"""Flag each individual as a scientist and/or an artist from their occupations."""
+
 import json
 
 from common import Enrichment, ROOT, as_json, open_database, provenance_column, stage

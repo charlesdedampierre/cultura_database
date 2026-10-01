@@ -1,3 +1,5 @@
+"""Read birth, death and floruit years off each individual's one-line Wikidata description, e.g. 'Italian painter (1712-1782)', and append them to the date lists."""
+
 import os
 import re
 from multiprocessing import Pool

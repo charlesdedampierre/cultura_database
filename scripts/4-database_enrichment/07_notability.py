@@ -1,3 +1,5 @@
+"""Count how many individuals each Wikipedia edition has a page on, and score each individual's cross-cultural notability from their Western and non-Western pages."""
+
 import json
 
 from tqdm import tqdm

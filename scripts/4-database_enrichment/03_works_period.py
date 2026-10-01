@@ -1,3 +1,5 @@
+"""Give each individual the span of years covered by the publication and inception dates of their works."""
+
 from common import Enrichment, ROOT, as_json, open_database, provenance_column, stage
 
 ENRICHMENT = Enrichment(

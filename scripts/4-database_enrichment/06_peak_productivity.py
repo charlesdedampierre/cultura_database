@@ -1,3 +1,5 @@
+"""Give each individual a peak activity window from their dates, by rule priority, and estimate a missing birth or death year from the cohort's life expectancy."""
+
 import csv
 from dataclasses import dataclass
 

@@ -1,3 +1,5 @@
+"""Mark each place as a settlement or not, from the language-model classification of its Wikidata classes saved in entity_type_classification.json."""
+
 import json
 import sys
 from pathlib import Path

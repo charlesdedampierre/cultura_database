@@ -1,3 +1,5 @@
+"""Assign each individual the polities they lived in during their peak activity window, matched by citizenship, deathplace and birthplace."""
+
 from dataclasses import dataclass
 
 from shapely import STRtree, points

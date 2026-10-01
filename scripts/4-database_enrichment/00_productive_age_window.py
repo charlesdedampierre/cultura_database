@@ -1,3 +1,5 @@
+"""Measure the productive age window, the quartiles of age at floruit globally and per occupation category, and write it to data/productive_age_window.csv."""
+
 import csv
 from datetime import date
 

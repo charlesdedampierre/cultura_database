@@ -1,3 +1,5 @@
+"""Run every enrichment step in order on CULTURA_DB, optionally on a fresh copy of a non-enriched base database."""
+
 import argparse
 import os
 import shutil
