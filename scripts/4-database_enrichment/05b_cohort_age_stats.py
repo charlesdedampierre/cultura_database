@@ -1,3 +1,5 @@
+"""Compute life expectancy and age at floruit per occupation category and fifty-year birth cohort, into the cohort_age_stats table."""
+
 from pathlib import Path
 
 import numpy as np

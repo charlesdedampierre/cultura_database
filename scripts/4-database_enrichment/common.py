@@ -1,3 +1,5 @@
+"""Shared helpers for the enrichment steps: the database path, the Enrichment contract and the staging of rows into DuckDB."""
+
 import json
 import os
 import sys

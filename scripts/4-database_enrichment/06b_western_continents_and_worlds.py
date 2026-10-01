@@ -1,3 +1,5 @@
+"""Mark Wikipedia editions and present-day states as Western or not, give each state its continent and each polity its cultural world."""
+
 import json
 import time
 

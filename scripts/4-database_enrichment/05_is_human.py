@@ -1,3 +1,5 @@
+"""Flag as probably fictional the individuals whose birthplace, deathplace or citizenship is a fictional, mythical or legendary place."""
+
 import json
 import re
 
