@@ -119,11 +119,21 @@ document.getElementById("export").onclick = () => {
 </script></body></html>"""
 
 
+def fix_encoding(text):
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
+        return text
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", default="treccani_ai_annotations.parquet")
     source = FOLDER / parser.parse_args().source
     rows = pq.read_table(source).to_pylist()
+    for row in rows:
+        row["entity"]["label_en"] = fix_encoding(row["entity"]["label_en"])
+        row["entity"]["description"] = fix_encoding(row["entity"]["description"])
     OUT.write_text(PAGE.replace("__SOURCE__", source.name).replace("__DATA__", json.dumps(rows, ensure_ascii=False).replace("</", "<\\/")), encoding="utf-8")
     print(f"wrote {OUT.relative_to(ROOT)} ({len(rows)} individuals)")
 
