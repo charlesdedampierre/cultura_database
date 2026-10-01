@@ -41,6 +41,7 @@ SELECT
     enriched.peak_productivity.end_year AS activity_end,
     joined(list_transform(enriched.polity, match -> match.polity.name)) AS polities,
     joined(list_transform(enriched.polity, match -> CAST(match.polity.cliopatria_id AS VARCHAR))) AS polity_ids,
+    joined(list_transform(enriched.polity, match -> CAST(match.years_spent_in_polity AS VARCHAR))) AS time_spent_in_polity,
     joined(list_transform(meta_polities(enriched.polity, enriched.peak_productivity), meta -> meta.name)) AS meta_polities,
     joined(list_transform(meta_polities(enriched.polity, enriched.peak_productivity), meta -> CAST(meta.cliopatria_id AS VARCHAR))) AS meta_polity_ids,
     joined(list_transform(person.occupation, one_occupation -> occupation_label.labels[one_occupation.entity.qid])) AS occupations
