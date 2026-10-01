@@ -19,6 +19,7 @@ STEPS = (
     "06_peak_productivity.py",
     "06b_western_continents_and_worlds.py",
     "07_notability.py",
+    "07b_polity_hierarchy.py",
     "08_polity_assignment.py",
 )
 
