@@ -65,7 +65,6 @@ def a_polity(cliopatria_id, key, spans, existence):
     return datamodel_in_duckdb.Polity(
         cliopatria_id=cliopatria_id,
         name=name,
-        type=first.type,
         entity=raw_to_duckdb_models.entity(wikidata) if wikidata else None,
         existence_wikidata=existence_wikidata(existence[wikidata]) if wikidata in existence else None,
         sitelink=datamodel_in_duckdb.Sitelink(url=english_wikipedia(first.wikipedia)) if first.wikipedia else None,
@@ -73,7 +72,6 @@ def a_polity(cliopatria_id, key, spans, existence):
         field_provenance={
             "cliopatria_id": read_from("PolityCliopatria.name", "PolityCliopatria.wikidata"),
             "name": read_from("PolityCliopatria.name"),
-            "type": read_from("PolityCliopatria.type"),
             "entity": read_from("PolityCliopatria.wikidata"),
             "existence_wikidata": read_from("PolityWikidata.inception", "PolityWikidata.dissolution"),
             "sitelink": read_from("PolityCliopatria.wikipedia"),
