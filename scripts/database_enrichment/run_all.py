@@ -1,3 +1,5 @@
+import argparse
+import shutil
 import subprocess
 import sys
 import time
@@ -31,7 +33,20 @@ def report(message):
         handle.write(line + "\n")
 
 
+def copy_base(base):
+    if DATABASE.exists():
+        raise SystemExit(f"{DATABASE} already exists; enrichment from a base needs a new database")
+    report(f"copying {base} to {DATABASE}")
+    shutil.copyfile(base, DATABASE)
+    DATABASE.chmod(0o644)
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Run every enrichment step on CULTURA_DB.")
+    parser.add_argument("--base", type=Path, help="non-enriched database copied to CULTURA_DB first, left untouched")
+    base = parser.parse_args().base
+    if base:
+        copy_base(base)
     report(f"{DATABASE}")
     for step in STEPS:
         started = time.time()
