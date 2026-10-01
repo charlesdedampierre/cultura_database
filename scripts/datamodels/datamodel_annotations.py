@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from datamodel_in_duckdb import Date, WikidataEntity
+from datamodel_in_duckdb import WikidataEntity
 
 
 class AIAnswer(BaseModel):
@@ -20,12 +20,6 @@ class AIAnswer(BaseModel):
     value_in_quote: bool | None = Field(None, description="value_as_written appears inside at least one extract, so the extracts really support the answer.")
 
 
-class ProductivityWindow(AIAnswer):
-    start: Date | None = Field(None, description="First date of activity the biography states, with its precision: 'XIII secolo' is a date at century precision, not the year 1201.")
-    middle: tuple[Date, ...] = Field((), description="Single dated moments of activity the text gives between or instead of a start and an end — a treatise written in 1235, offices held in 1274 and 1289.")
-    end: Date | None = Field(None, description="Last date of activity the biography states.")
-
-
 class HumanAnnotation(BaseModel):
     location_ok: bool | None = Field(None, description="The annotator agrees the biography places the individual's activity in the location. Empty until annotated.")
     peak_productivity_window_ok: bool | None = Field(None, description="The annotator agrees with the productivity window.")
@@ -37,5 +31,5 @@ class TreccaniAnnotation(BaseModel):
     treccani_url: str = Field(..., description="The individual's biography in the Dizionario Biografico degli Italiani on treccani.it (Wikidata P1986). It is the only text the model read.")
     treccani_text_path: str = Field("annotations/treccani_validation/_cache/dbi_pages.jsonl", description="Where the downloaded biography is kept, relative to the repository root: a JSON-lines file with one line per individual, {wikidata_id, dbi_url, text}. The text is the article as treccani.it served it, reduced to plain text; it is what the model read, cut at 25 000 characters, and what quotes_in_text is checked against.")
     location_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="Extracted from the biography by a language model: where the biography says the individual was active: the most granular place, under its English name where one exists, with its evidence.")
-    productivity_window_ai_extracted: ProductivityWindow = Field(default_factory=ProductivityWindow, description="Extracted from the biography by a language model: when the biography says the individual was active, with its evidence.")
+    productivity_window_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="Extracted from the biography by a language model: when the biography says the individual was active, with its evidence.")
     human: HumanAnnotation = Field(default_factory=HumanAnnotation, description="The annotator's verdict.")
