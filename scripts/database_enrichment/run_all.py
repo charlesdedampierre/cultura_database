@@ -11,7 +11,6 @@ TASK_LOG = ROOT / "task.log"
 
 STEPS = (
     "01_is_settlement.py",
-    "02_wikipedia_dates.py",
     "02b_description_dates.py",
     "03_works_period.py",
     "04_is_scientist_is_artist.py",
