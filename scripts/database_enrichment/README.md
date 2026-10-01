@@ -26,6 +26,7 @@ cannot drift apart.
 |---|---|---|---|---|
 | 01 | `01_is_settlement.py` | `Place.instance_of` | `Place.is_settlement` | `data/raw_data_from_wikidata/entity_type_classification.json` |
 | 02 | `02_wikipedia_dates.py` | `Individual.entity` | one more entry in `Individual.birth_date`, `.death_date`, `.floruit_date` | `data/humans_clean.duckdb` columns `birthdate_from_wikipedia`, `deathdate_from_wikipedia`, `floruit_from_wikipedia` |
+| 02b | `02b_description_dates.py` | `Individual.entity` (its description) | one more entry in `Individual.birth_date`, `.death_date`, `.floruit_date` | the regular expressions in the script itself |
 | 03 | `03_works_period.py` | `Individual.work`, `Work.publication_date`, `Work.inception` | `Individual.works_period` | the database itself |
 | 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
 | 00 | `00_productive_age_window.py` | `IndividualWikidata.date_of_birth`, `.floruit`, `CrossVerifiedPerson.level1_main_occ` | `data/productive_age_window.csv` | the measurement itself |
@@ -46,6 +47,30 @@ the individual: False means a birthplace, deathplace or citizenship whose
 Wikidata classes are labelled fictional, mythical, legendary, imaginary or
 hypothetical. Someone born in a fictional city is taken to be a fictional
 character. A False is evidence, a True is only the absence of it.
+
+## Dates read off the Wikidata description
+
+02b reads the one-line English description of every individual — 'Italian
+painter (1712-1782)' — with the regular expressions of the extractor once
+written in Rust (`scripts/_one_off/extract_description_dates/src/main.rs`),
+ported to Python, and appends what it finds to the three date lists:
+
+- two years joined by a dash are the birth and the death, kept only when they
+  are at most 110 years apart;
+- a year the text calls a birth or a death — 'born 1972', 'd. 1834', '(1947-)',
+  '(-1896)', a year opening the description and followed by a dash — is that
+  birth or death;
+- a single year with nothing saying birth or death — 'fl. 1834', 'active
+  1910', 'consul in 199 BC', the first year of 'between 1198 and 1216' — is the
+  floruit; 'fl. 13th century' or 'second half of the 16th century' gives the
+  middle of that part at precision century; a bare century is not used.
+
+Each entry's `field_provenance` carries the rule, which names the Wikidata
+description, so 06 reads it as `wikidata_entity_description` in
+`SOURCE_PRIORITY`. Each run first removes the entries the previous one
+appended. The script runs its self-tests before touching the database and
+stops if one fails. 06 has to run after it for the new dates to reach
+`peak_productivity`.
 
 ## Running
 
