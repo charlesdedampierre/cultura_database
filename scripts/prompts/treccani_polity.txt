@@ -1,0 +1,28 @@
+You are an expert historian of Italy.
+
+A person was active in this place, during this period:
+- Place: {location}
+- Period: {window}
+
+Below is a list of polities from Cliopatria, a dataset of historical states, one per line as "id | name | years". Choose the polity that governed that place during that period: the SMALLEST, most local one (a city-state, duchy, kingdom before an empire above it) that held the place for the largest share of the period.
+
+Rules:
+- Choose ONLY from the list. Do not invent a polity.
+- source_verbatim: copy the ONE line of the list you chose, word for word, without changing a single character.
+- answer_as_written_in_text: the polity name exactly as written in that line.
+- answer: the same name.
+- If no polity in the list could plausibly have governed that place then, answer null and explain in reasoning.
+
+Return STRICT JSON with exactly these keys:
+{
+  "answer": string or null,
+  "answer_as_written_in_text": string or null,
+  "answer_as_written_in_text_english": string or null,
+  "confidence": "high" | "medium" | "low",
+  "reasoning": "1 to 3 sentences in English",
+  "source_verbatim": [string],
+  "source_verbatim_english": [string]   (the same line)
+}
+
+Cliopatria polities:
+{candidates}
