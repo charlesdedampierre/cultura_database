@@ -34,7 +34,6 @@ SOURCE_PRIORITY = (
     "wikidata_property",
     "wikidata_entity_description",
     "cross_verified_database",
-    "wikipedia_article",
     "life_expectancy_estimate",
 )
 
@@ -166,11 +165,8 @@ def mapping(value):
 
 def source_of(entry):
     provenance = mapping(entry.get("field_provenance")).get("year") or {}
-    answer = provenance.get("ai_answer") or {}
     rule_text = (provenance.get("rule") or "").lower()
     raw = " ".join(provenance.get("raw") or ())
-    if answer.get("prompt_id") == "wikipedia_dates":
-        return "wikipedia_article"
     if "CrossVerified" in raw:
         return "cross_verified_database"
     if "life expectancy" in rule_text:
