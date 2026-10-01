@@ -151,7 +151,7 @@ def mapping(value):
     if isinstance(value, dict):
         return value
     if isinstance(value, list):
-        return {pair["key"]: pair["value"] for pair in value if isinstance(pair, dict) and "key" in pair}
+        return dict((pair["key"], pair["value"]) if isinstance(pair, dict) else pair for pair in value)
     return {}
 
 
