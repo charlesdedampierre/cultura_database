@@ -18,6 +18,7 @@ class AIAnswer(BaseModel):
     model_name: str | None = Field(None, description="The model that answered — 'google/gemini-3.5-flash'.")
     prompt_id: str | None = Field(None, description="The prompt's name and version — 'treccani_floruit_location_v6'.")
     prompt: str | None = Field(None, description="The full prompt sent for this individual.")
+    cost_usd: float | None = Field(None, description="What the query cost, in US dollars, as the API reported it.")
 
 
 class HumanAnnotation(BaseModel):
