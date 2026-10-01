@@ -40,10 +40,11 @@ details summary{cursor:pointer;color:#555;font-size:13px} pre{white-space:pre-wr
 <div id="cards"></div>
 <script>
 const DATA = __DATA__;
-const KEY = "treccani_review_verdicts";
+const KEY = "treccani_review_human_annotation";
 const FIELDS = [
-  ["location_ai_extracted", "Location", "location_ai_extracted_is_correct", "note_location"],
-  ["productivity_window_ai_extracted", "Productivity window", "productivity_window_ai_extracted_is_correct", "note_productivity_window"],
+  ["location_ai_extracted", "Location"],
+  ["productivity_window_ai_extracted", "Productivity window"],
+  ["polity_ai_matched", "Polity"],
 ];
 let verdicts = {};
 try { verdicts = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
@@ -59,6 +60,7 @@ function answerTable(a) {
     ["As written in text", `${esc(a.answer_as_written_in_text)} <span class="m">(${esc(a.answer_as_written_in_text_english)})</span>`],
     ["Confidence", esc(a.confidence)],
     ["Reasoning", esc(a.reasoning)],
+    ["Source", /^https?:/.test(a.source || "") ? `<a href="${esc(a.source)}" target="_blank">${esc(a.source)}</a>` : esc(a.source)],
     ["Source verbatim (IT · EN)", quotes ? `<div class="quotes">${quotes}</div>` : "—"],
     ["Quotes not invented", check(a.source_verbatim_not_invented)],
     ["Answer supported by quotes", check(a.answer_supported_by_source_verbatim)],
@@ -68,12 +70,12 @@ function answerTable(a) {
   return `<table>${rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>`;
 }
 
-function verdictBox(qid, label, field, note) {
-  const v = verdicts[qid] || {};
-  return `<div class="verdict" data-qid="${qid}"><b>${label} check:</b>
-    <label><input type="radio" name="${qid}-${field}" data-field="${field}" value="true" ${v[field] === true ? "checked" : ""}> correct</label>
-    <label><input type="radio" name="${qid}-${field}" data-field="${field}" value="false" ${v[field] === false ? "checked" : ""}> wrong</label>
-    <textarea placeholder="note on the ${label.toLowerCase()}" data-field="${note}">${esc(v[note] ?? "")}</textarea></div>`;
+function verdictBox(qid, field, label) {
+  const v = (verdicts[qid] || {})[field] || {};
+  return `<div class="verdict" data-qid="${qid}" data-answer="${field}"><b>${label} check:</b>
+    <label><input type="radio" name="${qid}-${field}" value="true" ${v.is_correct === true ? "checked" : ""}> correct</label>
+    <label><input type="radio" name="${qid}-${field}" value="false" ${v.is_correct === false ? "checked" : ""}> wrong</label>
+    <textarea placeholder="note on the ${label.toLowerCase()}">${esc(v.note ?? "")}</textarea></div>`;
 }
 
 document.getElementById("cards").innerHTML = DATA.map((row, i) => {
@@ -81,16 +83,17 @@ document.getElementById("cards").innerHTML = DATA.map((row, i) => {
   return `<section class="card"><h2>${i + 1}. ${esc(e.label_en || e.label_non_en || e.qid)}</h2>
     <div class="links"><a href="https://www.wikidata.org/wiki/${e.qid}" target="_blank">Wikidata ${e.qid}</a>
     <a href="${esc(row.treccani_url)}" target="_blank">Treccani biography</a><span class="m">${esc(e.description)}</span></div>
-    ${FIELDS.map(([f, label, field, note]) => `<h3>${label}</h3>${answerTable(row[f])}${verdictBox(e.qid, label, field, note)}`).join("")}
+    ${FIELDS.map(([f, label]) => `<h3>${label}</h3>${answerTable(row[f])}${verdictBox(e.qid, f, label)}`).join("")}
     </section>`;
 }).join("");
 
 document.querySelectorAll(".verdict").forEach(box => {
-  const qid = box.dataset.qid;
+  const { qid, answer } = box.dataset;
   const update = ev => {
-    const t = ev.target;
     verdicts[qid] = verdicts[qid] || {};
-    verdicts[qid][t.dataset.field] = t.type === "radio" ? t.value === "true" : t.value;
+    const review = verdicts[qid][answer] = verdicts[qid][answer] || {};
+    if (ev.target.type === "radio") review.is_correct = ev.target.value === "true";
+    else review.note = ev.target.value;
     save();
   };
   box.addEventListener("change", update);
@@ -98,21 +101,18 @@ document.querySelectorAll(".verdict").forEach(box => {
 });
 
 function progress() {
-  const done = DATA.filter(r => { const v = verdicts[r.entity.qid] || {};
-    return v.location_ai_extracted_is_correct !== undefined && v.productivity_window_ai_extracted_is_correct !== undefined; }).length;
+  const done = DATA.filter(r => FIELDS.every(([f]) => ((verdicts[r.entity.qid] || {})[f] || {}).is_correct !== undefined)).length;
   document.getElementById("progress").textContent = `${done} / ${DATA.length} reviewed`;
 }
 progress();
 
 document.getElementById("export").onclick = () => {
-  const rows = DATA.map(r => ({ qid: r.entity.qid,
-    location_ai_extracted_is_correct: verdicts[r.entity.qid]?.location_ai_extracted_is_correct ?? null,
-    productivity_window_ai_extracted_is_correct: verdicts[r.entity.qid]?.productivity_window_ai_extracted_is_correct ?? null,
-    note_location: verdicts[r.entity.qid]?.note_location || null,
-    note_productivity_window: verdicts[r.entity.qid]?.note_productivity_window || null }));
+  const rows = DATA.map(r => ({ qid: r.entity.qid, human: Object.fromEntries(FIELDS.map(([f]) => {
+    const v = (verdicts[r.entity.qid] || {})[f] || {};
+    return [f, { is_correct: v.is_correct ?? null, note: v.note || null }];
+  })) }));
   const url = URL.createObjectURL(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }));
-  const link = Object.assign(document.createElement("a"), { href: url, download: "treccani_human_annotation.json" });
-  link.click();
+  Object.assign(document.createElement("a"), { href: url, download: "treccani_human_annotation.json" }).click();
   URL.revokeObjectURL(url);
 };
 </script></body></html>"""

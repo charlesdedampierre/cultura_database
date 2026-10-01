@@ -6,32 +6,38 @@ from datamodel_in_duckdb import WikidataEntity
 
 
 class AIAnswer(BaseModel):
-    answer: str | None = Field(None, description="The model's answer, in English — 'Florence', '1260-1298'.")
-    answer_as_written_in_text: str | None = Field(None, description="The answer as the text writes it — 'Firenze', 'XIII secolo'.")
-    answer_as_written_in_text_english: str | None = Field(None, description="answer_as_written_in_text in English.")
-    confidence: Literal["high", "medium", "low"] | None = Field(None, description="How sure the model says it is.")
-    reasoning: str | None = Field(None, description="The model's justification, in one to three sentences.")
-    source_verbatim: tuple[str, ...] = Field((), description="Word-for-word extracts of the text the answer comes from.")
-    source_verbatim_english: tuple[str, ...] = Field((), description="source_verbatim in English, in the same order.")
-    source_verbatim_not_invented: bool | None = Field(None, description="Automatic check: every extract in source_verbatim exists word for word in the text, so the model did not paraphrase or invent it.")
-    answer_supported_by_source_verbatim: bool | None = Field(None, description="Automatic check: answer_as_written_in_text appears in at least one extract of source_verbatim, so the quotes really back the answer.")
-    model_name: str | None = Field(None, description="The model that answered — 'google/gemini-3.5-flash'.")
-    prompt_id: str | None = Field(None, description="The prompt's name and version — 'treccani_floruit_location_v6'.")
-    prompt: str | None = Field(None, description="The full prompt sent for this individual.")
-    cost_estimated: float | None = Field(None, description="What the query cost, in US dollars, as reported by the API or estimated from tokens and price.")
+    answer: str | None = Field(None, description="The model's answer, in English.")
+    answer_as_written_in_text: str | None = Field(None, description="The answer as written in the source.")
+    answer_as_written_in_text_english: str | None = Field(None, description="The same, in English.")
+    confidence: Literal["high", "medium", "low"] | None = Field(None, description="The model's confidence.")
+    reasoning: str | None = Field(None, description="The model's justification.")
+    source: str | None = Field(None, description="What the model read: a URL, a file or a table.")
+    source_verbatim: tuple[str, ...] = Field((), description="Word-for-word extracts of the source behind the answer.")
+    source_verbatim_english: tuple[str, ...] = Field((), description="The extracts, in English.")
+    source_verbatim_not_invented: bool | None = Field(None, description="Check: every extract exists in the source.")
+    answer_supported_by_source_verbatim: bool | None = Field(None, description="Check: the answer appears in the extracts.")
+    model_name: str | None = Field(None, description="The model used.")
+    prompt_id: str | None = Field(None, description="The prompt's name.")
+    prompt: str | None = Field(None, description="The full prompt sent.")
+    cost_estimated: float | None = Field(None, description="Cost of the query, in US dollars.")
+
+
+class AnswerReview(BaseModel):
+    is_correct: bool | None = Field(None, description="The annotator judges the answer correct.")
+    note: str | None = Field(None, description="The annotator's comment.")
 
 
 class HumanAnnotation(BaseModel):
-    location_ai_extracted_is_correct: bool | None = Field(None, description="The annotator judges location_ai_extracted correct after reading the text.")
-    productivity_window_ai_extracted_is_correct: bool | None = Field(None, description="The annotator judges productivity_window_ai_extracted correct after reading the text.")
-    note_location: str | None = Field(None, description="The annotator's comment on location_ai_extracted.")
-    note_productivity_window: str | None = Field(None, description="The annotator's comment on productivity_window_ai_extracted.")
+    location_ai_extracted: AnswerReview = Field(default_factory=AnswerReview, description="Review of the location.")
+    productivity_window_ai_extracted: AnswerReview = Field(default_factory=AnswerReview, description="Review of the productivity window.")
+    polity_ai_matched: AnswerReview = Field(default_factory=AnswerReview, description="Review of the polity.")
 
 
 class TreccaniAnnotation(BaseModel):
-    entity: WikidataEntity = Field(..., description="The individual, by qid and label.")
-    treccani_url: str = Field(..., description="The biography on treccani.it (Wikidata P1986).")
-    treccani_text_path: str = Field("annotations/treccani_validation/_cache/dbi_pages.jsonl", description="The file holding the downloaded text, one JSON line per individual.")
-    location_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual was active, found in the text by a language model.")
-    productivity_window_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was active, found in the text by a language model.")
-    human: HumanAnnotation = Field(default_factory=HumanAnnotation, description="The annotator's verdict on the two answers.")
+    entity: WikidataEntity = Field(..., description="The individual.")
+    treccani_url: str = Field(..., description="The biography on treccani.it.")
+    treccani_text_path: str = Field("annotations/treccani_validation/_cache/dbi_pages.jsonl", description="The file holding the downloaded text.")
+    location_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual was active, found by AI in the text.")
+    productivity_window_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was active, found by AI in the text.")
+    polity_ai_matched: AIAnswer = Field(default_factory=AIAnswer, description="The Cliopatria polity matched by AI to the location and window.")
+    human: HumanAnnotation = Field(default_factory=HumanAnnotation, description="The annotator's review.")
