@@ -13,10 +13,12 @@ sys.path.insert(0, str(ROOT / "scripts" / "1-datamodels"))
 sys.path.insert(0, str(ROOT / "scripts" / "3-raw_to_db" / "helpers"))
 
 import datamodel_in_duckdb as D
+import datamodel_raw as R
 from pydantic_to_duckdb_schema import duck_type
 
 DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura" / "humans_clean_enriched_v3.duckdb"))
 BASE = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
+AI_OUTPUTS = ROOT / "data" / "ai_outputs"
 SCRATCH = Path(os.environ.get("SCRATCH", "/tmp")) / "database_enrichment"
 
 
@@ -46,6 +48,12 @@ class Enrichment:
         if self.prompt_id:
             print(f"prompt  {self.prompt_id}")
         print()
+
+
+def ai_run(name, model):
+    """The answers a language model gave, read back from data/ai_outputs/ and checked against their datamodel class."""
+    path = AI_OUTPUTS / f"{name}.json"
+    return path, model.model_validate_json(path.read_text())
 
 
 def open_database(read_only=False):
