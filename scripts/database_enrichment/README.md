@@ -113,17 +113,19 @@ fifty-year birth cohort.
 is `scripts/legacy/database_consolidation_V2/04_individuals_cliopatria_rs`
 rewritten in Python, and its priority is two tuples, as 06's is:
 
-- `PHASES` — `polygon_containing_the_place`, then
-  `wikipedia_article_shared_with_the_polity` for those the polygons left
-  unmatched.
-- `LOCATION_PRIORITY` — per phase. Polygons are tried deathplace, birthplace,
-  country of citizenship; articles country of citizenship, deathplace,
-  birthplace. The first location that matches anything ends the search, so a
-  deathplace inside a polygon settles it and the birthplace is never tried.
+- `LOCATIONS` — country of citizenship, then birthplace, then deathplace.
+- `PHASES` — for each location, `polygon_containing_the_place`, then
+  `wikipedia_article_shared_with_the_polity`. The first test that matches
+  anything ends the search, so a citizenship inside a polygon settles it and
+  the birthplace is never tried.
+
+Within each test the sub-polities are tried first, and a meta polity (one with
+`child_polities`) is matched only when no sub-polity is. Each match carries the
+polity's `meta_polities`.
 
 Every polity whose territory covers the place and whose years overlap the peak
 activity window is kept, not only the closest fit: a city inside both a kingdom
-and the empire above it produces two matches, and `polity_count` is the length
+and another polity overlapping it produces two matches, and `polity_count` is the length
 of that list.
 
 `years_spent_in_polity` counts each calendar year of the window **once**,

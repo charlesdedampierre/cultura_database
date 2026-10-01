@@ -15,10 +15,7 @@ PHASES = (
     "wikipedia_article_shared_with_the_polity",
 )
 
-LOCATION_PRIORITY = {
-    "polygon_containing_the_place": ("deathplace", "birthplace", "country_of_citizenship"),
-    "wikipedia_article_shared_with_the_polity": ("country_of_citizenship", "deathplace", "birthplace"),
-}
+LOCATIONS = ("country_of_citizenship", "birthplace", "deathplace")
 
 METHOD = {
     "polygon_containing_the_place": "polygon",
@@ -32,7 +29,7 @@ BATCH = 200_000
 ENRICHMENT = Enrichment(
     reads=("Polity.world", "Polity.child_polities", "Polity.meta_polities", "Individual.place_of_birth", "Individual.place_of_death", "Individual.country_of_citizenship", "Place.coordinates", "Place.sitelink", "Polity.territories", "Polity.sitelink", "IndividualEnriched.peak_productivity"),
     writes=("IndividualEnriched.polity", "IndividualEnriched.polity_count"),
-    rule="Every polity whose ground the individual stood on while they were at work. A place is tested against the territories a polity held during the peak activity window, in the two phases named in PHASES and, within a phase, over the locations named in LOCATION_PRIORITY: the first location that matches anything ends the search, so a deathplace inside a polygon settles it and the birthplace is never tried. The second phase runs only for individuals the first left unmatched, and matches on a Wikipedia article shared between the place and the polity. Within each test the sub-polities, those without child_polities, are tried first, and a meta polity is matched only when no sub-polity is. years_spent_in_polity counts each calendar year of the window once, however many territories of that polity cover it. Each match carries the polity's meta_polities, so the meta polity is read off the match.",
+    rule="Every polity whose ground the individual stood on while they were at work. A place is tested against the territories a polity held during the peak activity window, over the locations in the order of LOCATIONS and, for each location, in the two phases of PHASES: the polygon containing the place, then a Wikipedia article shared between the place and the polity. The first test that matches anything ends the search, so a citizenship inside a polygon settles it and the birthplace is never tried. Within each test the sub-polities, those without child_polities, are tried first, and a meta polity is matched only when no sub-polity is. years_spent_in_polity counts each calendar year of the window once, however many territories of that polity cover it. Each match carries the polity's meta_polities, so the meta polity is read off the match.",
     inputs=("IndividualEnriched.peak_productivity",),
     answers=ROOT / "data" / "cultura" / "cultura_v2.duckdb",
 )
@@ -105,10 +102,9 @@ def load_polities(connection):
 
 def main():
     ENRICHMENT.announce()
-    print("phases, in the order they are tried:")
-    for position, phase in enumerate(PHASES, start=1):
-        print(f"   {position}. {phase}")
-        print(f"      locations, in the order they are tried: {', '.join(LOCATION_PRIORITY[phase])}")
+    print("tests, in the order they are tried:")
+    for position, (location, phase) in enumerate(((location, phase) for location in LOCATIONS for phase in PHASES), start=1):
+        print(f"   {position}. {phase} — {location}")
     print(f"\neach calendar year counted once per polity: {COUNT_YEARS_ONCE}\n")
 
     connection = open_database()
@@ -156,8 +152,8 @@ def main():
         total += 1
         window_start, window_end = person["window_start"], person["window_end"]
         found = []
-        for phase in PHASES:
-            for location in LOCATION_PRIORITY[phase]:
+        for location in LOCATIONS:
+            for phase in PHASES:
                 for qid in locations(person, location):
                     if phase == PHASES[0]:
                         if qid not in coordinates:
