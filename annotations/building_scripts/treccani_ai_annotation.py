@@ -7,7 +7,7 @@ Italy during the window. The automatic checks are computed on its quotes: agains
 biography for the first two, against the candidate list for the polity.
 Saved to treccani_ai_annotations.parquet.
 
-Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5] [--model google/gemini-2.5-flash-lite --thinking --out name.parquet]
+Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5] [--model google/gemini-2.5-flash --thinking on|off|minimal --no-reasoning --out name.parquet]
 """
 
 import argparse
@@ -40,7 +40,9 @@ OUT = FOLDER / "treccani_ai_annotations.parquet"
 PROMPTS = ROOT / "scripts" / "prompts"
 
 MODEL = "google/gemini-3.5-flash"
-THINKING = False
+THINKING = "default"
+WRITE_REASONING = True
+REASONING_OPTION = {"on": {"enabled": True}, "off": {"enabled": False}, "minimal": {"effort": "minimal"}}
 TEXT_PROMPTS = {"location_ai_extracted": "treccani_location", "productivity_window_ai_extracted": "treccani_productivity_window"}
 POLITY_PROMPT = "treccani_polity"
 POLITY_SOURCE = "Cliopatria polities overlapping Italy during the window, from the polity table of humans_clean_v2_sample_treccani.duckdb"
@@ -101,7 +103,8 @@ def load_cache():
 
 def setting():
     """The model and its thinking option, as one label: cached answers are reused only for the same one."""
-    return f"{MODEL} +thinking" if THINKING else MODEL
+    label = MODEL + {"default": "", "on": " +thinking", "off": " -thinking", "minimal": " minimal-thinking"}[THINKING]
+    return label if WRITE_REASONING else label + " -reasoning"
 
 
 def load_territories():
@@ -136,7 +139,7 @@ def ask(prompt, key):
         headers={"Authorization": f"Bearer {key}"},
         json={"model": MODEL, "messages": [{"role": "user", "content": prompt}],
               "response_format": {"type": "json_object"}, "usage": {"include": True},
-              **({"reasoning": {"enabled": True}} if THINKING else {})},
+              **({"reasoning": REASONING_OPTION[THINKING]} if THINKING != "default" else {})},
         timeout=180,
     )
     response.raise_for_status()
@@ -202,8 +205,14 @@ def ai_answer(cached, source_text, source, price):
     )
 
 
+def template_of(prompt_id):
+    """The prompt file, without the reasoning field when the model is not asked to write one."""
+    template = (PROMPTS / f"{prompt_id}.txt").read_text(encoding="utf-8")
+    return template if WRITE_REASONING else re.sub(r'\n\s*"reasoning": [^\n]*', "", template)
+
+
 def polity_prompt(location, window, candidate_lines):
-    template = (PROMPTS / f"{POLITY_PROMPT}.txt").read_text(encoding="utf-8")
+    template = template_of(POLITY_PROMPT)
     place = f"{location.answer} (written in the biography as '{location.answer_as_written_in_text}')"
     return template.replace("{location}", place).replace("{window}", window.answer or "").replace("{candidates}", candidate_lines)
 
@@ -215,14 +224,15 @@ def entities(qids):
 
 
 def main():
-    global MODEL, THINKING
+    global MODEL, THINKING, WRITE_REASONING
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--model", default=MODEL)
-    parser.add_argument("--thinking", action="store_true")
+    parser.add_argument("--thinking", choices=("default", "on", "off", "minimal"), default="default")
+    parser.add_argument("--no-reasoning", action="store_true")
     parser.add_argument("--out", default=OUT.name)
     args = parser.parse_args()
-    MODEL, THINKING = args.model, args.thinking
+    MODEL, THINKING, WRITE_REASONING = args.model, args.thinking, not args.no_reasoning
     out = FOLDER / args.out
     load_dotenv(ROOT / ".env")
     key = os.environ["OPEN_ROUTER_API"]
@@ -234,7 +244,7 @@ def main():
     cache = load_cache()
     price = model_price()
 
-    template = {prompt_id: (PROMPTS / f"{prompt_id}.txt").read_text(encoding="utf-8") for prompt_id in TEXT_PROMPTS.values()}
+    template = {prompt_id: template_of(prompt_id) for prompt_id in TEXT_PROMPTS.values()}
     biography = {qid: texts[qid]["text"][:TEXT_CAP] for qid in qids}
     send([(qid, prompt_id, template[prompt_id].replace("{biography}", biography[qid])) for qid in qids for prompt_id in TEXT_PROMPTS.values()], cache, key)
     answers = {qid: {field: ai_answer(cache[qid, prompt_id, setting()], biography[qid], texts[qid]["dbi_url"], price) for field, prompt_id in TEXT_PROMPTS.items()} for qid in qids}
