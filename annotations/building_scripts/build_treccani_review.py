@@ -41,7 +41,10 @@ details summary{cursor:pointer;color:#555;font-size:13px} pre{white-space:pre-wr
 <script>
 const DATA = __DATA__;
 const KEY = "treccani_review_verdicts";
-const FIELDS = [["location_ai_extracted", "Location"], ["productivity_window_ai_extracted", "Productivity window"]];
+const FIELDS = [
+  ["location_ai_extracted", "Location", "location_ai_extracted_is_correct", "note_location"],
+  ["productivity_window_ai_extracted", "Productivity window", "productivity_window_ai_extracted_is_correct", "note_productivity_window"],
+];
 let verdicts = {};
 try { verdicts = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(verdicts)); } catch (e) {} progress(); };
@@ -65,15 +68,12 @@ function answerTable(a) {
   return `<table>${rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>`;
 }
 
-function verdictBox(qid) {
+function verdictBox(qid, label, field, note) {
   const v = verdicts[qid] || {};
-  const radios = (field, label) => `<div><b>${label}</b>
-    <label><input type="radio" name="${qid}-${field}" value="true" ${v[field] === true ? "checked" : ""}> correct</label>
-    <label><input type="radio" name="${qid}-${field}" value="false" ${v[field] === false ? "checked" : ""}> wrong</label></div>`;
-  return `<div class="verdict" data-qid="${qid}">
-    ${radios("location_ai_extracted_is_correct", "Location:")}
-    ${radios("productivity_window_ai_extracted_is_correct", "Productivity window:")}
-    <textarea placeholder="notes" data-field="notes">${esc(v.notes ?? "")}</textarea></div>`;
+  return `<div class="verdict" data-qid="${qid}"><b>${label} check:</b>
+    <label><input type="radio" name="${qid}-${field}" data-field="${field}" value="true" ${v[field] === true ? "checked" : ""}> correct</label>
+    <label><input type="radio" name="${qid}-${field}" data-field="${field}" value="false" ${v[field] === false ? "checked" : ""}> wrong</label>
+    <textarea placeholder="note on the ${label.toLowerCase()}" data-field="${note}">${esc(v[note] ?? "")}</textarea></div>`;
 }
 
 document.getElementById("cards").innerHTML = DATA.map((row, i) => {
@@ -81,23 +81,20 @@ document.getElementById("cards").innerHTML = DATA.map((row, i) => {
   return `<section class="card"><h2>${i + 1}. ${esc(e.label_en || e.label_non_en || e.qid)}</h2>
     <div class="links"><a href="https://www.wikidata.org/wiki/${e.qid}" target="_blank">Wikidata ${e.qid}</a>
     <a href="${esc(row.treccani_url)}" target="_blank">Treccani biography</a><span class="m">${esc(e.description)}</span></div>
-    ${FIELDS.map(([f, label]) => `<h3>${label}</h3>${answerTable(row[f])}`).join("")}
-    ${verdictBox(e.qid)}</section>`;
+    ${FIELDS.map(([f, label, field, note]) => `<h3>${label}</h3>${answerTable(row[f])}${verdictBox(e.qid, label, field, note)}`).join("")}
+    </section>`;
 }).join("");
 
 document.querySelectorAll(".verdict").forEach(box => {
   const qid = box.dataset.qid;
-  box.addEventListener("change", ev => {
+  const update = ev => {
     const t = ev.target;
     verdicts[qid] = verdicts[qid] || {};
-    if (t.type === "radio") verdicts[qid][t.name.slice(qid.length + 1)] = t.value === "true";
+    verdicts[qid][t.dataset.field] = t.type === "radio" ? t.value === "true" : t.value;
     save();
-  });
-  box.querySelector("textarea").addEventListener("input", ev => {
-    verdicts[qid] = verdicts[qid] || {};
-    verdicts[qid].notes = ev.target.value;
-    save();
-  });
+  };
+  box.addEventListener("change", update);
+  box.querySelector("textarea").addEventListener("input", update);
 });
 
 function progress() {
@@ -111,7 +108,8 @@ document.getElementById("export").onclick = () => {
   const rows = DATA.map(r => ({ qid: r.entity.qid,
     location_ai_extracted_is_correct: verdicts[r.entity.qid]?.location_ai_extracted_is_correct ?? null,
     productivity_window_ai_extracted_is_correct: verdicts[r.entity.qid]?.productivity_window_ai_extracted_is_correct ?? null,
-    notes: verdicts[r.entity.qid]?.notes || null }));
+    note_location: verdicts[r.entity.qid]?.note_location || null,
+    note_productivity_window: verdicts[r.entity.qid]?.note_productivity_window || null }));
   const url = URL.createObjectURL(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }));
   const link = Object.assign(document.createElement("a"), { href: url, download: "treccani_human_annotation.json" });
   link.click();
