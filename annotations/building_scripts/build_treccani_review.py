@@ -1,7 +1,7 @@
 """Build annotations/interfaces/treccani_review.html from treccani_ai_annotations.parquet.
 
-One card per individual with the two AI answers, their evidence and checks, and the
-HumanAnnotation fields to fill in. Verdicts are kept in the browser and exported as JSON.
+One individual at a time with its AI answers, their evidence and checks, and the
+HumanAnnotation fields to fill in. Next only moves on once every answer is marked correct or wrong. Verdicts are kept in the browser and exported as JSON.
 
 Usage: .venv/bin/python annotations/building_scripts/build_treccani_review.py [--source name.parquet]
 """
@@ -34,14 +34,17 @@ tr{border-bottom:1px solid #f0f0f0} h3{font-size:15px;margin:16px 0 0}
 details summary{cursor:pointer;color:#555;font-size:13px} pre{white-space:pre-wrap;font-size:12px;background:#fafafa;padding:8px;max-height:300px;overflow:auto}
 .verdict{background:#f7f9fc;border:1px solid #e3e8f0;border-radius:6px;padding:10px 12px;margin-top:12px;font-size:14px}
 .verdict label{margin-right:14px} .verdict textarea{width:100%;box-sizing:border-box;margin-top:6px;font:inherit;min-height:44px}
+.nav{display:flex;gap:10px;align-items:center;margin:20px 0 40px} button:disabled{opacity:.4;cursor:not-allowed} .need{color:#c62828;font-size:13px}
 @media (max-width:640px){.quotes{grid-template-columns:1fr} th{width:120px}}
 </style></head><body>
 <header><h1>Treccani — AI extraction review</h1><span id="progress"></span><button id="export">Export verdicts (JSON)</button></header>
-<p class="m">Source: __SOURCE__. For each answer, read the extracts (and the Treccani page if needed), then say whether the AI answer is correct.</p>
+<p class="m">Source: __SOURCE__. One individual at a time: read the extracts (and the Treccani page if needed), mark every AI answer correct or wrong, then go to the next.</p>
 <div id="cards"></div>
+<div class="nav"><button id="prev">← Previous</button><button id="next">Next →</button><span id="need" class="need"></span></div>
 <script>
 const DATA = __DATA__;
 const KEY = "treccani_review_human_annotation";
+const POSITION = "treccani_review_position___SOURCE__";
 const FIELDS = [
   ["location_ai_extracted", "Location"],
   ["productivity_window_ai_extracted", "Productivity window"],
@@ -97,13 +100,43 @@ document.querySelectorAll(".verdict").forEach(box => {
     else review.note = ev.target.value;
     save();
   };
-  box.addEventListener("change", update);
+  box.addEventListener("change", ev => { update(ev); nav(); });
   box.querySelector("textarea").addEventListener("input", update);
 });
 
+const complete = r => FIELDS.every(([f]) => ((verdicts[r.entity.qid] || {})[f] || {}).is_correct !== undefined);
+const cards = [...document.querySelectorAll("section.card")];
+let current = DATA.findIndex(r => !complete(r));
+try { const saved = parseInt(localStorage.getItem(POSITION), 10); if (saved >= 0 && saved < DATA.length) current = saved; } catch (e) {}
+if (current < 0) current = 0;
+
+function nav() {
+  const last = current === DATA.length - 1;
+  document.getElementById("prev").disabled = current === 0;
+  document.getElementById("next").textContent = last ? "Done — export verdicts" : "Next →";
+  document.getElementById("need").textContent = complete(DATA[current]) ? "" : "Mark every answer correct or wrong to continue.";
+}
+
+function show(i) {
+  current = i;
+  cards.forEach((card, j) => card.hidden = j !== i);
+  try { localStorage.setItem(POSITION, String(i)); } catch (e) {}
+  window.scrollTo(0, 0);
+  progress();
+  nav();
+}
+
+document.getElementById("prev").onclick = () => show(current - 1);
+document.getElementById("next").onclick = () => {
+  if (!complete(DATA[current])) return nav();
+  if (current === DATA.length - 1) return document.getElementById("export").click();
+  show(current + 1);
+};
+show(current);
+
 function progress() {
-  const done = DATA.filter(r => FIELDS.every(([f]) => ((verdicts[r.entity.qid] || {})[f] || {}).is_correct !== undefined)).length;
-  document.getElementById("progress").textContent = `${done} / ${DATA.length} reviewed`;
+  const done = DATA.filter(complete).length;
+  document.getElementById("progress").textContent = `${current + 1} of ${DATA.length} · ${done} reviewed`;
 }
 progress();
 
