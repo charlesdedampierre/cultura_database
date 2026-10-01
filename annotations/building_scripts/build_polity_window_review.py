@@ -5,21 +5,26 @@ are spread over period x region cells (round-robin, so rare cells come first); 8
 Each is shown as a field/value table: the dates and places used, the productive window and
 the polity it produced, and why.
 
-Usage: .venv/bin/python annotations/building_scripts/build_polity_window_review.py
+Usage: .venv/bin/python annotations/building_scripts/build_polity_window_review.py [--sample]
+
+--sample reads humans_clean_sample_v2.duckdb instead and shows every individual in it, so the
+page can be regenerated in seconds after rerunning the enrichment scripts on the sample.
 """
 
 import html
+import sys
 from pathlib import Path
 
 import duckdb
 from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parents[2]
-DB = ROOT / "data" / "cultura" / "humans_clean_v2.duckdb"
+SAMPLE = "--sample" in sys.argv
+DB = ROOT / "data" / "cultura" / ("humans_clean_sample_v2.duckdb" if SAMPLE else "humans_clean_v2.duckdb")
 OUT = ROOT / "annotations" / "interfaces" / "polity_window_review.html"
 
-WITH_WINDOW = 92
-NO_WINDOW = 8
+WITH_WINDOW = 1_000_000 if SAMPLE else 92
+NO_WINDOW = 1_000_000 if SAMPLE else 8
 SEED = 42
 
 RULES = ("floruit", "works_span", "works_single", "birth_death", "birth_only", "death_only")
@@ -296,7 +301,7 @@ td{{padding:5px 0;vertical-align:top;word-break:break-word}} tr{{border-bottom:1
 .m{{color:#888;font-size:12.5px}} a{{color:#2a5db0;text-decoration:none}}
 </style></head><body>
 <h1>Polity of assignation & productive window — 100 individuals</h1>
-<p class="intro">Source: <code>humans_clean_v2.duckdb</code>. Only input. Sample: {per} individuals spread over period (window start) × region (coordinates of death-, birth- or citizenship place) + {none} with no window (seed {seed}).
+<p class="intro">Source: <code>{db}</code>. {per} individuals, spread over period (window start) × region (coordinates of death-, birth- or citizenship place), plus some with no window (seed {seed}).
 Logic: <code>scripts/database_enrichment/06_peak_productivity.py</code> and <code>08_polity_assignment.py</code>.
 Date sources in brackets: precision, source.</p>
 {cards}
@@ -311,7 +316,7 @@ def main():
     people.sort(key=lambda p: (order.index(cells[p["entity"]["qid"]][0]), cells[p["entity"]["qid"]][1], (p["peak_productivity"] or {}).get("start_year") or 0))
     places = load_places(con, people)
     cards = "\n".join(card(i, p, places, cells[p["entity"]["qid"]]) for i, p in enumerate(tqdm(people, desc="cards"), start=1))
-    OUT.write_text(PAGE.format(per=WITH_WINDOW, none=NO_WINDOW, seed=SEED, cards=cards), encoding="utf-8")
+    OUT.write_text(PAGE.format(db=DB.name, per=len(people), seed=SEED, cards=cards), encoding="utf-8")
     print(f"wrote {OUT} ({len(people)} individuals)")
 
 
