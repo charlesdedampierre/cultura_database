@@ -80,6 +80,17 @@ stops if one fails. 06 has to run after it for the new dates to reach
 `CULTURA_DB` points them at another database; `SCRATCH` at another staging
 directory.
 
+The enrichment is never run on the built database itself. The build is kept,
+read-only, as the common basis, and `run_all.py --base` copies it to a new
+database and enriches the copy, so a later enrichment starts from the same
+ground:
+
+```bash
+CULTURA_DB=data/cultura/humans_clean_non_enriched_v3.duckdb .venv/bin/python scripts/raw_to_db/build_database.py
+chmod 444 data/cultura/humans_clean_non_enriched_v3.duckdb
+CULTURA_DB=data/cultura/humans_clean_enriched_v3.duckdb .venv/bin/python scripts/database_enrichment/run_all.py --base data/cultura/humans_clean_non_enriched_v3.duckdb
+```
+
 ## The productive age window
 
 `00_productive_age_window.py` measures it rather than assuming it: for every
