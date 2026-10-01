@@ -1,0 +1,20 @@
+[package]
+name = "estimate_dates_from_life_expectancy"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "estimate_dates_from_life_expectancy"
+path = "src/main.rs"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
+indicatif = "0.17"
+anyhow = "1.0"
+chrono = "0.4"
+csv = "1.3"
+flate2 = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = "thin"

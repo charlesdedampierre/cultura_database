@@ -4,7 +4,7 @@ Keeps only the individuals of an annotation set — by default those shown in
 annotations/legacy/interfaces/polity_window_review.html, or the wikidata_id column of a TSV — so the
 enrichment scripts can be rerun on them in seconds:
 
-    CULTURA_DB=data/cultura/humans_clean_sample_v2.duckdb .venv/bin/python scripts/database_enrichment/06_peak_productivity.py
+    CULTURA_DB=data/cultura/humans_clean_sample_v2.duckdb .venv/bin/python scripts/4-database_enrichment/06_peak_productivity.py
 
 Reference tables (places, polities, cohort statistics, ...) are copied whole: they are small,
 and cohort_age_stats must stay measured on the full database. The sample file is rewritten
