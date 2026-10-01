@@ -27,7 +27,9 @@ WITH_WINDOW = 1_000_000 if SAMPLE else 92
 NO_WINDOW = 1_000_000 if SAMPLE else 8
 SEED = 42
 
-RULES = ("floruit", "works_span", "works_single", "birth_death", "birth_only", "death_only")
+RULES = ("died_young", "floruit", "birth_death", "birth_only", "death_only",
+         "floruit_century", "birth_death_century", "birth_only_century", "death_only_century",
+         "works_span", "works_single")
 
 LOCATION_ORDER = {
     "polygon": ("deathplace", "birthplace", "country_of_citizenship"),
@@ -154,34 +156,42 @@ def place_cell(qid, places):
     return f"{html.escape(p.get('label') or '?')} {wd(qid)}{coords}{wiki}"
 
 
+def rule_of(method):
+    return max((r for r in RULES if method.startswith(r)), key=len)
+
+
 def explain_window(person):
     w = person["peak_productivity"]
     if not w:
         return "No rule applied: no usable birth, death or floruit date and no dated work."
     method, start, end = w["assignation_method"], w["start_year"], w["end_year"]
-    rule = next(r for r in RULES if method.startswith(r))
+    rule = rule_of(method)
     source = method[len(rule) + 1:]
     birth = used_year(person["birth_date"], source)
     death = used_year(person["death_date"], source)
     works = person["works_period"] or {}
     ages = f"age {start - birth} to {end - birth}" if birth is not None else ""
+    low = round(person["cohort_age_stats"]["productivity_window_from_wikidata_floruit"]["low"]) if person["cohort_age_stats"] else 0
+    text = {
+        "died_young": f"Born {birth}, died {death} at age {death - birth if birth is not None and death is not None else '?'} (≤ 18): the whole life counts.",
+        "floruit": "",
+        "birth_death": f"Born {birth}, died {death} ({source}): window = {ages}{', cut at death' if death == end else ''}.",
+        "birth_only": f"Born {birth} ({source}), no death year: window = {ages}.",
+        "death_only": f"Died {death} ({source}), no year-precise birth: birth estimated as {start - low} from life expectancy, window = age {low} to {end - start + low}{', cut at death' if death == end else ''}.",
+        "floruit_century": "Floruit known only to the century: the window is that century.",
+        "birth_death_century": "Birth and death known only to the century: same century → that century; consecutive → late first – early second.",
+        "birth_only_century": "Birth known only to the century: someone born late in it is active in the next → that century and the next.",
+        "death_only_century": "Death known only to the century: someone who died early in it was active in the one before → the century before and that one.",
+        "works_span": f"No usable birth, death or floruit: first to last dated work, {works.get('first_year')}–{works.get('last_year')}.",
+        "works_single": f"No usable birth, death or floruit: one dated work year ({works.get('first_year')}), extended forward by {end - start} years.",
+    }[rule]
     if rule == "floruit":
         floruit = used_year(person["floruit_date"], source)
         text = (f"Floruit {floruit} ({source}), born {birth}: window placed at {ages} around it." if birth is not None
                 else f"Floruit {floruit} ({source}), no birth year: window runs {end - start} years from it.")
-    elif rule == "works_span":
-        text = f"First to last dated work: {works.get('first_year')}–{works.get('last_year')}."
-    elif rule == "works_single":
-        text = f"Only one dated work year ({works.get('first_year')}), extended forward by {end - start} years."
-    elif rule == "birth_death":
-        cut = f", cut at death {death}" if death == end else ""
-        text = f"Born {birth}, died {death} ({source}): window = {ages}{cut}."
-    elif rule == "birth_only":
-        text = f"Born {birth} ({source}), no death year: window = {ages}."
-    else:
-        text = f"Died {death} ({source}), no year-precise birth year: window runs back {end - start} years from death."
-    return (f"{text}<br><span class=m>Rule “{rule}” was the first that applied. Rules are tried in order "
-            f"{' → '.join(RULES)}, year-precise dates before coarser ones; the first that yields a window wins.</span>")
+    return (f"{text}<br><span class=m>Rule “{rule}” was the first that applied. Order: dates to the year or decade "
+            "(died ≤ 18 → floruit → birth + death → birth → death), then dates to the century (same order), "
+            "then dated works as the last resort.</span>")
 
 
 def quartiles(stats, unit):
@@ -192,35 +202,39 @@ def cohort_rows(person):
     cohort, w = person["cohort_age_stats"], person["peak_productivity"]
     if not cohort:
         return [("Cohort", "none — no birth year, and no floruit, work or death to estimate one from")]
-    rule = next((r for r in RULES if w and w["assignation_method"].startswith(r)), None)
-    dates = [e for key in ("birth_date", "death_date") for e in person[key] or ()]
-    uses_life = any(source_of(e) == "life_expectancy_estimate" for e in dates)
+    rule = rule_of(w["assignation_method"]) if w else None
     window = cohort["productivity_window_from_wikidata_floruit"]
     low, high = round(window["low"]), round(window["high"])
     how_window = {
         None: "no — no rule produced a window",
         "works_span": "no — the window is the actual span of dated works",
+        "died_young": "no — died aged 18 or younger, the whole life counts",
+        "floruit_century": "no — century window", "birth_death_century": "no — century window",
+        "birth_only_century": "no — century window", "death_only_century": "no — century window",
         "floruit": f"yes — floruit placed within ages {low}–{high}",
         "works_single": f"yes — single work year extended by {high - low} years ({high} − {low})",
         "birth_death": f"yes — birth + {low} to birth + {high}",
         "birth_only": f"yes — birth + {low} to birth + {high}",
-        "death_only": f"yes — death minus {high - low} years ({high} − {low})",
+        "death_only": f"yes — estimated birth + {low} to birth + {high}, cut at death",
     }[rule]
     occupation = cohort["cv_occupation"]
     why_occ = ("cross-verified occupation of the individual" if occupation != "All"
                else "individual's occupation is Other, missing or absent from the cross-verified database")
     date_range = cohort["date_range"]
-    has_birth = any(date_range["start_year"] <= (e.get("year") or 0) <= date_range["end_year"] for e in person["birth_date"] or ())
-    why_year = ("birth year" if has_birth
-                else "estimated birth year = floruit, first work or death minus the typical age at floruit (no year-precise birth)")
+    has_birth = any(date_range["start_year"] <= (e.get("year") or 0) <= date_range["end_year"] for e in person["birth_date"] or () if e["precision"] in ("day", "month", "year", "decade"))
+    why_year = ("birth year" if has_birth else
+                "birth estimated from the death by the median life expectancy" if rule == "death_only" else
+                "middle of the birth century" if rule in ("birth_death_century", "birth_only_century") else
+                "estimated birth year = floruit, century or first work minus the typical age at floruit (no year-precise birth)")
     return [
         ("Cohort", f"{occupation} · born {date_range['start_year']}–{date_range['end_year']}"
                    f"<br><span class=m>Occupation: {why_occ}. 50-year cohort from the {why_year}.</span>"),
         ("Productivity window (cohort)", quartiles(window, "years of age") + "<br><span class=m>Age at Wikidata floruit in this cohort.</span>"),
         ("<b>Productivity cohort used?</b>", how_window),
         ("Life expectancy (cohort)", quartiles(cohort["life_expectancy_from_wikidata_birth_death"], "years") + "<br><span class=m>Age at death from Wikidata birth and death in this cohort.</span>"),
-        ("<b>Life expectancy used?</b>", "yes — a birth or death date was estimated from it" if uses_life
-         else "no — all birth and death dates are stated (Wikidata or Wikipedia), none estimated from life expectancy"),
+        ("<b>Life expectancy used?</b>",
+         f"yes — birth estimated as death − median life expectancy ({cohort['life_expectancy_from_wikidata_birth_death']['median']:g} years)"
+         if rule == "death_only" else "no — not needed: no death-only estimate"),
     ]
 
 
@@ -259,6 +273,16 @@ def polity_list(matches):
         for m in matches)
 
 
+def window_cell(w):
+    if not w:
+        return "<b>none</b>"
+    if w.get("precision") in ("century", "millennium"):
+        return (f"<b>{html.escape(w['label'])}</b> <span class=m>({w['assignation_method']}; "
+                f"bounds {w['start_year']}–{w['end_year']} used for polity matching)</span>")
+    return (f"<b>{w['start_year']}–{w['end_year']}</b> · {w['end_year'] - w['start_year']} years "
+            f"<span class=m>({w['assignation_method']})</span>")
+
+
 def card(i, p, places, cell):
     e, w, matches = p["entity"], p["peak_productivity"], p["polity"] or []
     wiki = p["wiki_en"] or p["wiki_any"]
@@ -276,7 +300,7 @@ def card(i, p, places, cell):
         ("Birthplace", place_cell(p["birthplace"], places)),
         ("Deathplace", place_cell(p["deathplace"], places)),
         ("Citizenship", "<br>".join(place_cell(q, places) for q in p["citizenship"] or []) or "—"),
-        ("<b>Productive window</b>", f"<b>{w['start_year']}–{w['end_year']}</b> · {w['end_year'] - w['start_year']} years <span class=m>({w['assignation_method']})</span>" if w else "<b>none</b>"),
+        ("<b>Productive window</b>", window_cell(w)),
         ("How the window was found", explain_window(p)),
         *cohort_rows(p),
         ("<b>Polity of assignation</b>", f"<b>{html.escape(matches[0]['polity']['name'])}</b>" if matches else "<b>none</b>"),
