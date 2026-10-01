@@ -1,6 +1,7 @@
 """Build data/cultura/humans_clean_sample_v2.duckdb from humans_clean_v2.duckdb.
 
-Keeps only the individuals shown in annotations/interfaces/polity_window_review.html, so the
+Keeps only the individuals of an annotation set — by default those shown in
+annotations/interfaces/polity_window_review.html, or the wikidata_id column of a TSV — so the
 enrichment scripts can be rerun on them in seconds:
 
     CULTURA_DB=data/cultura/humans_clean_sample_v2.duckdb .venv/bin/python scripts/database_enrichment/06_peak_productivity.py
@@ -8,17 +9,21 @@ enrichment scripts can be rerun on them in seconds:
 Reference tables (places, polities, cohort statistics, ...) are copied whole: they are small,
 and cohort_age_stats must stay measured on the full database. The sample file is rewritten
 on every run.
+
+Usage: build_sample_database.py [--from-tsv path/to/sample.tsv --name humans_clean_v2_sample_x]
 """
 
+import argparse
 import re
 from pathlib import Path
 
 import duckdb
+import pandas as pd
 from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "data" / "cultura" / "humans_clean_v2.duckdb"
-SAMPLE = ROOT / "data" / "cultura" / "humans_clean_sample_v2.duckdb"
+DEFAULT_NAME = "humans_clean_sample_v2"
 ANNOTATION = ROOT / "annotations" / "interfaces" / "polity_window_review.html"
 
 WHOLE_TABLES = ("place", "polity", "cohort_age_stats", "occupation_stats", "occupation", "identifier", "sitelink", "wikidata_property")
@@ -33,14 +38,21 @@ INDIVIDUAL_TABLES = {
 }
 
 
-def annotated_qids():
+def annotated_qids(tsv):
+    if tsv:
+        return list(pd.read_csv(tsv, sep="\t")["wikidata_id"])
     page = ANNOTATION.read_text(encoding="utf-8")
     return re.findall(r'<th>Wikidata</th><td><a href="https://www\.wikidata\.org/wiki/(Q\d+)"', page)
 
 
 def main():
-    qids = annotated_qids()
-    print(f"{len(qids)} individuals in {ANNOTATION.name}")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--from-tsv", type=Path)
+    parser.add_argument("--name", default=DEFAULT_NAME)
+    args = parser.parse_args()
+    SAMPLE = ROOT / "data" / "cultura" / f"{args.name}.duckdb"
+    qids = annotated_qids(args.from_tsv)
+    print(f"{len(qids)} individuals in {(args.from_tsv or ANNOTATION).name}")
     SAMPLE.unlink(missing_ok=True)
     connection = duckdb.connect(str(SAMPLE))
     connection.execute(f"ATTACH '{SOURCE}' AS source (READ_ONLY)")
