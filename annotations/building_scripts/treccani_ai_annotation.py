@@ -7,7 +7,7 @@ Italy during the window. The automatic checks are computed on its quotes: agains
 biography for the first two, against the candidate list for the polity.
 Saved to treccani_ai_annotations.parquet.
 
-Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5] [--model google/gemini-2.5-flash --thinking on|off|minimal --no-reasoning --out name.parquet]
+Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5] [--model google/gemini-2.5-flash --thinking on|off|minimal --no-reasoning --with-cultura --out name.parquet]
 """
 
 import argparse
@@ -217,6 +217,18 @@ def polity_prompt(location, window, candidate_lines):
     return template.replace("{location}", place).replace("{window}", window.answer or "").replace("{candidates}", candidate_lines)
 
 
+def with_cultura(qids):
+    """The individuals Cultura can be judged on: a productivity window known to the year, and at least one polity."""
+    connection = duckdb.connect(str(DB), read_only=True)
+    return [qid for (qid,) in connection.execute("""
+        SELECT individual_enriched.entity.qid FROM individual_enriched
+        WHERE individual_enriched.entity.qid IN (SELECT unnest(?))
+          AND individual_enriched.peak_productivity.start_year IS NOT NULL
+          AND individual_enriched.peak_productivity.assignation_method NOT LIKE '%century%'
+          AND individual_enriched.polity_count > 0
+    """, [qids]).fetchall()]
+
+
 def entities(qids):
     connection = duckdb.connect(str(DB), read_only=True)
     rows = connection.execute("SELECT entity FROM individual WHERE entity.qid IN (SELECT unnest(?))", [qids]).fetchall()
@@ -230,6 +242,7 @@ def main():
     parser.add_argument("--model", default=MODEL)
     parser.add_argument("--thinking", choices=("default", "on", "off", "minimal"), default="default")
     parser.add_argument("--no-reasoning", action="store_true")
+    parser.add_argument("--with-cultura", action="store_true")
     parser.add_argument("--out", default=OUT.name)
     args = parser.parse_args()
     MODEL, THINKING, WRITE_REASONING = args.model, args.thinking, not args.no_reasoning
@@ -239,6 +252,8 @@ def main():
 
     texts = load_texts()
     population = sorted(entities(list(texts)))
+    if args.with_cultura:
+        population = sorted(with_cultura(population))
     qids = random.Random(SEED).sample(population, args.n)
     print(f"{len(population)} individuals with a downloaded text in {DB.name}; annotating {len(qids)}: {', '.join(qids)}")
     cache = load_cache()
