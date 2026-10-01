@@ -6,15 +6,15 @@ from datamodel_in_duckdb import WikidataEntity
 
 
 class AIAnswer(BaseModel):
-    value: str | None = Field(None, description="The model's answer, in English — 'Florence', '1260-1298'.")
-    value_as_written: str | None = Field(None, description="The answer as the text writes it — 'Firenze', 'XIII secolo'.")
-    value_as_written_translated_english: str | None = Field(None, description="value_as_written in English.")
+    answer: str | None = Field(None, description="The model's answer, in English — 'Florence', '1260-1298'.")
+    answer_as_written_in_text: str | None = Field(None, description="The answer as the text writes it — 'Firenze', 'XIII secolo'.")
+    answer_as_written_in_text_english: str | None = Field(None, description="answer_as_written_in_text in English.")
     confidence: Literal["high", "medium", "low"] | None = Field(None, description="How sure the model says it is.")
     reasoning: str | None = Field(None, description="The model's justification, in one to three sentences.")
-    verbatim: tuple[str, ...] = Field((), description="Word-for-word extracts from the text supporting the answer.")
-    verbatim_translated_english: tuple[str, ...] = Field((), description="The extracts in English, in the same order.")
-    quotes_in_text: bool | None = Field(None, description="Every extract is found word for word in the text.")
-    value_in_quote: bool | None = Field(None, description="value_as_written appears in at least one extract.")
+    source_verbatim: tuple[str, ...] = Field((), description="Word-for-word extracts of the text the answer comes from.")
+    source_verbatim_english: tuple[str, ...] = Field((), description="source_verbatim in English, in the same order.")
+    source_verbatim_found_in_text: bool | None = Field(None, description="Every extract in source_verbatim is found word for word in the text.")
+    answer_found_in_source_verbatim: bool | None = Field(None, description="answer_as_written_in_text appears in at least one extract of source_verbatim.")
     model_name: str | None = Field(None, description="The model that answered — 'google/gemini-3.5-flash'.")
     prompt_id: str | None = Field(None, description="The prompt's name and version — 'treccani_floruit_location_v6'.")
     prompt: str | None = Field(None, description="The full prompt sent for this individual.")
