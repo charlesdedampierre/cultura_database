@@ -1,8 +1,4 @@
-"""Inception (P571) and dissolution (P576) of every Cliopatria polity that names a Wikidata item.
-
-Output: data/raw_data_from_wikidata/wikidata_extraction_scripts_v2/polity_existence.json
-    {qid: {"inception": {"date": ISO, "precision": int} | None, "dissolution": {...} | None}}
-"""
+"""Extract the inception (P571) and dissolution (P576) of every Cliopatria polity with a Wikidata item."""
 import json
 from pathlib import Path
 

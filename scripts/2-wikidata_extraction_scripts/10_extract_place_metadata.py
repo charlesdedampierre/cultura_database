@@ -1,36 +1,4 @@
-"""For every place QID that appears as a birthplace (P19) or deathplace
-(P20) of a Q5 human, fetch enough metadata to consolidate the ``cities``
-table downstream:
-
-    - English label (rdfs:label)
-    - Coordinates (P625)
-    - Country (P17)
-    - Entity type(s) (P31, all values — used to decide if the place is
-      a city/town/village/etc.)
-    - English Wikipedia URL
-
-We restrict the queries to places that are actually used as birth/death
-places of humans, which keeps the query scope manageable on QLever and
-matches the legacy pipeline (scripts 17, 24, 35).
-
-Output:
-    data/all_humans/wikidata_extraction_scripts_v2/place_metadata.json
-    {
-      "Q90": {
-        "id": "Q90",
-        "label": "Paris",
-        "lat": 48.8566, "lon": 2.3522,
-        "country": "Q142",
-        "entity_types": ["Q515", "Q200250", ...],
-        "en_wikipedia_url": "https://en.wikipedia.org/wiki/Paris"
-      },
-      ...
-    }
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/10_extract_place_metadata.py --test
-    python scripts/wikidata_extraction_scripts_v2/10_extract_place_metadata.py
-"""
+"""Extract label, coordinates, country, type and Wikipedia link of every birth and death place."""
 from __future__ import annotations
 
 import os

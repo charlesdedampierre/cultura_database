@@ -1,8 +1,4 @@
-"""English Wikipedia article of every place (birthplaces, deathplaces), in the same
-{qid: url} shape as nationality_sitelinks.json.
-
-Output: data/raw_data_from_wikidata/wikidata_extraction_scripts_v2/place_sitelinks.json
-"""
+"""Extract the English Wikipedia article of every birth and death place."""
 import json
 from pathlib import Path
 

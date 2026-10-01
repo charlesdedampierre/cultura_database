@@ -1,14 +1,4 @@
-"""Extract country of citizenship (P27) for every Q5 human, plus English
-labels for each unique nationality QID.
-
-Outputs:
-    data/all_humans/nationalities.json         {human_qid: [country_qid, ...]}
-    data/all_humans/nationality_labels.json    {country_qid: "label"}
-
-Run:
-    python wikidata_extraction_scripts_v2/04_extract_nationalities.py --test
-    python wikidata_extraction_scripts_v2/04_extract_nationalities.py
-"""
+"""Extract the countries of citizenship (P27) of every Q5 human, with their English labels."""
 from __future__ import annotations
 
 import os

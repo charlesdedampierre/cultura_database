@@ -1,19 +1,4 @@
-"""Extract every work (book / film / composition / ...) authored or created
-by a Q5 human, plus English labels for each unique work QID.
-
-Properties (work --prop--> human):
-    P50  author          P57  director          P98  editor
-    P170 creator         P162 producer          P175 performer
-    P86  composer        P58  screenwriter      P110 illustrator
-
-Outputs:
-    data/all_humans/works.json         {human_qid: [{"work": Q..., "prop": P...}, ...]}
-    data/all_humans/work_labels.json   {work_qid: "English label"}
-
-Run:
-    python wikidata_extraction_scripts_v2/07_extract_works.py --test
-    python wikidata_extraction_scripts_v2/07_extract_works.py
-"""
+"""Extract every work authored or created by a Q5 human, with their English labels."""
 from __future__ import annotations
 
 import os

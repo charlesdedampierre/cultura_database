@@ -1,12 +1,4 @@
-"""Metadata of every external-id property: the database it points to (P1629), its country
-(P17), when it was founded (P571), how many records it holds (P4876) and its website (P856).
-Wikidata mostly states the last three on the database item rather than on the property, so
-where the property lacks them they are read from its P1629 item, and the field is listed
-under "read_from_issuer".
-
-Output: data/raw_data_from_wikidata/wikidata_extraction_scripts_v2/identifier_metadata.json
-    {pid: {"issuer": qid, "country": qid, "inception": {"date", "precision"}, "number_of_records": int, "website": url}}
-"""
+"""Extract the database, country, inception, record count and website of every external-id property."""
 import json
 from pathlib import Path
 

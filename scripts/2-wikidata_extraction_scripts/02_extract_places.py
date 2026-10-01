@@ -1,16 +1,4 @@
-"""Extract birthplace (P19) and deathplace (P20) for every Q5 human.
-
-The values are place QIDs — resolving them to city / country labels and
-coordinates is done by downstream enrichment scripts.
-
-Outputs:
-    data/all_humans/places.json
-    data/all_humans/places.test.json
-
-Run:
-    python wikidata_extraction_scripts_v2/02_extract_places.py --test
-    python wikidata_extraction_scripts_v2/02_extract_places.py
-"""
+"""Extract the birthplace (P19) and deathplace (P20) of every Q5 human."""
 from __future__ import annotations
 
 import os

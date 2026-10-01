@@ -1,46 +1,4 @@
-"""Extract inception (P571) and publication (P577) dates — value AND
-`wikibase:timePrecision` — for every distinct work_id present in
-`data/humans_clean.sqlite3` table `works`.
-
-Strategy
---------
-Same VALUES-chunked pattern as `15_extract_work_instance_of.py`:
-
-    SELECT ?work ?date ?precision WHERE {
-      VALUES ?work { wd:Q1 wd:Q2 ... }
-      ?work p:P571 ?stmt .
-      ?stmt psv:P571 ?val .
-      ?val wikibase:timeValue ?date .
-      ?val wikibase:timePrecision ?precision .
-    }
-
-We do this twice (once for P571, once for P577) and merge.
-
-Speed-test (50k sample, run via 18_speed_test_work_dates.py) showed
-chunk=10000 + threads=8 is the best stable point on QLever — bumping to 15
-threads triggers HTTP 429 rate-limits and net throughput collapses.
-
-Outputs
--------
-data/all_humans/wikidata_extraction_scripts_v2/
-    work_inception.json       {work_qid: {"date": ISO, "precision": int}}
-    work_publication.json     {work_qid: {"date": ISO, "precision": int}}
-    work_dates.json           merged: {work_qid: {"inception": {...}, "publication": {...}}}
-    work_dates.errors.json    failed chunks (after one retry)
-
-Logs
-----
-- ``task.log`` at repo root (truncated and rewritten on launch)
-- ``logs/work_dates_extraction.log`` (full per-chunk log; tail-friendly)
-- ``logs/work_dates_extraction_processed.json`` (chunk-level checkpoint)
-
-Run
----
-    python scripts/wikidata_extraction_scripts_v2/19_extract_work_dates.py --test
-    python scripts/wikidata_extraction_scripts_v2/19_extract_work_dates.py
-    nohup caffeinate -i python scripts/wikidata_extraction_scripts_v2/19_extract_work_dates.py \\
-          > logs/work_dates_extraction.nohup.log 2>&1 &
-"""
+"""Extract the inception (P571) and publication (P577) dates, with precision, of every work."""
 from __future__ import annotations
 
 import argparse

@@ -1,34 +1,4 @@
-"""Shared Wikidata client used by every extract_*.py script.
-
-We use QLever (https://qlever.cs.uni-freiburg.de/api/wikidata) for bulk pulls
-because it streams TSV results for queries that the official WDQS endpoint
-times out on (e.g. "all Q5 humans with property X"). For small ad-hoc queries
-(LIMIT 100, --test mode) we go direct to WDQS: it is more reliable for tiny
-queries and decouples our smoke tests from QLever's uptime.
-
-Public surface
---------------
-    stream(query, endpoint="qlever")   -> yields list[str] rows (works for both)
-    qlever_stream(query)               -> yields list[str] rows (TSV)
-    wdqs_json(query)                   -> dict (full SPARQL JSON results)
-    extract_qid(uri_or_token)          -> "Q42"
-    clean_literal(token)               -> strips surrounding quotes / lang tag
-
-All HTTP calls retry on 429/5xx with exponential backoff. ``extract_qid`` and
-``clean_literal`` tolerate both QLever TSV (``<...>`` wrappers, ``"..."@en``
-literals) and WDQS JSON (already clean).
-
-Cohort filtering
-----------------
-When the env var ``WIKIDATA_TEST_COHORT_FILE`` points to a JSON file
-containing a list (or dict keyed by) Q-IDs, every query that mentions
-``?h wdt:P31 wd:Q5`` is rewritten to first restrict ``?h`` to that
-cohort via a ``VALUES`` clause, and any trailing ``LIMIT`` is stripped
-(the cohort itself caps the result). Endpoint is forced to QLever
-because cohort sizes can exceed WDQS's URL/result limits. This lets the
-test pipeline use a single shared sample of humans across all 14
-extract scripts (so that downstream joins actually align).
-"""
+"""Shared QLever / WDQS client used by every extraction script."""
 from __future__ import annotations
 
 import json

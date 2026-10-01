@@ -1,39 +1,4 @@
-"""Fetch every Wikidata entity that has an ISO 3166-1 alpha-3 code (P298).
-
-This is the universe of "modern countries" used by the cliopatria /
-nationalities pipelines to ground every individual to a present-day
-sovereign state. We intentionally do NOT scope to "P31 wd:Q6256" because
-some dependent territories that get their own ISO3 code are not modeled
-as Q6256 in Wikidata.
-
-For each country we collect:
-    - English label
-    - ISO 3166-1 alpha-3 (P298)
-    - continent (P30) + English label
-    - capital (P36)
-    - English Wikipedia URL
-
-Mirrors legacy script 31 plus the country Wikipedia bit of
-``extract_country_wikipedia.py``.
-
-Output:
-    data/all_humans/wikidata_extraction_scripts_v2/modern_countries.json
-    {
-      "Q142": {
-        "id": "Q142",
-        "name": "France",
-        "iso_a3_code": "FRA",
-        "continent_id": "Q46",
-        "continent": "Europe",
-        "capital": "Q90",
-        "en_wikipedia_url": "https://en.wikipedia.org/wiki/France"
-      }, ...
-    }
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/13_extract_modern_countries.py --test
-    python scripts/wikidata_extraction_scripts_v2/13_extract_modern_countries.py
-"""
+"""Extract every modern country, i.e. every entity with an ISO 3166-1 alpha-3 code (P298)."""
 from __future__ import annotations
 
 import os

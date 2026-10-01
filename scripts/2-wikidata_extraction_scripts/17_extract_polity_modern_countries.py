@@ -1,37 +1,4 @@
-"""Fetch the modern sovereign states associated with each Cliopatria polity.
-
-For every polity in `polities_cliopatria` that carries a `wikidata_id`, we
-collect every present-day country (Q with ISO 3166-1 alpha-3 / P298) that
-Wikidata links to the polity through one of these patterns:
-
-    direct:    ?polity wdt:P17 ?country
-    capital:   ?polity wdt:P36 ?cap     . ?cap wdt:P17 ?country
-    successor: ?polity wdt:P1366 ?succ  . ?succ wdt:P17 ?country
-    parent:    ?polity wdt:P131 ?adm    . ?adm  wdt:P17 ?country
-
-We avoid recursive paths (`P1366*` / `P131*`) — they explode and time out on
-QLever for the empire-sized polities.
-
-Output (single JSON keyed by polity QID):
-    data/all_humans/wikidata_extraction_scripts_v2/polity_modern_countries.json
-
-    {
-      "Q42534": {
-        "polity_qid": "Q42534",
-        "countries": [
-          {"country_qid": "Q668", "iso_a3_code": "IND", "source": "P17"},
-          {"country_qid": "Q843", "iso_a3_code": "PAK", "source": "P17"}
-        ]
-      }, ...
-    }
-
-We also write `polity_modern_countries.errors.json` listing batches that
-failed; the script retries them once at the end.
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/17_extract_polity_modern_countries.py --test
-    python scripts/wikidata_extraction_scripts_v2/17_extract_polity_modern_countries.py
-"""
+"""Extract the modern countries linked to each Cliopatria polity."""
 from __future__ import annotations
 
 import argparse

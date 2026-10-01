@@ -1,40 +1,4 @@
-"""For every external-ID property already extracted by 06_extract_catalogs,
-fetch the metadata used to enrich the ``identifier_types`` table:
-
-    - English label
-    - English description
-    - issuer (P126 maintained by, OR P137 operator) + label + P31 instance
-    - country (P17) + label
-    - inception (P571)
-    - database records (P4876)
-    - official website (P856)
-    - formatter URL (P1630, used to build canonical URLs from the raw value)
-
-Mirrors legacy scripts 22 (metadata) and 33 (names).
-
-Output:
-    data/all_humans/wikidata_extraction_scripts_v2/catalog_metadata.json
-    {
-      "P214": {
-        "property_id": "P214",
-        "label": "VIAF ID",
-        "description": "...",
-        "issuer_id": "Q54919",
-        "issuer_name": "OCLC",
-        "issuer_instance": "library cooperative",
-        "country_id": "Q30",
-        "country_name": "United States of America",
-        "inception": "2003",
-        "database_records": "...",
-        "website": "https://viaf.org/",
-        "formatter_url": "https://viaf.org/viaf/$1/"
-      }, ...
-    }
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/14_extract_catalog_metadata.py --test
-    python scripts/wikidata_extraction_scripts_v2/14_extract_catalog_metadata.py
-"""
+"""Extract the metadata (label, issuer, country, inception, website...) of every catalog property."""
 from __future__ import annotations
 
 import argparse

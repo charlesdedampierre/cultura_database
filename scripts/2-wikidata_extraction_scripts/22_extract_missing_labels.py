@@ -1,10 +1,4 @@
-"""English labels for the humans that all_human_names.json lacks, falling back to the
-language-neutral 'mul' label Wikidata now uses in place of many English ones, and last to a
-label in any language (the alphabetically first language code, so reruns agree).
-
-Output: data/raw_data_from_wikidata/wikidata_extraction_scripts_v2/missing_labels.json
-    {qid: {"label": str, "language": "en" | "mul" | other code}}
-"""
+"""Extract a label for the humans that have no English name."""
 import json
 from pathlib import Path
 

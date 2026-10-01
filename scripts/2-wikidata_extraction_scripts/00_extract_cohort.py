@@ -1,31 +1,4 @@
-"""Build a reusable cohort of Q5 humans for the test pipeline.
-
-The full extraction is hours; the integration test only needs a small,
-deterministic sample of humans where every per-property extract script
-sees the **same** set so downstream joins (in
-``_build_clean_test.py`` and the consolidation scripts) actually align.
-
-Two subcommands:
-
-    extract   one-time pull of N Q-IDs from QLever, cached on disk.
-    sample    deterministic random pick of M QIDs out of the cached pool.
-
-Outputs (default locations under ``data/test_cohort/``):
-
-    cohort_100k.json     full cached pool (one-time, ~a few MB)
-    cohort_sample.json   the rolling 1k sub-sample used by tests
-
-Usage
------
-    # one-time (~1 minute against QLever)
-    python scripts/wikidata_extraction_scripts_v2/00_extract_cohort.py extract
-
-    # cheap, repeatable
-    python scripts/wikidata_extraction_scripts_v2/00_extract_cohort.py sample --n 1000
-
-The downstream extract scripts read the sample via the
-``WIKIDATA_TEST_COHORT_FILE`` env var (handled in ``wikidata.py``).
-"""
+"""Build a small fixed cohort of Q5 humans so every test extraction runs on the same set."""
 from __future__ import annotations
 
 import argparse
