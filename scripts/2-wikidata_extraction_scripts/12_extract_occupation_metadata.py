@@ -1,29 +1,4 @@
-"""For every occupation QID that appears as a P106 of any Q5 human, fetch
-metadata to consolidate the ``occupations`` table downstream:
-
-    - English description
-    - instance_of (P31, all values)
-    - subclass_of (P279, all *direct* parents — used to root the
-      meta-occupation hierarchy locally)
-
-Mirrors the union of legacy scripts 19 (sub-occupations of scientists/
-artists) and 25 (occupation descriptions/instance_of).
-
-Output:
-    data/all_humans/wikidata_extraction_scripts_v2/occupation_metadata.json
-    {
-      "Q36180": {
-        "id": "Q36180",
-        "description": "person who uses written words to communicate ideas",
-        "instance_of": ["Q28640"],
-        "subclass_of": ["Q482980"]
-      }, ...
-    }
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/12_extract_occupation_metadata.py --test
-    python scripts/wikidata_extraction_scripts_v2/12_extract_occupation_metadata.py
-"""
+"""Extract description, instance of (P31) and parent classes (P279) of every occupation."""
 from __future__ import annotations
 
 import os

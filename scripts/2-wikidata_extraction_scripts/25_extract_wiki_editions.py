@@ -1,9 +1,4 @@
-"""Every Wikimedia site (Wikipedia editions, Wikiquote, Commons...) with its English name
-and the language it is written in.
-
-Output: data/raw_data_from_wikidata/wikidata_extraction_scripts_v2/wiki_editions.json
-    {"https://fr.wikipedia.org": {"qid": "Q8447", "dbname": "frwiki", "label_en": "French Wikipedia", "language": "Q150"}}
-"""
+"""Extract every Wikimedia site with its English name and language."""
 import json
 from pathlib import Path
 

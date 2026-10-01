@@ -1,14 +1,4 @@
-"""Extract every sitelink (Wikipedia / Wikiquote / Wikisource / ...) for
-every Q5 human.
-
-Output:
-    data/all_humans/sitelinks.json   {human_qid: [url, url, ...]}
-    data/all_humans/sitelinks.test.json (in --test mode)
-
-Run:
-    python wikidata_extraction_scripts_v2/05_extract_sitelinks.py --test
-    python wikidata_extraction_scripts_v2/05_extract_sitelinks.py
-"""
+"""Extract every sitelink (Wikipedia, Wikiquote, Wikisource...) of every Q5 human."""
 from __future__ import annotations
 
 import os

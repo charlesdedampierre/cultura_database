@@ -1,27 +1,4 @@
-"""Extract external catalog identifiers (VIAF, GND, ISNI, Library of Congress,
-BnF, ...) for every Q5 human.
-
-Two phases:
-    1. Get the canonical list of every ``wikibase:ExternalId`` property from
-       the official Wikidata SPARQL endpoint (source of truth — QLever's
-       property metadata can lag).
-    2. For each property, stream all (human, value) pairs from QLever and
-       write them as one JSON file per property under
-       ``data/all_humans/identifiers_per_property/``. Properties whose JSON
-       already exists are skipped, so re-running is a free resume.
-
-Outputs:
-    data/all_humans/catalog_properties.json
-        the property list with id, label, formatter URL
-    data/all_humans/identifiers_per_property/<Pxxx>.json
-        {pid, n_pairs, pairs: [[human_qid, value], ...]}
-    data/all_humans/catalogs.json
-        flat map {human_qid: {Pxxx: [value, ...]}}
-
-Run:
-    python wikidata_extraction_scripts_v2/06_extract_catalogs.py --test
-    python wikidata_extraction_scripts_v2/06_extract_catalogs.py
-"""
+"""Extract the external catalog identifiers (VIAF, GND, ISNI, BnF...) of every Q5 human."""
 from __future__ import annotations
 
 import os

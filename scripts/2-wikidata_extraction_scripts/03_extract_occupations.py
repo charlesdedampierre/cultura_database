@@ -1,14 +1,4 @@
-"""Extract occupations (P106) for every Q5 human, plus English labels for
-each unique occupation QID.
-
-Outputs:
-    data/all_humans/occupations.json         {human_qid: [occupation_qid, ...]}
-    data/all_humans/occupation_labels.json   {occupation_qid: "label"}
-
-Run:
-    python wikidata_extraction_scripts_v2/03_extract_occupations.py --test
-    python wikidata_extraction_scripts_v2/03_extract_occupations.py
-"""
+"""Extract the occupations (P106) of every Q5 human, with their English labels."""
 from __future__ import annotations
 
 import os

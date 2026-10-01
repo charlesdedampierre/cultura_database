@@ -1,16 +1,4 @@
-"""Extract writing language (P6886) for every Q5 human, plus English labels
-for each unique language QID.
-
-Outputs:
-    data/all_humans/wikidata_extraction_scripts_v2/writing_languages.json
-        {human_qid: [language_qid, ...]}
-    data/all_humans/wikidata_extraction_scripts_v2/writing_language_labels.json
-        {language_qid: "English label"}
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/08_extract_writing_languages.py --test
-    python scripts/wikidata_extraction_scripts_v2/08_extract_writing_languages.py
-"""
+"""Extract the writing languages (P6886) of every Q5 human, with their English labels."""
 from __future__ import annotations
 
 import os

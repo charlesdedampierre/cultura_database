@@ -1,9 +1,4 @@
-"""Run every wikidata_extraction_scripts_v2/NN_extract_*.py in order.
-
-Usage:
-    python wikidata_extraction_scripts_v2/run_all.py --test     # ~1 minute end-to-end
-    python wikidata_extraction_scripts_v2/run_all.py            # full extraction (hours)
-"""
+"""Run every NN_extract_*.py script in order."""
 from __future__ import annotations
 
 import argparse

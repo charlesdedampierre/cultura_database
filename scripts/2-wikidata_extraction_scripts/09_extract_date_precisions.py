@@ -1,22 +1,4 @@
-"""Extract `wikibase:timePrecision` for the date facts of every Q5 human.
-
-Wikidata stores dates with a precision flag (11 = day, 10 = month, 9 = year,
-8 = decade, 7 = century, ...). The bare ``wdt:P569`` / ``wdt:P570`` /
-``wdt:P1317`` truthy values do not carry the precision; we have to walk
-through the statement node to read it.
-
-We pull birth (P569), death (P570), and floruit (P1317) precisions
-separately. When a human has multiple precision values for the same field
-(rare), we keep the highest (most precise).
-
-Outputs:
-    data/all_humans/wikidata_extraction_scripts_v2/date_precisions.json
-        {human_qid: {birthdate_precision, deathdate_precision, floruit_precision}}
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/09_extract_date_precisions.py --test
-    python scripts/wikidata_extraction_scripts_v2/09_extract_date_precisions.py
-"""
+"""Extract the precision of the birth, death and floruit dates of every Q5 human."""
 from __future__ import annotations
 
 import os

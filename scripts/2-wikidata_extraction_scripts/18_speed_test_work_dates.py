@@ -1,25 +1,4 @@
-"""Speed-test inception (P571) and publication (P577) extraction for the
-distinct works in `data/humans_clean.sqlite3`.
-
-Why
----
-The full set is ~17.06M unique work_ids. Before launching the bulk run we
-benchmark a few VALUES-chunk sizes and a few thread counts so we pick a
-config that keeps QLever happy and finishes in a reasonable time.
-
-Tested grid
------------
-- chunk sizes:   1000, 2500, 5000, 10000  (rows per VALUES clause)
-- thread counts: 1, 8, 15                  (concurrent QLever requests)
-- total sample:  50,000 work_ids drawn from the works table
-
-For each (chunk, threads) combo we measure wall time and works/second on
-both P571 and P577 queries.
-
-Run
----
-    python scripts/wikidata_extraction_scripts_v2/18_speed_test_work_dates.py
-"""
+"""Benchmark chunk sizes and thread counts for the work dates extraction."""
 from __future__ import annotations
 
 import os

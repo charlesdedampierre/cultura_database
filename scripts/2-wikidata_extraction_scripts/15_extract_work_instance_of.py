@@ -1,29 +1,4 @@
-"""Extract the *main* P31 (instance of) class for every distinct work in
-data/humans_clean.sqlite3 → table ``works``.
-
-Approach
---------
-1. Read all distinct ``work_id`` values from the ``works`` table.
-2. Issue chunked QLEVER queries of the form
-
-       SELECT ?work ?cls WHERE { VALUES ?work { wd:Q1 wd:Q2 ... } ?work wdt:P31 ?cls . }
-
-   ``wdt:P31`` is Wikidata's *truthy* predicate, so it already returns the
-   preferred-rank value (or normal-rank if no preferred). When several
-   classes tie at preferred rank we pick the first one returned — for
-   ~95% of works this is moot.
-3. Same trick for English labels of the resulting class set.
-
-Outputs (data/all_humans/wikidata_extraction_scripts_v2/)
-    work_instance_of.json       {work_qid: "Q...", ...}            (one main class)
-    work_instance_of_all.json   {work_qid: ["Q...", "Q..."]}       (all P31 values)
-    work_instance_labels.json   {class_qid: "English label"}
-    work_instance_of.errors.json [chunk indices that failed twice]
-
-Run
-    python wikidata_extraction_scripts_v2/15_extract_work_instance_of.py --test
-    python wikidata_extraction_scripts_v2/15_extract_work_instance_of.py
-"""
+"""Extract the main instance of (P31) class of every work."""
 from __future__ import annotations
 
 import argparse

@@ -1,38 +1,4 @@
-"""For every nationality QID that appears as a P27 (country of citizenship)
-of any Q5 human, fetch metadata to consolidate the ``nationalities`` table
-downstream:
-
-    - English label, English description
-    - instance_of (P31, all values — used to detect "country", "former
-      country", "kingdom", etc.)
-    - country (P17 — for sub-national or historical entities)
-    - replaced_by (P1366 — chain to the modern successor state)
-    - capital (P36 — used to fall back to coordinates via the capital city)
-    - coordinates (P625 — direct or via capital P36 → P625)
-    - English Wikipedia URL
-
-Mirrors the union of legacy scripts 18, 23, 29, 30.
-
-Output:
-    data/all_humans/wikidata_extraction_scripts_v2/nationality_metadata.json
-    {
-      "Q142": {
-        "id": "Q142",
-        "label": "France",
-        "description": "country in Western Europe",
-        "instance_of": ["Q3624078", "Q6256"],
-        "country": "Q142",
-        "replaced_by": [],
-        "capital": "Q90",
-        "lat": 46.0, "lon": 2.0,
-        "en_wikipedia_url": "https://en.wikipedia.org/wiki/France"
-      }, ...
-    }
-
-Run:
-    python scripts/wikidata_extraction_scripts_v2/11_extract_nationality_metadata.py --test
-    python scripts/wikidata_extraction_scripts_v2/11_extract_nationality_metadata.py
-"""
+"""Extract label, description, type, country and successors of every nationality."""
 from __future__ import annotations
 
 import os

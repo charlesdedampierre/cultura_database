@@ -1,24 +1,4 @@
-"""Extract core per-human facts from Wikidata.
-
-For every Q5 (human) we collect:
-    - name (English label)
-    - description (English)
-    - gender (P21)
-    - birthdate (P569)
-    - deathdate (P570)
-    - floruit (P1317)
-
-Each fact is fetched with its own QLever query (one column = fast streaming
-TSV), then merged into a single dict keyed by human QID.
-
-Outputs:
-    data/all_humans/main_info.json        full extraction
-    data/all_humans/main_info.test.json   --test mode, 100 humans
-
-Run:
-    python wikidata_extraction_scripts_v2/01_extract_main_info.py --test
-    python wikidata_extraction_scripts_v2/01_extract_main_info.py
-"""
+"""Extract name, description, gender, birth, death and floruit dates of every Q5 human."""
 from __future__ import annotations
 
 import argparse
