@@ -1,16 +1,16 @@
-"""Build data/cultura/humans_clean_sample_v2.duckdb from humans_clean_v2.duckdb.
+"""Build data/cultura/humans_clean_v3_sample.duckdb from humans_clean_enriched_v3.duckdb.
 
 Keeps only the individuals of an annotation set — by default those shown in
 annotations/legacy/interfaces/polity_window_review.html, or the wikidata_id column of a TSV — so the
 enrichment scripts can be rerun on them in seconds:
 
-    CULTURA_DB=data/cultura/humans_clean_sample_v2.duckdb .venv/bin/python scripts/4-database_enrichment/06_individual_peak_activity_window.py
+    CULTURA_DB=data/cultura/humans_clean_v3_sample.duckdb .venv/bin/python scripts/4-database_enrichment/06_individual_peak_activity_window.py
 
 Reference tables (places, polities, cohort statistics, ...) are copied whole: they are small,
 and cohort_age_stats must stay measured on the full database. The sample file is rewritten
 on every run.
 
-Usage: build_sample_database.py [--from-tsv path/to/sample.tsv-or.parquet --name humans_clean_v2_sample_x]
+Usage: build_sample_database.py [--from-tsv path/to/sample.tsv-or.parquet --name humans_clean_v3_sample_x]
 """
 
 import argparse
@@ -22,11 +22,11 @@ import pandas as pd
 from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "data" / "cultura" / "humans_clean_v2.duckdb"
-DEFAULT_NAME = "humans_clean_sample_v2"
-ANNOTATION = ROOT / "annotations" / "legacy" / "interfaces" / "polity_window_review.html"
+SOURCE = ROOT / "data" / "cultura" / "humans_clean_enriched_v3.duckdb"
+DEFAULT_NAME = "humans_clean_v3_sample"
+ANNOTATION = ROOT / "scripts" / "5-annotations" / "legacy" / "interfaces" / "polity_window_review.html"
 
-WHOLE_TABLES = ("place", "polity", "cohort_age_stats", "occupation_stats", "occupation", "identifier", "sitelink", "wikidata_property")
+WHOLE_TABLES = ("place", "polity", "cohort_age_stats", "occupation", "identifier", "sitelink", "wikidata_property")
 
 INDIVIDUAL_TABLES = {
     "individual": "SELECT * FROM source.individual WHERE entity.qid IN (SELECT qid FROM picked)",
