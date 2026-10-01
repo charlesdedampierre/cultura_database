@@ -1,4 +1,5 @@
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -7,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 
 from common import DATABASE, ROOT
+
+DATABASE = DATABASE.resolve()
 
 HERE = Path(__file__).resolve().parent
 TASK_LOG = ROOT / "task.log"
@@ -48,6 +51,7 @@ def main():
     if base:
         copy_base(base)
     report(f"{DATABASE}")
+    os.environ["CULTURA_DB"] = str(DATABASE)
     for step in STEPS:
         started = time.time()
         report(f"{step} started")
