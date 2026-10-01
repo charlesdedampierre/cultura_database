@@ -7,7 +7,7 @@ Italy during the window. The automatic checks are computed on its quotes: agains
 biography for the first two, against the candidate list for the polity.
 Saved to treccani_ai_annotations.parquet.
 
-Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5]
+Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5] [--model google/gemini-2.5-flash-lite --thinking --out name.parquet]
 """
 
 import argparse
@@ -40,6 +40,7 @@ OUT = FOLDER / "treccani_ai_annotations.parquet"
 PROMPTS = ROOT / "scripts" / "prompts"
 
 MODEL = "google/gemini-3.5-flash"
+THINKING = False
 TEXT_PROMPTS = {"location_ai_extracted": "treccani_location", "productivity_window_ai_extracted": "treccani_productivity_window"}
 POLITY_PROMPT = "treccani_polity"
 POLITY_SOURCE = "Cliopatria polities overlapping Italy during the window, from the polity table of humans_clean_v2_sample_treccani.duckdb"
@@ -80,11 +81,27 @@ def load_texts():
     return {row["wikidata_id"]: row for row in map(json.loads, TEXTS.open(encoding="utf-8"))}
 
 
+def parsed(response):
+    """The model's JSON answer, or None when the reply was cut off or is not valid JSON."""
+    choice = response["choices"][0]
+    if choice.get("finish_reason") == "error":
+        return None
+    try:
+        return json.loads(re.sub(r"^```(json)?|```$", "", choice["message"]["content"].strip()))
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 def load_cache():
     if not CACHE.exists():
         return {}
     rows = map(json.loads, CACHE.open(encoding="utf-8"))
-    return {(row["qid"], row["prompt_id"]): row for row in rows if "response" in row}
+    return {(row["qid"], row["prompt_id"], row.get("setting", "google/gemini-3.5-flash")): row for row in rows if "response" in row and parsed(row["response"]) is not None}
+
+
+def setting():
+    """The model and its thinking option, as one label: cached answers are reused only for the same one."""
+    return f"{MODEL} +thinking" if THINKING else MODEL
 
 
 def load_territories():
@@ -118,7 +135,8 @@ def ask(prompt, key):
         f"{API}/chat/completions",
         headers={"Authorization": f"Bearer {key}"},
         json={"model": MODEL, "messages": [{"role": "user", "content": prompt}],
-              "response_format": {"type": "json_object"}, "usage": {"include": True}},
+              "response_format": {"type": "json_object"}, "usage": {"include": True},
+              **({"reasoning": {"enabled": True}} if THINKING else {})},
         timeout=180,
     )
     response.raise_for_status()
@@ -129,7 +147,10 @@ def query(job, key):
     qid, prompt_id, prompt = job
     for attempt in range(2):
         try:
-            return {"qid": qid, "prompt_id": prompt_id, "prompt": prompt, "response": ask(prompt, key)}
+            response = ask(prompt, key)
+            if parsed(response) is None:
+                raise ValueError("reply cut off or not valid JSON")
+            return {"qid": qid, "prompt_id": prompt_id, "setting": setting(), "prompt": prompt, "response": response}
         except (requests.RequestException, ValueError) as error:
             if attempt:
                 return {"qid": qid, "prompt_id": prompt_id, "prompt": prompt, "error": str(error)}
@@ -137,8 +158,8 @@ def query(job, key):
 
 def send(jobs, cache, key):
     """Send the jobs whose exact prompt is not cached yet, and cache the answers."""
-    todo = [job for job in jobs if cache.get(job[:2], {}).get("prompt") != job[2]]
-    print(f"{len(todo)} queries to send to {MODEL}, {len(jobs) - len(todo)} already cached")
+    todo = [job for job in jobs if cache.get((*job[:2], setting()), {}).get("prompt") != job[2]]
+    print(f"{len(todo)} queries to send to {setting()}, {len(jobs) - len(todo)} already cached")
     failures = []
     with ThreadPoolExecutor(WORKERS) as pool, CACHE.open("a", encoding="utf-8") as handle:
         for result in tqdm(pool.map(lambda job: query(job, key), todo), total=len(todo), desc="queries"):
@@ -146,7 +167,7 @@ def send(jobs, cache, key):
                 failures.append(result)
                 continue
             handle.write(json.dumps(result, ensure_ascii=False) + "\n")
-            cache[result["qid"], result["prompt_id"]] = result
+            cache[result["qid"], result["prompt_id"], setting()] = result
     if failures:
         raise SystemExit(f"{len(failures)} queries failed, nothing written; first error: {failures[0]['error']}")
 
@@ -159,8 +180,7 @@ def cost(response, price):
 
 
 def ai_answer(cached, source_text, source, price):
-    content = cached["response"]["choices"][0]["message"]["content"]
-    answer = json.loads(re.sub(r"^```(json)?|```$", "", content.strip()))
+    answer = parsed(cached["response"])
     extracts = tuple(answer.get("source_verbatim") or ())
     written = answer.get("answer_as_written_in_text")
     body = normalise(source_text)
@@ -175,7 +195,7 @@ def ai_answer(cached, source_text, source, price):
         source_verbatim_english=tuple(answer.get("source_verbatim_english") or ()),
         source_verbatim_not_invented=bool(extracts) and all(normalise(extract) in body for extract in extracts),
         answer_supported_by_source_verbatim=supported(written, extracts),
-        model_name=MODEL,
+        model_name=setting(),
         prompt_id=cached["prompt_id"],
         prompt=cached["prompt"],
         cost_estimated=cost(cached["response"], price),
@@ -195,9 +215,15 @@ def entities(qids):
 
 
 def main():
+    global MODEL, THINKING
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=5)
+    parser.add_argument("--model", default=MODEL)
+    parser.add_argument("--thinking", action="store_true")
+    parser.add_argument("--out", default=OUT.name)
     args = parser.parse_args()
+    MODEL, THINKING = args.model, args.thinking
+    out = FOLDER / args.out
     load_dotenv(ROOT / ".env")
     key = os.environ["OPEN_ROUTER_API"]
 
@@ -211,7 +237,7 @@ def main():
     template = {prompt_id: (PROMPTS / f"{prompt_id}.txt").read_text(encoding="utf-8") for prompt_id in TEXT_PROMPTS.values()}
     biography = {qid: texts[qid]["text"][:TEXT_CAP] for qid in qids}
     send([(qid, prompt_id, template[prompt_id].replace("{biography}", biography[qid])) for qid in qids for prompt_id in TEXT_PROMPTS.values()], cache, key)
-    answers = {qid: {field: ai_answer(cache[qid, prompt_id], biography[qid], texts[qid]["dbi_url"], price) for field, prompt_id in TEXT_PROMPTS.items()} for qid in qids}
+    answers = {qid: {field: ai_answer(cache[qid, prompt_id, setting()], biography[qid], texts[qid]["dbi_url"], price) for field, prompt_id in TEXT_PROMPTS.items()} for qid in qids}
 
     territories = load_territories()
     candidate_lines = {}
@@ -222,16 +248,16 @@ def main():
                    for qid in qids if candidate_lines[qid] and answers[qid]["location_ai_extracted"].answer]
     send(polity_jobs, cache, key)
     for qid in qids:
-        if cache.get((qid, POLITY_PROMPT)) and candidate_lines[qid]:
-            answers[qid]["polity_ai_matched"] = ai_answer(cache[qid, POLITY_PROMPT], candidate_lines[qid], POLITY_SOURCE, price)
+        if cache.get((qid, POLITY_PROMPT, setting())) and candidate_lines[qid]:
+            answers[qid]["polity_ai_matched"] = ai_answer(cache[qid, POLITY_PROMPT, setting()], candidate_lines[qid], POLITY_SOURCE, price)
         else:
             answers[qid]["polity_ai_matched"] = A.AIAnswer(prompt_id=POLITY_PROMPT, reasoning="Not asked: no location or no datable window to build the candidate list from.")
 
     people = entities(qids)
     annotations = [A.TreccaniAnnotation(entity=people[qid], treccani_url=texts[qid]["dbi_url"], **answers[qid]) for qid in qids]
-    pq.write_table(pa.Table.from_pylist([annotation.model_dump(mode="json") for annotation in annotations]), OUT)
+    pq.write_table(pa.Table.from_pylist([annotation.model_dump(mode="json") for annotation in annotations]), out)
     total = sum(answer.cost_estimated or 0 for qid in qids for answer in answers[qid].values())
-    print(f"wrote {OUT.relative_to(ROOT)}: {len(annotations)} individuals, total cost ${total:.4f}")
+    print(f"wrote {out.relative_to(ROOT)}: {len(annotations)} individuals, {setting()}, total cost ${total:.4f}")
 
 
 if __name__ == "__main__":
