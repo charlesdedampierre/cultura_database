@@ -6,7 +6,8 @@ Precision = Literal["day", "month", "year", "decade", "century", "millennium"]
 
 
 class ExportedIndividualCSV(BaseModel):
-    individual_id: str = Field(..., description="The individual's Wikidata qid, 'Q937'. Individual.entity.qid.")
+    wikidata_id: str = Field(..., description="The individual's Wikidata qid, 'Q937'. Individual.entity.qid.")
+    wikidata_url: str = Field(..., description="The individual's Wikidata page, 'https://www.wikidata.org/wiki/Q937'.")
     label: str | None = Field(None, description="The English label, or the label in another language for an individual with none. Individual.entity.label_en, else label_non_en.")
     birth_date: str | None = Field(None, description="The birth date the peak activity window prefers: the first entry of Individual.birth_date stated to the decade or finer, else the first entry, in the list's order (Wikidata property, then Wikidata description, then life-expectancy estimate). Written as an ISO date, '1879-03-14', when stated to the day or month, and as the year otherwise; negative before the common era.")
     birth_precision: Precision | None = Field(None, description="How finely birth_date is known. A year at precision century stands for its whole century.")

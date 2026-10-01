@@ -31,7 +31,8 @@ CREATE TEMP TABLE occupation_label AS SELECT map(list(entity.qid), list(coalesce
 
 QUERY = """
 SELECT
-    person.entity.qid AS individual_id,
+    person.entity.qid AS wikidata_id,
+    'https://www.wikidata.org/wiki/' || person.entity.qid AS wikidata_url,
     coalesce(person.entity.label_en, person.entity.label_non_en) AS label,
     shown(preferred(person.birth_date)) AS birth_date,
     preferred(person.birth_date).precision AS birth_precision,
