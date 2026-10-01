@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from datamodel_in_duckdb import Date, PeakProductivity, WikidataEntity
+from datamodel_in_duckdb import Date, WikidataEntity
 
 
 class AIAnswer(BaseModel):
@@ -26,17 +26,6 @@ class ProductivityWindow(AIAnswer):
     end: Date | None = Field(None, description="Last date of activity the biography states.")
 
 
-class Polity(BaseModel):
-    cliopatria_id: int | None = Field(None, description="The polity's id in Cliopatria, the join key to Polity in the database.")
-    name: str | None = Field(None, description="The polity's name as Cliopatria writes it — 'Republic of Pisa'.")
-
-
-class CulturaComparison(BaseModel):
-    productivity_window: PeakProductivity | None = Field(None, description="Cultura's productivity window for the individual, as IndividualEnriched.peak_productivity holds it.")
-    polities: tuple[Polity, ...] = Field((), description="Every polity Cultura assigned the individual, as IndividualEnriched.polity lists them.")
-    productivity_window_validated: bool | None = Field(None, description="The biography's window agrees with Cultura's: it lies inside it, or at least half of it overlaps it. Empty where either side has no dates.")
-
-
 class HumanAnnotation(BaseModel):
     location_ok: bool | None = Field(None, description="The annotator agrees the biography places the individual's activity in the location. Empty until annotated.")
     peak_productivity_window_ok: bool | None = Field(None, description="The annotator agrees with the productivity window.")
@@ -44,9 +33,8 @@ class HumanAnnotation(BaseModel):
 
 
 class TreccaniAnnotation(BaseModel):
-    entity: WikidataEntity = Field(..., description="The individual, by qid and label — the join key to Individual and IndividualEnriched.")
+    entity: WikidataEntity = Field(..., description="The individual, by qid and label — the join key to Individual.")
     treccani_url: str = Field(..., description="The individual's biography in the Dizionario Biografico degli Italiani on treccani.it (Wikidata P1986). It is the only text the model read.")
     location: AIAnswer = Field(default_factory=AIAnswer, description="Where the biography says the individual was active: the most granular place, under its English name where one exists, with its evidence.")
     productivity_window: ProductivityWindow = Field(default_factory=ProductivityWindow, description="When the biography says the individual was active, with its evidence.")
-    cultura: CulturaComparison = Field(default_factory=CulturaComparison, description="What Cultura holds for the same individual, and whether it agrees with the biography.")
     human: HumanAnnotation = Field(default_factory=HumanAnnotation, description="The annotator's verdict.")
