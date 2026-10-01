@@ -113,11 +113,13 @@ fifty-year birth cohort.
 is `scripts/legacy/database_consolidation_V2/04_individuals_cliopatria_rs`
 rewritten in Python, and its priority is two tuples, as 06's is:
 
-- `LOCATIONS` — country of citizenship, then birthplace, then deathplace.
-- `PHASES` — for each location, `polygon_containing_the_place`, then
-  `wikipedia_article_shared_with_the_polity`. The first test that matches
-  anything ends the search, so a citizenship inside a polygon settles it and
-  the birthplace is never tried.
+- `TESTS` — the location and the way it is matched, in order: the country of
+  citizenship's Wikipedia article; the birthplace by polygon, then by article;
+  the deathplace by polygon, then by article; and last the country of
+  citizenship by polygon. A state's coordinates are one point near its middle,
+  which puts anyone with Italian citizenship in the Papal States, so that test
+  only runs when nothing else matched. The first test that matches anything
+  ends the search.
 
 Within each test the sub-polities are tried first, and a meta polity (one with
 `child_polities`) is matched only when no sub-polity is. Each match carries the
