@@ -273,6 +273,68 @@ def polity_list(matches):
         for m in matches)
 
 
+FINE = ("day", "month", "year", "decade")
+CURRENT_YEAR = 2026
+
+
+def year_of(entries, source, coarse=False):
+    found = [e for e in entries or () if e.get("year") is not None and source_of(e) == source
+             and (e["precision"] not in FINE) == coarse]
+    return found[0] if found else None
+
+
+def capped(end):
+    return f"min({end}, {CURRENT_YEAR}) = {min(end, CURRENT_YEAR)}" if end > CURRENT_YEAR else f"{end}"
+
+
+def computation(person):
+    w, cohort = person["peak_productivity"], person["cohort_age_stats"]
+    if not w:
+        return "—"
+    method, start, end = w["assignation_method"], w["start_year"], w["end_year"]
+    rule = rule_of(method)
+    source = method[len(rule) + 1:]
+    window = cohort["productivity_window_from_wikidata_floruit"] if cohort else None
+    low, high = (round(window["low"]), round(window["high"])) if window else (0, 0)
+    quart = f"low = round({window['low']:g}) = {low}, high = round({window['high']:g}) = {high}" if window else ""
+    if rule.endswith("_century"):
+        field = {"floruit_century": "floruit_date", "birth_death_century": "birth_date",
+                 "birth_only_century": "birth_date", "death_only_century": "death_date"}[rule]
+        dates = [f"{key.split('_')[0]} {e['year']} at {e['precision']} precision"
+                 for key in ("birth_date", "death_date", "floruit_date") if (e := year_of(person[key], source, True))]
+        return (f"{'; '.join(dates)} → {html.escape(w['label'])} → years {start} to {end}"
+                f"<br><span class=m>Century of a Wikidata year at century precision: (year − 1) // 100 + 1. "
+                f"Read from {field.replace('_', ' ')}.</span>")
+    birth = (year_of(person["birth_date"], source) or {}).get("year")
+    death = (year_of(person["death_date"], source) or {}).get("year")
+    works = person["works_period"] or {}
+    if rule == "died_young":
+        return f"start = birth = {birth}; end = death = {death} (age {death - birth} ≤ 18)"
+    if rule == "birth_death":
+        return (f"{quart}<br>start = {birth} + {low} = {birth + low}; "
+                f"end = min({birth} + {high}, {death}) = min({birth + high}, {death}) = {end}")
+    if rule == "birth_only":
+        return f"{quart}<br>start = {birth} + {low} = {birth + low}; end = {birth} + {high} = {capped(birth + high)}"
+    if rule == "death_only":
+        estimated = start - low
+        return (f"birth = {death} − {death - estimated} (median life expectancy of the cohort) = {estimated}<br>{quart}<br>"
+                f"start = {estimated} + {low} = {start}; end = min({estimated} + {high}, {death}) = min({estimated + high}, {death}) = {end}")
+    if rule == "floruit":
+        floruit = (year_of(person["floruit_date"], source) or {}).get("year")
+        if birth is None:
+            return f"{quart}<br>start = floruit = {floruit}; end = {floruit} + ({high} − {low}) = {capped(floruit + high - low)}"
+        age = floruit - birth
+        case = ("age ≤ low → start = floruit, end = birth + high" if age <= low else
+                "age ≥ high → start = birth + low, end = floruit" if age >= high else
+                "low < age < high → start = birth + low, end = birth + high")
+        return (f"{quart}<br>age at floruit = {floruit} − {birth} = {age}; {case} → {start}–{end}"
+                f"<br><span class=m>then cut at death, and widened back to at least max(10, (high − low) // 2) years.</span>")
+    if rule == "works_span":
+        return f"start = first dated work = {works.get('first_year')}; end = last dated work = {capped(works.get('last_year'))}"
+    year = works.get("first_year")
+    return f"{quart}<br>start = only dated work = {year}; end = {year} + ({high} − {low}) = {capped(year + high - low)}"
+
+
 def window_cell(w):
     if not w:
         return "<b>none</b>"
@@ -301,6 +363,7 @@ def card(i, p, places, cell):
         ("Deathplace", place_cell(p["deathplace"], places)),
         ("Citizenship", "<br>".join(place_cell(q, places) for q in p["citizenship"] or []) or "—"),
         ("<b>Productive window</b>", window_cell(w)),
+        ("Computation", computation(p)),
         ("How the window was found", explain_window(p)),
         *cohort_rows(p),
         ("<b>Polity of assignation</b>", f"<b>{html.escape(matches[0]['polity']['name'])}</b>" if matches else "<b>none</b>"),
