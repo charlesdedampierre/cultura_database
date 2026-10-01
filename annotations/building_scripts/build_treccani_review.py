@@ -161,7 +161,7 @@ def fix_encoding(text):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", default="treccani_ai_annotations.parquet")
+    parser.add_argument("--source", default="treccani_ai_annotations_cultura289.parquet")
     source = FOLDER / parser.parse_args().source
     rows = pq.read_table(source).to_pylist()
     for row in rows:
