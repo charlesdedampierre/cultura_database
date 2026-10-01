@@ -3,16 +3,17 @@
 One card per individual with the two AI answers, their evidence and checks, and the
 HumanAnnotation fields to fill in. Verdicts are kept in the browser and exported as JSON.
 
-Usage: .venv/bin/python annotations/building_scripts/build_treccani_review.py
+Usage: .venv/bin/python annotations/building_scripts/build_treccani_review.py [--source name.parquet]
 """
 
+import argparse
 import json
 from pathlib import Path
 
 import pyarrow.parquet as pq
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "annotations" / "treccani_validation" / "treccani_ai_annotations.parquet"
+FOLDER = ROOT / "annotations" / "treccani_validation"
 OUT = ROOT / "annotations" / "interfaces" / "treccani_review.html"
 
 PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
@@ -36,7 +37,7 @@ details summary{cursor:pointer;color:#555;font-size:13px} pre{white-space:pre-wr
 @media (max-width:640px){.quotes{grid-template-columns:1fr} th{width:120px}}
 </style></head><body>
 <header><h1>Treccani — AI extraction review</h1><span id="progress"></span><button id="export">Export verdicts (JSON)</button></header>
-<p class="m">Source: treccani_ai_annotations.parquet. For each answer, read the extracts (and the Treccani page if needed), then say whether the AI answer is correct.</p>
+<p class="m">Source: __SOURCE__. For each answer, read the extracts (and the Treccani page if needed), then say whether the AI answer is correct.</p>
 <div id="cards"></div>
 <script>
 const DATA = __DATA__;
@@ -119,8 +120,11 @@ document.getElementById("export").onclick = () => {
 
 
 def main():
-    rows = pq.read_table(SOURCE).to_pylist()
-    OUT.write_text(PAGE.replace("__DATA__", json.dumps(rows, ensure_ascii=False).replace("</", "<\\/")), encoding="utf-8")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", default="treccani_ai_annotations.parquet")
+    source = FOLDER / parser.parse_args().source
+    rows = pq.read_table(source).to_pylist()
+    OUT.write_text(PAGE.replace("__SOURCE__", source.name).replace("__DATA__", json.dumps(rows, ensure_ascii=False).replace("</", "<\\/")), encoding="utf-8")
     print(f"wrote {OUT.relative_to(ROOT)} ({len(rows)} individuals)")
 
 

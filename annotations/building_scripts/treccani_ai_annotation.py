@@ -70,7 +70,9 @@ def supported(written, extracts):
 
 def window_years(answer):
     """The years a window answer covers: its first and last year, or the bounds of the centuries it names."""
-    years = [int(year) for year in re.findall(r"\b\d{3,4}\b", answer or "")]
+    years = []
+    for year, decade in re.findall(r"\b(\d{3,4})(s?)\b", answer or ""):
+        years += [int(year), int(year) + 9] if decade else [int(year)]
     if years:
         return min(years), max(years)
     centuries = [int(c) for c in re.findall(r"(\d{1,2})(?:st|nd|rd|th) century", answer or "")]
