@@ -1,6 +1,5 @@
 """Give each individual a peak activity window from their dates, by rule priority, and estimate a missing birth or death year from the cohort's life expectancy."""
 
-import csv
 from dataclasses import dataclass
 
 from tqdm import tqdm
@@ -10,7 +9,6 @@ from pydantic_to_duckdb_schema import columns_of, duck_type
 
 CURRENT_YEAR = 2026
 
-PRODUCTIVE_AGE_DATASET = ROOT / "data" / "productive_age_window.csv"
 CROSS_VERIFIED = ROOT / "data" / "similar_databases" / "cross_verified.duckdb"
 MAIN_OCCUPATIONS = ("Culture", "Discovery/Science", "Leadership", "Sports/Games")
 ALL = "All"
@@ -56,7 +54,7 @@ ENRICHMENT = Enrichment(
 COHORT = Enrichment(
     reads=("CohortAgeStats.cv_occupation", "CohortAgeStats.date_range", "CohortAgeStats.life_expectancy_from_wikidata_birth_death", "CohortAgeStats.productivity_window_from_wikidata_floruit", "CrossVerifiedPerson.level1_main_occ"),
     writes=("IndividualEnriched.cohort_age_stats",),
-    rule="The row of cohort_age_stats the individual's peak_productivity was computed from — their cross-verified occupation, or All for anyone outside the four main categories, and their fifty-year birth cohort — copied with its life expectancy and productivity window. The cohort is that of the birth year; without one, of the birth estimated from the floruit, the death (by the median life expectancy) or the first work, in that order, each stated to the year or the decade. A date stated only to the century or millennium never chooses a cohort, so an individual dated by nothing finer has none.",
+    rule="The row of cohort_age_stats the individual's peak_productivity was computed from — their cross-verified occupation, or All for anyone outside the four main categories, and their fifty-year birth cohort — copied with its life expectancy and productivity window. The cohort is that of the birth year; without one, of the birth estimated from the floruit (by the cohort's median age at floruit), the death (by its median life expectancy) or the first work (by its median age at floruit), in that order, each stated to the year or the decade; each estimate is taken first on the cohort of the anchor year, then recomputed once on the cohort it falls in. A date stated only to the century or millennium never chooses a cohort, so an individual dated by nothing finer has none.",
     inputs=("CohortAgeStats.productivity_window_from_wikidata_floruit",),
     answers=ROOT / "scripts" / "4-database_enrichment" / "05b_cohort_age_stats.py",
 )
@@ -122,14 +120,6 @@ class Facts:
     estimated_birth: int | None = None
     low: int = 0
     high: int = 0
-
-
-def typical_age_at_floruit():
-    with PRODUCTIVE_AGE_DATASET.open() as handle:
-        for row in csv.DictReader(handle):
-            if row["category"] == "global":
-                return int(row["median_age"])
-    raise SystemExit(f"global is not a category of {PRODUCTIVE_AGE_DATASET}")
 
 
 def load_cohort_age_stats(connection):
@@ -371,29 +361,36 @@ def from_works_single(facts):
 assert tuple(IMPLEMENTATIONS) == RULES, f"{tuple(IMPLEMENTATIONS)} is not {RULES}"
 
 
-def life_expectancy(cohort, typical_age):
-    life = cohort.life_expectancy_from_wikidata_birth_death
-    return round(life.median) if life and life.median is not None else typical_age
+def life_expectancy(cohort):
+    return round(cohort.life_expectancy_from_wikidata_birth_death.median)
 
 
-def birth_from_death(cohorts, occupation, death_year, typical_age):
-    """The death year minus the median life expectancy, recomputed once on the cohort the first estimate falls in."""
-    year = death_year - typical_age
+def age_at_floruit(cohort):
+    return round(cohort.productivity_window_from_wikidata_floruit.median)
+
+
+def birth_before(cohorts, occupation, year, median_age):
+    """The year minus the cohort's median age, taken first on the cohort of the year itself, then recomputed once on the cohort that estimate falls in."""
+    birth = year
     for _ in range(2):
-        year = death_year - life_expectancy(cohort_of(cohorts, occupation, year), typical_age)
-    return year
+        birth = year - median_age(cohort_of(cohorts, occupation, birth))
+    return birth
 
 
-def cohort_year(facts, cohorts, occupation, typical_age):
+def birth_from_death(cohorts, occupation, death_year):
+    return birth_before(cohorts, occupation, death_year, life_expectancy)
+
+
+def cohort_year(facts, cohorts, occupation):
     if facts.birth is not None:
         return facts.birth.year
     if facts.floruit is not None:
-        return facts.floruit.year - typical_age
+        return birth_before(cohorts, occupation, facts.floruit.year, age_at_floruit)
     if facts.death is not None:
-        facts.estimated_birth = birth_from_death(cohorts, occupation, facts.death.year, typical_age)
+        facts.estimated_birth = birth_from_death(cohorts, occupation, facts.death.year)
         return facts.estimated_birth
     if facts.works and facts.works.get("first_year") is not None:
-        return facts.works["first_year"] - typical_age
+        return birth_before(cohorts, occupation, facts.works["first_year"], age_at_floruit)
     return None
 
 
@@ -402,18 +399,18 @@ def estimated_date(year, enrichment):
     return D.Date(year=year, precision="year", field_provenance={"year": provenance, "precision": provenance})
 
 
-def estimated_dates(facts, cohorts, occupation, typical_age):
+def estimated_dates(facts, cohorts, occupation):
     """The birth or death year life expectancy supplies to an individual who has the other one and not this one."""
     birth, death = None, None
     if facts.birth is None and facts.death is not None:
-        birth = estimated_date(birth_from_death(cohorts, occupation, facts.death.year, typical_age), ESTIMATED_BIRTH)
+        birth = estimated_date(birth_from_death(cohorts, occupation, facts.death.year), ESTIMATED_BIRTH)
     if facts.death is None and facts.birth is not None and facts.birth.year + OLDEST_AGE < CURRENT_YEAR:
-        life = life_expectancy(cohort_of(cohorts, occupation, facts.birth.year), typical_age)
+        life = life_expectancy(cohort_of(cohorts, occupation, facts.birth.year))
         death = estimated_date(facts.birth.year + life, ESTIMATED_DEATH)
     return birth, death
 
 
-def peak_productivity(row, cohorts, typical_age):
+def peak_productivity(row, cohorts):
     facts = Facts(
         birth=preferred(row["birth_date"]),
         death=preferred(row["death_date"]),
@@ -422,8 +419,8 @@ def peak_productivity(row, cohorts, typical_age):
         death_period=preferred_period(row["death_date"]),
         works=row["works_period"],
     )
-    estimates = estimated_dates(facts, cohorts, row["occupation"], typical_age)
-    year = cohort_year(facts, cohorts, row["occupation"], typical_age)
+    estimates = estimated_dates(facts, cohorts, row["occupation"])
+    year = cohort_year(facts, cohorts, row["occupation"])
     cohort = cohort_of(cohorts, row["occupation"], year) if year is not None else None
     if cohort is not None:
         facts.low = round(cohort.productivity_window_from_wikidata_floruit.low)
@@ -465,10 +462,9 @@ def main():
     remove_estimates(connection)
     connection.execute(f"ATTACH '{CROSS_VERIFIED}' AS cv (READ_ONLY)")
     cohorts = load_cohort_age_stats(connection)
-    typical_age = typical_age_at_floruit()
     print(f"productive age windows: {len(cohorts[0]):,} occupation x cohort rows from cohort_age_stats, cohorts {cohorts[1]} to {cohorts[2]}")
     print(f"occupations with their own window: {', '.join(MAIN_OCCUPATIONS)}; everyone else takes {ALL}")
-    print(f"cohort without a birth year: anchor year minus {typical_age}, the median age at floruit in {PRODUCTIVE_AGE_DATASET.name}\n")
+    print("cohort without a birth year: the floruit or first work minus the cohort's median age at floruit, or the death minus its median life expectancy\n")
     print("rules, in the order they are tried:")
     for position, name in enumerate(RULES, start=1):
         print(f"   {position}. {name}")
@@ -493,7 +489,7 @@ def main():
     def assigned():
         for batch in tqdm(reader, desc="peak window", unit=" batches of 200k", mininterval=5):
             for row in batch.to_pylist():
-                window, cohort, (birth, death) = peak_productivity(row, cohorts, typical_age)
+                window, cohort, (birth, death) = peak_productivity(row, cohorts)
                 if birth or death:
                     estimates.append({"qid": row["entity"]["qid"], "birth": birth and as_json(birth), "death": death and as_json(death)})
                 method = window.method if window else NO_RULE_APPLIES
