@@ -27,6 +27,7 @@ STEPS = (
     "08_individual_notability.py",
     "09_polity_hierarchy.py",
     "10_individual_polity_assignment.py",
+    "11_seshat_id.py",
 )
 
 
