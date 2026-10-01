@@ -30,9 +30,9 @@ COUNT_YEARS_ONCE = True
 BATCH = 200_000
 
 ENRICHMENT = Enrichment(
-    reads=("Polity.world", "Individual.place_of_birth", "Individual.place_of_death", "Individual.country_of_citizenship", "Place.coordinates", "Place.sitelink", "Polity.territories", "Polity.sitelink", "IndividualEnriched.peak_productivity"),
+    reads=("Polity.world", "Polity.child_polities", "Polity.meta_polities", "Individual.place_of_birth", "Individual.place_of_death", "Individual.country_of_citizenship", "Place.coordinates", "Place.sitelink", "Polity.territories", "Polity.sitelink", "IndividualEnriched.peak_productivity"),
     writes=("IndividualEnriched.polity", "IndividualEnriched.polity_count"),
-    rule="Every polity whose ground the individual stood on while they were at work. A place is tested against the territories a polity held during the peak activity window, in the two phases named in PHASES and, within a phase, over the locations named in LOCATION_PRIORITY: the first location that matches anything ends the search, so a deathplace inside a polygon settles it and the birthplace is never tried. The second phase runs only for individuals the first left unmatched, and matches on a Wikipedia article shared between the place and the polity. years_spent_in_polity counts each calendar year of the window once, however many territories of that polity cover it.",
+    rule="Every polity whose ground the individual stood on while they were at work. A place is tested against the territories a polity held during the peak activity window, in the two phases named in PHASES and, within a phase, over the locations named in LOCATION_PRIORITY: the first location that matches anything ends the search, so a deathplace inside a polygon settles it and the birthplace is never tried. The second phase runs only for individuals the first left unmatched, and matches on a Wikipedia article shared between the place and the polity. Within each test the sub-polities, those without child_polities, are tried first, and a meta polity is matched only when no sub-polity is. years_spent_in_polity counts each calendar year of the window once, however many territories of that polity cover it. Each match carries the polity's meta_polities, so the meta polity is read off the match.",
     inputs=("IndividualEnriched.peak_productivity",),
     answers=ROOT / "data" / "cultura" / "cultura_v2.duckdb",
 )
@@ -44,6 +44,7 @@ class Territory:
     polity_name: str
     start_year: int
     end_year: int
+    is_meta: bool
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,7 @@ def grouped_by_polity(territories, window_start, window_end, method):
 def load_polities(connection):
     rows = connection.execute(
         """
-        SELECT cliopatria_id, name, sitelink.url AS url,
+        SELECT cliopatria_id, name, sitelink.url AS url, len(child_polities) > 0 AS is_meta,
                territory.start_year AS start_year, territory.end_year AS end_year,
                territory.geometry AS geometry
         FROM polity, unnest(territories) AS t(territory)
@@ -93,8 +94,8 @@ def load_polities(connection):
         """
     ).fetchall()
     geometries, territories, by_url = [], [], {}
-    for polity_id, name, url, start_year, end_year, geometry in rows:
-        territory = Territory(polity_id, name, start_year, end_year)
+    for polity_id, name, url, is_meta, start_year, end_year, geometry in rows:
+        territory = Territory(polity_id, name, start_year, end_year, is_meta)
         geometries.append(shape(json.loads(geometry)))
         territories.append(territory)
         if url:
@@ -113,6 +114,7 @@ def main():
     connection = open_database()
     tree, territories, by_url = load_polities(connection)
     worlds = dict(connection.execute("SELECT cliopatria_id, world FROM polity").fetchall())
+    meta_polities = {polity_id: links for polity_id, links in connection.execute("SELECT cliopatria_id, meta_polities FROM polity").fetchall()}
     print(f"{len(territories):,} territories indexed\n")
 
     people = connection.cursor().execute(
@@ -163,7 +165,9 @@ def main():
                         touching = touching_polygons(qid)
                     else:
                         touching = by_url.get(article.get(qid), [])
-                    found = grouped_by_polity(touching, window_start, window_end, f"{METHOD[phase]}_of_{location}")
+                    method = f"{METHOD[phase]}_of_{location}"
+                    found = grouped_by_polity([t for t in touching if not t.is_meta], window_start, window_end, method)
+                    found = found or grouped_by_polity([t for t in touching if t.is_meta], window_start, window_end, method)
                     if found:
                         break
                 if found:
@@ -182,7 +186,7 @@ def main():
             "qid": qid,
             "polity": [
                 as_json(D.PolityMatch(
-                    polity=D.Polity(cliopatria_id=match.polity_id, name=match.polity_name, world=worlds.get(match.polity_id) or ()),
+                    polity=D.Polity(cliopatria_id=match.polity_id, name=match.polity_name, world=worlds.get(match.polity_id) or (), meta_polities=meta_polities.get(match.polity_id) or ()),
                     years_spent_in_polity=match.years,
                     assignation_method=match.method,
                 ))
@@ -204,8 +208,8 @@ def main():
         """
         CREATE OR REPLACE TABLE individual_enriched AS
         SELECT enriched.* REPLACE (
-            coalesce(assigned.polity, enriched.polity) AS polity,
-            coalesce(assigned.polity_count, enriched.polity_count) AS polity_count,
+            assigned.polity AS polity,
+            assigned.polity_count AS polity_count,
             CASE WHEN assigned.qid IS NULL THEN enriched.field_provenance
                  ELSE map_concat(enriched.field_provenance, MAP {'polity': assigned.provenance, 'polity_count': assigned.provenance})
             END AS field_provenance
