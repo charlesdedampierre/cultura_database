@@ -256,7 +256,7 @@ def main():
     population = sorted(entities(list(texts)))
     if args.with_cultura:
         population = sorted(with_cultura(population))
-    qids = random.Random(SEED).sample(population, args.n)
+    qids = random.Random(SEED).sample(population, min(args.n, len(population)))
     print(f"{len(population)} individuals with a downloaded text in {DB.name}; annotating {len(qids)}: {', '.join(qids)}")
     cache = load_cache()
     price = model_price()
