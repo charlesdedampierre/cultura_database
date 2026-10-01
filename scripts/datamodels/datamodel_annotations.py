@@ -36,6 +36,6 @@ class TreccaniAnnotation(BaseModel):
     entity: WikidataEntity = Field(..., description="The individual, by qid and label — the join key to Individual.")
     treccani_url: str = Field(..., description="The individual's biography in the Dizionario Biografico degli Italiani on treccani.it (Wikidata P1986). It is the only text the model read.")
     treccani_text_path: str = Field("annotations/treccani_validation/_cache/dbi_pages.jsonl", description="Where the downloaded biography is kept, relative to the repository root: a JSON-lines file with one line per individual, {wikidata_id, dbi_url, text}. The text is the article as treccani.it served it, reduced to plain text; it is what the model read, cut at 25 000 characters, and what quotes_in_text is checked against.")
-    location: AIAnswer = Field(default_factory=AIAnswer, description="Where the biography says the individual was active: the most granular place, under its English name where one exists, with its evidence.")
-    productivity_window: ProductivityWindow = Field(default_factory=ProductivityWindow, description="When the biography says the individual was active, with its evidence.")
+    location_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="Extracted from the biography by a language model: where the biography says the individual was active: the most granular place, under its English name where one exists, with its evidence.")
+    productivity_window_ai_extracted: ProductivityWindow = Field(default_factory=ProductivityWindow, description="Extracted from the biography by a language model: when the biography says the individual was active, with its evidence.")
     human: HumanAnnotation = Field(default_factory=HumanAnnotation, description="The annotator's verdict.")
