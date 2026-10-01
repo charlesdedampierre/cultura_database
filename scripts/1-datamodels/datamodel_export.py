@@ -18,6 +18,7 @@ class ExportedIndividualCSV(BaseModel):
     polities: str | None = Field(None, description="The names of the polities the individual is matched to during the window, IndividualEnriched.polity, joined by ' | '.")
     polity_ids: str | None = Field(None, description="Their Cliopatria ids, in the same order as polities, joined by ' | '.")
     time_spent_in_polity: str | None = Field(None, description="How many years of the activity window each polity covers, PolityMatch.years_spent_in_polity, each calendar year counted once, in the same order as polities, joined by ' | '.")
+    seshat_ids: str | None = Field(None, description="The Seshat Databank ids of each polity over the window, PolityMatch.seshat_ids, in the same order as polities, joined by ' | '; a polity whose territories changed id during the window lists them oldest first, joined by ';', and one Seshat has not coded is left empty between its separators. Empty when no polity has one. Each id's page is http://seshat-db.org/core/polity/<id>.")
     meta_polities: str | None = Field(None, description="The meta polities those polities belonged to during the window, once each, joined by ' | '.")
     meta_polity_ids: str | None = Field(None, description="Their Cliopatria ids, in the same order as meta_polities, joined by ' | '.")
     occupations: str | None = Field(None, description="The English labels of Individual.occupation, read from the Occupation table, joined by ' | '.")

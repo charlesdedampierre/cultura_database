@@ -43,6 +43,9 @@ SELECT
     joined(list_transform(enriched.polity, match -> match.polity.name)) AS polities,
     joined(list_transform(enriched.polity, match -> CAST(match.polity.cliopatria_id AS VARCHAR))) AS polity_ids,
     joined(list_transform(enriched.polity, match -> CAST(match.years_spent_in_polity AS VARCHAR))) AS time_spent_in_polity,
+    CASE WHEN len(flatten(list_transform(enriched.polity, match -> match.seshat_ids))) > 0
+         THEN array_to_string(list_transform(enriched.polity, match -> array_to_string(match.seshat_ids, ';')), '{separator}')
+    END AS seshat_ids,
     joined(list_transform(meta_polities(enriched.polity, enriched.peak_productivity), meta -> meta.name)) AS meta_polities,
     joined(list_transform(meta_polities(enriched.polity, enriched.peak_productivity), meta -> CAST(meta.cliopatria_id AS VARCHAR))) AS meta_polity_ids,
     joined(list_transform(person.occupation, one_occupation -> occupation_label.labels[one_occupation.entity.qid])) AS occupations
@@ -83,7 +86,7 @@ def main():
     connection.execute(MACROS + META_POLITIES)
     parts = Path(tempfile.mkdtemp())
     for chunk in tqdm(range(CHUNKS), desc="export", unit=" chunk"):
-        query = QUERY.format(chunks=CHUNKS, chunk=chunk)
+        query = QUERY.format(chunks=CHUNKS, chunk=chunk, separator=SEPARATOR)
         connection.execute(f"COPY ({query}) TO '{parts / f'{chunk:02d}.csv'}' (HEADER, DELIMITER ',')")
     columns = COLUMNS
     connection.execute(f"COPY (SELECT * FROM {read_typed(f'{parts}/*.csv')}) TO '{args.output}' (HEADER, DELIMITER ',')")
