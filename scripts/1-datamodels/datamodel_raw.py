@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 
@@ -208,6 +210,26 @@ class EntityTypeClassification(BaseModel):
     label: str | None = Field(None, description="The class's English label, as given to the model.")
     urban_settlement: bool | None = Field(None, description="Whether the class denotes a populated place — a town, a village, a quarter — rather than an administrative region, a building or a natural feature. Answered by a language model; the model id and the prompt are in the enrichment that used it.")
     reason: str | None = Field(None, description="The short phrase the model gave for its answer, kept so a wrong call can be seen rather than guessed at.")
+
+
+class AIRun(BaseModel):
+    model_name: str = Field(..., description="The exact model id that gave the answers, 'google/gemini-3-flash-preview'. The same question to another model gives other answers, so answers without it cannot be reproduced.")
+    prompt_id: str | None = Field(None, description="The prompt sent, by the name of its file in scripts/prompts/. Empty when the answers were drawn up in a conversation rather than sent through a prompt file.")
+    answered_on: date = Field(..., description="The day the model answered.")
+    classifies: str = Field(..., description="What the model was shown and what it was asked to decide about it, in one sentence: the entities the answers are about.")
+
+
+class SettlementClassificationRun(AIRun):
+    answers: tuple[EntityTypeClassification, ...] = Field(..., description="One answer per Wikidata class of place the model was shown.")
+
+
+class WesternAndWorldsRun(AIRun):
+    western_wikipedia_languages: tuple[str, ...] = Field(..., description="Language codes of the Wikipedia editions that count as Western.")
+    non_western_wikipedia_languages: tuple[str, ...] = Field(..., description="Language codes of the Wikipedia editions that count as non-Western. An edition on neither list is left undecided.")
+    western_countries: tuple[str, ...] = Field(..., description="Names of the present-day states, and of a few historical ones Wikidata gives as citizenships, that count as Western. Any other named state is not.")
+    latin_american_countries: tuple[str, ...] = Field(..., description="Names of the states whose continent becomes 'Latin America'.")
+    middle_east_countries: tuple[str, ...] = Field(..., description="Names of the states whose continent becomes 'Middle East'.")
+    worlds: dict[str, tuple[str, ...]] = Field(..., description="Each cultural world, 'Chinese world', with the names of the Cliopatria polities in it. A polity can be in two.")
 
 
 class WritingLanguageWikidata(BaseModel):
