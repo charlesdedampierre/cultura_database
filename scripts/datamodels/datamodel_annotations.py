@@ -18,44 +18,33 @@ class AIAnswer(D.AIAnswer):
     value_in_quote: bool | None = Field(None, description="value_as_written appears inside at least one extract, so the extracts really support the answer.")
 
 
-class Location(BaseModel):
-    name: str | None = Field(None, description="The most granular place the individual was active in, under its English name where one exists — 'Florence', 'Messina'.")
-    location_type: Literal["city", "region", "other"] | None = Field(None, description="What kind of place it is. A city can be matched to a polity's territory far more surely than a region.")
-    ai_answer: AIAnswer | None = Field(None, description="The model's answer for the place, with its evidence.")
-
-
-class ProductivityWindow(BaseModel):
+class ProductivityWindow(AIAnswer):
     start: Date | None = Field(None, description="First date of activity the biography states, with its precision: 'XIII secolo' is a date at century precision, not the year 1201.")
     middle: tuple[Date, ...] = Field((), description="Single dated moments of activity the text gives between or instead of a start and an end — a treatise written in 1235, offices held in 1274 and 1289.")
     end: Date | None = Field(None, description="Last date of activity the biography states.")
-    ai_answer: AIAnswer | None = Field(None, description="The model's answer for the period, with its evidence.")
 
 
 class Polity(BaseModel):
     cliopatria_id: int | None = Field(None, description="The polity's id in Cliopatria, the join key to Polity in the database.")
     name: str | None = Field(None, description="The polity's name as Cliopatria writes it — 'Republic of Pisa'.")
-    ai_answer: AIAnswer | None = Field(None, description="For a polity a model chose — the smallest one in the candidate list that governed the location for the largest share of the window — its answer. Empty for the polities Cultura assigned.")
 
 
 class CulturaComparison(BaseModel):
     productivity_window: PeakProductivity | None = Field(None, description="Cultura's productivity window for the individual, as IndividualEnriched.peak_productivity holds it.")
     polities: tuple[Polity, ...] = Field((), description="Every polity Cultura assigned the individual, as IndividualEnriched.polity lists them.")
     productivity_window_validated: bool | None = Field(None, description="The biography's window agrees with Cultura's: it lies inside it, or at least half of it overlaps it. Empty where either side has no dates.")
-    polity_validated: bool | None = Field(None, description="The polity the model chose is one of Cultura's, by Cliopatria id.")
 
 
 class HumanAnnotation(BaseModel):
     location_ok: bool | None = Field(None, description="The annotator agrees the biography places the individual's activity in the location. Empty until annotated.")
     peak_productivity_window_ok: bool | None = Field(None, description="The annotator agrees with the productivity window.")
-    polity_ok: bool | None = Field(None, description="The annotator agrees with the polity the model chose.")
-    notes: str | None = Field(None, description="Anything the three verdicts do not say — why one is False, a doubt, a better polity.")
+    notes: str | None = Field(None, description="Anything the two verdicts do not say — why one is False, a doubt.")
 
 
 class TreccaniAnnotation(BaseModel):
     entity: WikidataEntity = Field(..., description="The individual, by qid and label — the join key to Individual and IndividualEnriched.")
     treccani_url: str = Field(..., description="The individual's biography in the Dizionario Biografico degli Italiani on treccani.it (Wikidata P1986). It is the only text the model read.")
-    location: Location = Field(default_factory=Location, description="Where the biography says the individual was active.")
-    productivity_window: ProductivityWindow = Field(default_factory=ProductivityWindow, description="When the biography says the individual was active.")
-    polity: Polity = Field(default_factory=Polity, description="The Cliopatria polity a model matched to that location and window.")
+    location: AIAnswer = Field(default_factory=AIAnswer, description="Where the biography says the individual was active: the most granular place, under its English name where one exists, with its evidence.")
+    productivity_window: ProductivityWindow = Field(default_factory=ProductivityWindow, description="When the biography says the individual was active, with its evidence.")
     cultura: CulturaComparison = Field(default_factory=CulturaComparison, description="What Cultura holds for the same individual, and whether it agrees with the biography.")
     human: HumanAnnotation = Field(default_factory=HumanAnnotation, description="The annotator's verdict.")
