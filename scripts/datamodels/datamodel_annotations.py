@@ -14,7 +14,7 @@ class AIAnswer(BaseModel):
     source_verbatim: tuple[str, ...] = Field((), description="Word-for-word extracts of the text the answer comes from.")
     source_verbatim_english: tuple[str, ...] = Field((), description="source_verbatim in English, in the same order.")
     source_verbatim_not_invented: bool | None = Field(None, description="Automatic check: every extract in source_verbatim exists word for word in the text, so the model did not paraphrase or invent it.")
-    answer_found_in_source_verbatim: bool | None = Field(None, description="answer_as_written_in_text appears in at least one extract of source_verbatim.")
+    answer_supported_by_source_verbatim: bool | None = Field(None, description="Automatic check: answer_as_written_in_text appears in at least one extract of source_verbatim, so the quotes really back the answer.")
     model_name: str | None = Field(None, description="The model that answered — 'google/gemini-3.5-flash'.")
     prompt_id: str | None = Field(None, description="The prompt's name and version — 'treccani_floruit_location_v6'.")
     prompt: str | None = Field(None, description="The full prompt sent for this individual.")
