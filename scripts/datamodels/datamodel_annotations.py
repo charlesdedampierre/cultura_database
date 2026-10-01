@@ -2,11 +2,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-import datamodel_in_duckdb as D
 from datamodel_in_duckdb import Date, PeakProductivity, WikidataEntity
 
 
-class AIAnswer(D.AIAnswer):
+class AIAnswer(BaseModel):
+    model_name: str | None = Field(None, description="The exact model id that answered — 'google/gemini-3.5-flash'. The same prompt to another model, or a later version, gives different answers.")
+    prompt_id: str | None = Field(None, description="The name of the prompt, with its version — 'treccani_floruit_location_v6' — so answers from two versions of a prompt are never mixed.")
+    prompt: str | None = Field(None, description="The prompt sent to the model, in full, as it was for this individual — instructions and biography — so the question can be read without the code that built it.")
     value: str | None = Field(None, description="The answer the model gave — 'Florence', '1260-1298', 'Republic of Pisa'.")
     value_as_written: str | None = Field(None, description="The answer exactly as the biography writes it — 'Firenze', 'città peloritana', 'XIII secolo'.")
     value_as_written_translated_english: str | None = Field(None, description="The same in English — 'Florence', '13th century'.")
