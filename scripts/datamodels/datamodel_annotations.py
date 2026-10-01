@@ -13,7 +13,7 @@ class AIAnswer(BaseModel):
     reasoning: str | None = Field(None, description="The model's justification, in one to three sentences.")
     source_verbatim: tuple[str, ...] = Field((), description="Word-for-word extracts of the text the answer comes from.")
     source_verbatim_english: tuple[str, ...] = Field((), description="source_verbatim in English, in the same order.")
-    source_verbatim_found_in_text: bool | None = Field(None, description="Every extract in source_verbatim is found word for word in the text.")
+    source_verbatim_not_invented: bool | None = Field(None, description="Automatic check: every extract in source_verbatim exists word for word in the text, so the model did not paraphrase or invent it.")
     answer_found_in_source_verbatim: bool | None = Field(None, description="answer_as_written_in_text appears in at least one extract of source_verbatim.")
     model_name: str | None = Field(None, description="The model that answered — 'google/gemini-3.5-flash'.")
     prompt_id: str | None = Field(None, description="The prompt's name and version — 'treccani_floruit_location_v6'.")
