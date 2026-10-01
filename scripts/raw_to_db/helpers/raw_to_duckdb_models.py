@@ -279,13 +279,11 @@ def polity(cliopatria_id, spans):
     return datamodel_in_duckdb.Polity(
         cliopatria_id=cliopatria_id,
         name=first.name,
-        type=first.type,
         entity=entity(first.wikidata) if first.wikidata else None,
         sitelink=datamodel_in_duckdb.Sitelink(url="https://en.wikipedia.org/wiki/" + first.wikipedia.replace(" ", "_")) if first.wikipedia else None,
         territories=tuple(territory(span) for span in spans),
         field_provenance={
             "name": read_from("PolityCliopatria.name"),
-            "type": read_from("PolityCliopatria.type"),
             "entity": read_from("PolityCliopatria.wikidata"),
             "sitelink": read_from("PolityCliopatria.wikipedia"),
             "territories": read_from("PolityCliopatria.from_year", "PolityCliopatria.to_year", "PolityCliopatria.area", "PolityCliopatria.geometry"),
