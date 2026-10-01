@@ -9,7 +9,7 @@ import json
 
 from tqdm import tqdm
 
-from common import D, Enrichment, ROOT, as_json, open_database, provenance_column, stage
+from common import D, DATABASE, Enrichment, ROOT, as_json, open_database, provenance_column, stage
 from pydantic_to_duckdb_schema import columns_of
 
 TESTS = (
@@ -35,7 +35,7 @@ ENRICHMENT = Enrichment(
     writes=("IndividualEnriched.polity", "IndividualEnriched.polity_count"),
     rule="Every polity whose ground the individual stood on while they were at work. A place is tested against the territories a polity held during the peak activity window, by the tests in the order of TESTS: the citizenship's Wikipedia article shared with the polity, then the deathplace and the birthplace each by the polygon containing it and then by article — the deathplace first, since people are recorded where they worked and died more often than where they were born, which agreed with the Treccani biographies on 37 of 49 individuals against 32 with the birthplace first — and last the polygon containing the citizenship — last because a state's coordinates are one point near its middle, which puts anyone with Italian citizenship in the Papal States. The first test that matches anything ends the search. Within each test the sub-polities, those without child_polities, are tried first, and a meta polity is matched only when no sub-polity is. years_spent_in_polity counts each calendar year of the window once, however many territories of that polity cover it. Each match carries the polity's meta_polities, so the meta polity is read off the match.",
     inputs=("IndividualEnriched.peak_productivity",),
-    answers=ROOT / "data" / "cultura" / "cultura_v2.duckdb",
+    answers=DATABASE,
 )
 
 

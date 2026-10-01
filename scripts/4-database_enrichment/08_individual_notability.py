@@ -10,7 +10,7 @@ SITELINK = Enrichment(
     reads=("IndividualSitelink.site_url",),
     writes=("Sitelink.number_of_articles",),
     rule="How many individuals in Cultura the edition has a page on.",
-    answers=ROOT / "scripts" / "4-database_enrichment" / "07_notability.py",
+    answers=ROOT / "scripts" / "4-database_enrichment" / "08_individual_notability.py",
 )
 
 NOTABILITY = Enrichment(
@@ -18,7 +18,7 @@ NOTABILITY = Enrichment(
     writes=("IndividualEnriched.notability",),
     rule="The Wikipedia editions with a page on the individual, counted once each and split Western against non-Western on Sitelink.is_western; editions on neither list are left out of both counts. cross_cultural_score is the geometric mean of the two counts. An individual with no page scores 0.",
     inputs=("Sitelink.is_western",),
-    answers=ROOT / "scripts" / "4-database_enrichment" / "07_notability.py",
+    answers=ROOT / "scripts" / "4-database_enrichment" / "08_individual_notability.py",
 )
 
 

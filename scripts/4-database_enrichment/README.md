@@ -1,9 +1,12 @@
-# database_enrichment/
+# 4-database_enrichment/
 
-Enrichment steps that read `data/cultura_v2.duckdb` — the database
-`scripts/3-raw_to_db/build_database.py` writes from the raw files — and add to it the
-fields that are not stated by any source. The raw build computes nothing; every
-computed field in `datamodel_in_duckdb.py` is written here.
+Enrichment steps that add to the database the fields no source states. They
+never touch `data/cultura/humans_clean_non_enriched_v3.duckdb`, the database
+`scripts/3-raw_to_db/build_database.py` writes from the raw files: `run_all.py`
+copies it to `data/cultura/humans_clean_enriched_v3.duckdb` and enriches the
+copy. The raw build computes nothing; every computed field in
+`datamodel_in_duckdb.py` is written here, and nothing is written that the
+datamodel does not declare.
 
 Each script declares its contract at the top, as an `Enrichment`, and prints it
 when it runs:
@@ -22,34 +25,39 @@ cannot drift apart.
 
 ## Steps
 
+The file name says which table the step writes and what it computes; the
+number is the order `run_all.py` runs them in.
+
 | # | Script | Reads | Writes | Answers |
 |---|---|---|---|---|
-| 01 | `01_is_settlement.py` | `Place.instance_of` | `Place.is_settlement` | `data/raw_data_from_wikidata/entity_type_classification.json` |
-| 02b | `02b_description_dates.py` | `Individual.entity` (its description) | one more entry in `Individual.birth_date`, `.death_date`, `.floruit_date` | the regular expressions in the script itself |
-| 03 | `03_works_period.py` | `Individual.work`, `Work.publication_date`, `Work.inception` | `Individual.works_period` | the database itself |
-| 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
-| 00 | `00_productive_age_window.py` | `IndividualWikidata.date_of_birth`, `.floruit`, `CrossVerifiedPerson.level1_main_occ` | `data/productive_age_window.csv` | the measurement itself |
-| 05b | `05b_cohort_age_stats.py` | `Individual.birth_date`, `.death_date`, `.floruit_date` (Wikidata entries only), `CrossVerifiedPerson.level1_main_occ` | `CohortAgeStats`, the table `cohort_age_stats` | the measurement itself |
-| 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity`, and one more entry in `Individual.birth_date`, `.death_date` estimated from life expectancy | the database itself |
-| 06b | `06b_western_continents_and_worlds.py` | `Sitelink.url`, `PresentDayState.name`, `Polity.name` | `Sitelink.is_western`, `PresentDayState.continent`, `PresentDayState.is_western`, `Polity.world` (and the polities nested in `IndividualEnriched.polity`) | the lists in the script itself, drawn up by Claude |
-| 07b | `07b_polity_hierarchy.py` | `PolityCliopatria.name`, `.type`, `.components`, `.member_of` | `Polity.meta_polities`, `Polity.child_polities` (and splits each meta polity into a row of its own) | the Cliopatria GeoJSON |
-| 08 | `08_polity_assignment.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.coordinates`, `Place.sitelink`, `Polity.territories`, `Polity.sitelink`, `IndividualEnriched.peak_productivity` | `IndividualEnriched.polity`, `.polity_count` | the database itself |
-| 05 | `05_is_human.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.instance_of` | `Individual.is_human` | `city_entity_types.json` |
+| 01 | `01_place_is_settlement.py` | `Place.instance_of` | `Place.is_settlement` | `data/raw_data_from_wikidata/entity_type_classification.json` |
+| 02 | `02_individual_dates_from_description.py` | `Individual.entity` (its description) | one more entry in `Individual.birth_date`, `.death_date`, `.floruit_date` | the regular expressions in the script itself |
+| 03 | `03_individual_works_period.py` | `Individual.work`, `Work.publication_date`, `Work.inception` | `Individual.works_period` | the database itself |
+| 04 | `04_individual_is_scientist_artist_human.py` | `Individual.occupation`; `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.instance_of` | `Individual.is_scientist`, `Individual.is_artist`; `Individual.is_human` | `suboccupations_scientist_artist.json`; `city_entity_types.json` |
+| 05 | `05_cohort_life_expectancy_and_floruit_age.py` | `Individual.birth_date`, `.death_date`, `.floruit_date` (Wikidata entries only), `CrossVerifiedPerson.level1_main_occ` | `CohortAgeStats`, the table `cohort_age_stats` | the measurement itself |
+| 06 | `06_individual_peak_activity_window.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period`, `CohortAgeStats` | `IndividualEnriched.peak_productivity`, `.cohort_age_stats`, and one more entry in `Individual.birth_date`, `.death_date` estimated from life expectancy | the database itself |
+| 07 | `07_western_continents_and_cultural_worlds.py` | `Sitelink.url`, `PresentDayState.name`, `Polity.name` | `Sitelink.is_western`, `PresentDayState.continent`, `PresentDayState.is_western`, `Polity.world` (and the polities nested in `IndividualEnriched.polity`) | the lists in the script itself, drawn up by Claude |
+| 08 | `08_individual_notability.py` | `IndividualSitelink.site_url`, `Sitelink.is_western` | `Sitelink.number_of_articles`, `IndividualEnriched.notability` | the database itself |
+| 09 | `09_polity_hierarchy.py` | `PolityCliopatria.name`, `.type`, `.components`, `.member_of` | `Polity.meta_polities`, `Polity.child_polities` (and splits each meta polity into a row of its own) | the Cliopatria GeoJSON |
+| 10 | `10_individual_polity_assignment.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.coordinates`, `Place.sitelink`, `Polity.territories`, `Polity.sitelink`, `IndividualEnriched.peak_productivity` | `IndividualEnriched.polity`, `.polity_count` | the database itself |
 
-01 is the field a language model produced. 06b holds lists Claude drew up for this project — Western and non-Western Wikipedia languages, Western countries, the Latin America and Middle East regroupings, and the cultural worlds of polities — and writes them; the datamodel only declares the fields. Neither script calls a model:
-the answers were saved when the model was run and are read back from where they
-were saved, so a rerun cannot change them. 03, 04 and 05 are rules, and the
-rule is in the script.
+No step calls a language model. 01 reads back the answers a model gave when it
+was run once, from where they were saved, so a rerun cannot change them. 07
+holds lists Claude drew up for this project — Western and non-Western Wikipedia
+languages, Western countries, the Latin America and Middle East regroupings,
+and the cultural worlds of polities — and writes them; the datamodel only
+declares the fields. 03 and 04 are rules, and the rule is in the script.
 
-05 is worth reading before it is used. It tests the individual's places, not
-the individual: False means a birthplace, deathplace or citizenship whose
-Wikidata classes are labelled fictional, mythical, legendary, imaginary or
-hypothetical. Someone born in a fictional city is taken to be a fictional
-character. A False is evidence, a True is only the absence of it.
+The is_human half of 04 is worth reading before it is used. It tests the
+individual's places, not the individual: False means a birthplace, deathplace
+or citizenship whose Wikidata classes are labelled fictional, mythical,
+legendary, imaginary or hypothetical. Someone born in a fictional city is taken
+to be a fictional character. A False is evidence, a True is only the absence of
+it.
 
 ## Dates read off the Wikidata description
 
-02b reads the one-line English description of every individual — 'Italian
+02 reads the one-line English description of every individual — 'Italian
 painter (1712-1782)' — with the regular expressions of the extractor once
 written in Rust (`scripts/_one_off/extract_description_dates/src/main.rs`),
 ported to Python, and appends what it finds to the three date lists:
@@ -74,35 +82,28 @@ stops if one fails. 06 has to run after it for the new dates to reach
 ## Running
 
 ```bash
-.venv/bin/python scripts/4-database_enrichment/01_is_settlement.py
-```
-
-`CULTURA_DB` points them at another database; `SCRATCH` at another staging
-directory.
-
-The enrichment is never run on the built database itself. The build is kept,
-read-only, as the common basis, and `run_all.py --base` copies it to a new
-database and enriches the copy, so a later enrichment starts from the same
-ground:
-
-```bash
 CULTURA_DB=data/cultura/humans_clean_non_enriched_v3.duckdb .venv/bin/python scripts/3-raw_to_db/build_database.py
 chmod 444 data/cultura/humans_clean_non_enriched_v3.duckdb
-CULTURA_DB=data/cultura/humans_clean_enriched_v3.duckdb .venv/bin/python scripts/4-database_enrichment/run_all.py --base data/cultura/humans_clean_non_enriched_v3.duckdb
+.venv/bin/python scripts/4-database_enrichment/run_all.py
 ```
 
-## The productive age window
+The first two lines build the non-enriched database and lock it; they are
+needed only when the raw files or the build change. `run_all.py` copies it to
+`data/cultura/humans_clean_enriched_v3.duckdb` and runs every step on the copy,
+so a new enrichment always starts from the same ground. It stops if the
+enriched database already exists: move it away, or set `CULTURA_DB` to a new
+name. `--base` copies another non-enriched database instead. A single step can
+be run on its own, on `CULTURA_DB` (the enriched database by default):
 
-`00_productive_age_window.py` measures it rather than assuming it: for every
-individual whose birth year and Wikidata floruit are both stated to the year,
-the age at that floruit, quartered, globally and per cross-verified occupation
-category. It writes `data/productive_age_window.csv`, which 06 reads. The
-numbers are 29 to 53 over 16 106 individuals globally, and the file carries the
-count beside each window so a category measured on 10 people is visible as such.
+```bash
+.venv/bin/python scripts/4-database_enrichment/01_place_is_settlement.py
+```
+
+`SCRATCH` points the staging files at another directory.
 
 ## Life expectancy and productivity window per occupation and cohort
 
-05b writes `cohort_age_stats`: one row per cross-verified occupation category
+05 writes `cohort_age_stats`: one row per cross-verified occupation category
 (plus `All`, every individual) and fifty-year birth cohort, from 3500 BCE to
 1949 — 763 rows, none empty. Cohorts born from 1950 on are left out, most of them being still alive. Each holds the quartiles of age at death (Wikidata
 birth and death) and of age at floruit (Wikidata birth and floruit). A cohort
@@ -135,11 +136,15 @@ Within a rule, the date from the source earliest in `SOURCE_PRIORITY` is used.
 `peak_productivity` holds `start_year`, `end_year`, `assignation_method`,
 `precision` (`year`, `century`, `millennium`) and `label`. For a century window
 the label is the claim; the years are only the bounds of those centuries, kept
-so 08 can test territories against them.
+so 10 can test territories against them.
 
 The productive-age window and the life expectancy are read from
 `cohort_age_stats`, for the individual's cross-verified occupation (or All) and
-fifty-year birth cohort.
+fifty-year birth cohort. An individual without a birth year is placed in a
+cohort by an estimated birth: the floruit or first work minus the cohort's
+median age at floruit, or the death minus its median life expectancy, each
+taken first on the cohort of that year, then recomputed once on the cohort the
+estimate falls in.
 Only dates stated to the year or the decade choose the cohort; an individual
 dated by nothing finer than a century has no cohort, and so no life expectancy
 or productive-age window, though a century rule can still give them a window.
@@ -157,8 +162,8 @@ dates and a rerun does not stack them.
 
 ## The polity assignment
 
-08 puts each individual on the ground they stood on while they were at work. It
-is `scripts/legacy/database_consolidation_V2/04_individuals_cliopatria_rs`
+10 puts each individual on the ground they stood on while they were at work. It
+is `scripts/_legacy/database_consolidation_V2/04_individuals_cliopatria_rs`
 rewritten in Python, and its priority is two tuples, as 06's is:
 
 - `TESTS` — the location and the way it is matched, in order: the country of
