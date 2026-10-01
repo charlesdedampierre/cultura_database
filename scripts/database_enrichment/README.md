@@ -79,39 +79,32 @@ peak-productivity window can read it.
 
 ## The peak activity window
 
-06 is the one to read closely. Its priority is the order of two tuples and
-nothing else:
+06 is the one to read closely. Its priority is the order of `RULES` and nothing
+else; each rule is written below the tuple and registers itself, and the script
+refuses to start if the two disagree. The first rule that yields a window wins:
 
-- `RULES` — `floruit`, `works_span`, `works_single`, `birth_and_death`,
-  `birth_only`, `death_only`, and an individual none of them fits gets
-  `no_data`. The first that yields a window wins. The tuple is the first thing
-  in the file; each rule is written below it and registers itself, and the
-  script refuses to start if the two disagree.
-- `SOURCE_PRIORITY` — `wikidata_property`, `wikidata_entity_description`,
-  `cross_verified_database`, `wikipedia_article`, `life_expectancy_estimate`.
-  Within a rule, the date from the earliest source in this list is the one
-  used. Each date's source is read off its own provenance, so moving a source
-  is moving one name in this tuple.
+1. Dates stated to the year or the decade — `died_young` (dead at 18 or
+   younger: the whole life counts), `floruit`, `birth_and_death`, `birth_only`,
+   `death_only` (the birth is the death minus the cohort's median life
+   expectancy, then the productive-age window runs from it, cut at the death).
+2. Dates stated only to the century or millennium — the same rules, giving a
+   window named in centuries: born and dead in the same century → that century;
+   in consecutive centuries → "late 4th century – early 5th century"; birth
+   only → that century and the next; death only → the century before and that
+   one; floruit → its century.
+3. Dated works — `works_span`, `works_single` — the last resort, used only when
+   no birth, death or floruit says anything.
 
-`peak_productivity` holds three things: `start_year`, `end_year`, and
-`assignation_method`, which names the rule and the date source that produced
-them. It is always a range. Where a source states a single year — a floruit, or
-the only dated work — that year anchors the range rather than becoming it.
+Within a rule, the date from the source earliest in `SOURCE_PRIORITY` is used.
 
-Year-precise dates are tried before coarse ones: the whole of `RULES` runs over
-day, month and year precision first, and only then over decade, century and
-millennium. `assignation_method` on the row names the rule and the source that
-won, `works_span` or `birth_death_property`, so every window says how it was
-made. An individual no rule fits gets `no_data`.
+`peak_productivity` holds `start_year`, `end_year`, `assignation_method`,
+`precision` (`year`, `century`, `millennium`) and `label`. For a century window
+the label is the claim; the years are only the bounds of those centuries, kept
+so 08 can test territories against them.
 
-The productive-age window is read from `cohort_age_stats` (step 05b): the
-quartiles of age at floruit for the individual's cross-verified occupation and
-fifty-year birth cohort. Culture, Discovery/Science, Leadership and
-Sports/Games have windows of their own; an individual in Other, Missing or not
-in the cross-verified database takes the `All` row of the same cohort. Without
-a birth year, the cohort is the one born the median age at floruit
-(`data/productive_age_window.csv`, `global`) before the floruit, the first work
-or the death. Births after 1949 take the 1900–1949 cohort.
+The productive-age window and the life expectancy are read from
+`cohort_age_stats`, for the individual's cross-verified occupation (or All) and
+fifty-year birth cohort.
 
 ## The polity assignment
 
