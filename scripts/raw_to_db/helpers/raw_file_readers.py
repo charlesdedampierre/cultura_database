@@ -51,7 +51,7 @@ EXTERNAL_ID_PROPERTY_DETAILS = EXTRACTION_V2 / "identifier_metadata.json"
 
 WIKIMEDIA_SITE = EXTRACTION_V2 / "wiki_editions.json"
 
-PROPERTY = ROOT / "scripts" / "_one_off" / "properties.json"
+PROPERTY = ROOT / "_one_off" / "properties.json"
 POLITY = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
 POLITY_EXISTENCE = EXTRACTION_V2 / "polity_existence.json"
 
