@@ -7,7 +7,9 @@ Italy during the window. The automatic checks are computed on its quotes: agains
 biography for the first two, against the candidate list for the polity.
 Saved to treccani_ai_annotations.parquet.
 
-Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5] [--model google/gemini-2.5-flash --thinking on|off|minimal --no-reasoning --with-cultura --out name.parquet]
+Usage: .venv/bin/python annotations/building_scripts/treccani_ai_annotation.py [--n 5] [--model google/gemini-2.5-flash --thinking on|off|minimal --no-reasoning --with-cultura --out name.parquet --qids-from file --resample]
+
+An existing output keeps its individuals: a new sample is drawn only with --resample.
 """
 
 import argparse
@@ -34,9 +36,9 @@ import datamodel_annotations as A
 
 DB = ROOT / "data" / "cultura" / "humans_clean_v2_sample_treccani.duckdb"
 FOLDER = ROOT / "annotations" / "treccani_validation"
-TEXTS = FOLDER / "_cache" / "dbi_pages.jsonl"
+TEXTS = FOLDER / "treccani_texts.parquet"
 CACHE = FOLDER / "_cache" / "ai_annotation_responses.jsonl"
-OUT = FOLDER / "treccani_ai_annotations.parquet"
+OUT = FOLDER / "treccani_ai_annotations_cultura289.parquet"
 PROMPTS = ROOT / "scripts" / "prompts"
 
 MODEL = "google/gemini-3.5-flash"
@@ -82,7 +84,7 @@ def window_years(answer):
 
 
 def load_texts():
-    return {row["wikidata_id"]: row for row in map(json.loads, TEXTS.open(encoding="utf-8"))}
+    return {row["wikidata_id"]: row for row in pq.read_table(TEXTS).to_pylist()}
 
 
 def parsed(response):
@@ -219,6 +221,14 @@ def polity_prompt(location, window, candidate_lines):
     return template.replace("{location}", place).replace("{window}", window.answer or "").replace("{candidates}", candidate_lines)
 
 
+def qids_from(path):
+    """The individuals listed in a parquet of annotations or of texts, or in a JSON of statements."""
+    if path.suffix == ".json":
+        return sorted({row["qid"] for row in json.loads(path.read_text(encoding="utf-8"))})
+    rows = pq.read_table(path).to_pylist()
+    return [row["entity"]["qid"] if "entity" in row else row["wikidata_id"] for row in rows]
+
+
 def with_cultura(qids):
     """The individuals Cultura can be judged on: a productivity window known to the year, and at least one polity."""
     connection = duckdb.connect(str(DB), read_only=True)
@@ -245,6 +255,8 @@ def main():
     parser.add_argument("--thinking", choices=("default", "on", "off", "minimal"), default="default")
     parser.add_argument("--no-reasoning", action="store_true")
     parser.add_argument("--with-cultura", action="store_true")
+    parser.add_argument("--qids-from", type=Path)
+    parser.add_argument("--resample", action="store_true")
     parser.add_argument("--out", default=OUT.name)
     args = parser.parse_args()
     MODEL, THINKING, WRITE_REASONING = args.model, args.thinking, not args.no_reasoning
@@ -256,7 +268,13 @@ def main():
     population = sorted(entities(list(texts)))
     if args.with_cultura:
         population = sorted(with_cultura(population))
-    qids = random.Random(SEED).sample(population, min(args.n, len(population)))
+    if args.qids_from:
+        qids = qids_from(args.qids_from)
+    elif out.exists() and not args.resample:
+        qids = qids_from(out)
+        print(f"keeping the {len(qids)} individuals already in {out.name} (--resample to draw again)")
+    else:
+        qids = random.Random(SEED).sample(population, min(args.n, len(population)))
     print(f"{len(population)} individuals with a downloaded text in {DB.name}; annotating {len(qids)}: {', '.join(qids)}")
     cache = load_cache()
     price = model_price()

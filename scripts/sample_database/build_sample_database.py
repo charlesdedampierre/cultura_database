@@ -10,7 +10,7 @@ Reference tables (places, polities, cohort statistics, ...) are copied whole: th
 and cohort_age_stats must stay measured on the full database. The sample file is rewritten
 on every run.
 
-Usage: build_sample_database.py [--from-tsv path/to/sample.tsv --name humans_clean_v2_sample_x]
+Usage: build_sample_database.py [--from-tsv path/to/sample.tsv-or.parquet --name humans_clean_v2_sample_x]
 """
 
 import argparse
@@ -39,6 +39,8 @@ INDIVIDUAL_TABLES = {
 
 
 def annotated_qids(tsv):
+    if tsv and tsv.suffix == ".parquet":
+        return list(pd.read_parquet(tsv)["wikidata_id"])
     if tsv:
         return list(pd.read_csv(tsv, sep="\t")["wikidata_id"])
     page = ANNOTATION.read_text(encoding="utf-8")

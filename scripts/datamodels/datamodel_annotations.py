@@ -36,7 +36,7 @@ class HumanAnnotation(BaseModel):
 class TreccaniAnnotation(BaseModel):
     entity: WikidataEntity = Field(..., description="The individual.")
     treccani_url: str = Field(..., description="The biography on treccani.it.")
-    treccani_text_path: str = Field("annotations/treccani_validation/_cache/dbi_pages.jsonl", description="The file holding the downloaded text.")
+    treccani_text_path: str = Field("annotations/treccani_validation/treccani_texts.parquet", description="The file holding the downloaded text.")
     location_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual was active, found by AI in the text.")
     productivity_window_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was active, found by AI in the text.")
     polity_ai_matched: AIAnswer = Field(default_factory=AIAnswer, description="The Cliopatria polity matched by AI to the location and window.")
