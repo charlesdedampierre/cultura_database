@@ -44,7 +44,18 @@ API = "https://openrouter.ai/api/v1"
 
 
 def normalise(text):
-    return re.sub(r"\s+", " ", text or "").strip().lower()
+    text = re.sub(r"[’‘`]", "'", text or "")
+    text = re.sub(r"\s+", " ", text)
+    return re.sub(r"\s+([,.;:!?)\]»])|([(\[«])\s+", r"\1\2", text).strip().lower()
+
+
+def supported(written, extracts):
+    """The answer as written is in the quotes: every year of it when it has years, the whole of it otherwise."""
+    quotes = " ".join(normalise(extract) for extract in extracts)
+    years = re.findall(r"\d{3,4}", written or "")
+    if years:
+        return all(year in quotes for year in years)
+    return bool(written) and normalise(written) in quotes
 
 
 def load_texts():
@@ -108,7 +119,7 @@ def ai_answer(cached, text, price):
         source_verbatim=extracts,
         source_verbatim_english=tuple(answer.get("source_verbatim_english") or ()),
         source_verbatim_not_invented=bool(extracts) and all(normalise(extract) in body for extract in extracts),
-        answer_supported_by_source_verbatim=bool(written) and any(normalise(written) in normalise(extract) for extract in extracts),
+        answer_supported_by_source_verbatim=supported(written, extracts),
         model_name=MODEL,
         prompt_id=cached["prompt_id"],
         prompt=cached["prompt"],
