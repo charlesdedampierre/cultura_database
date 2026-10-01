@@ -5,7 +5,7 @@ are spread over period x region cells (round-robin, so rare cells come first); 8
 Each is shown as a field/value table: the dates and places used, the productive window and
 the polity it produced, and why.
 
-Usage: .venv/bin/python annotations/building_scripts/build_polity_window_review.py [--sample]
+Usage: .venv/bin/python annotations/legacy/building_scripts/build_polity_window_review.py [--sample]
 
 --sample reads humans_clean_sample_v2.duckdb instead and shows every individual in it, so the
 page can be regenerated in seconds after rerunning the enrichment scripts on the sample.
@@ -18,10 +18,10 @@ from pathlib import Path
 import duckdb
 from tqdm import tqdm
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 SAMPLE = "--sample" in sys.argv
 DB = ROOT / "data" / "cultura" / ("humans_clean_sample_v2.duckdb" if SAMPLE else "humans_clean_v2.duckdb")
-OUT = ROOT / "annotations" / "interfaces" / "polity_window_review.html"
+OUT = ROOT / "annotations" / "legacy" / "interfaces" / "polity_window_review.html"
 
 WITH_WINDOW = 1_000_000 if SAMPLE else 92
 NO_WINDOW = 1_000_000 if SAMPLE else 8
