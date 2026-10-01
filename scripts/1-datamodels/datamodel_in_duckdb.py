@@ -224,7 +224,7 @@ class CohortAgeStats(BaseModel):
 
 class CohortAgeStatsMatch(BaseModel):
     cv_occupation: Literal["Culture", "Discovery/Science", "Leadership", "Sports/Games", "All"] = Field(..., description="The row of CohortAgeStats used for the individual: their cross-verified occupation where it is Culture, Discovery/Science, Leadership or Sports/Games, and All for anyone else — Other, Missing, or not in the cross-verified database. With date_range it is the key back to that row, where the counts and the provenance are.")
-    date_range: DateRange = Field(..., description="The birth cohort of that row: the one the individual's birth year falls in, or, without a birth year, the one born the all-period median age at floruit before their floruit, first work or death. Anyone born from 1950 on takes the 1900–1949 cohort, the last the table measures.")
+    date_range: DateRange = Field(..., description="The birth cohort of that row: the one the individual's birth year falls in, or, without a birth year, the one of the birth estimated from their floruit or first work by the cohort's median age at floruit, or from their death by its median life expectancy. Anyone born from 1950 on takes the 1900–1949 cohort, the last the table measures.")
     life_expectancy_from_wikidata_birth_death: AgeRange | None = Field(None, description="What that cohort lived to — the quartiles of age at death, copied from CohortAgeStats. An expectation for the individual, not their own lifespan.")
     productivity_window_from_wikidata_floruit: AgeRange | None = Field(None, description="The ages at which that cohort was at work — the quartiles of age at floruit, copied from CohortAgeStats. Its low and high are the productive-age window peak_productivity was built on.")
 
