@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from tqdm import tqdm
 
 from common import D, Enrichment, ROOT, as_json, open_database, provenance_column, stage
-from pydantic_to_duckdb_schema import columns_of
+from pydantic_to_duckdb_schema import columns_of, duck_type
 
 CURRENT_YEAR = 2026
 
@@ -14,6 +14,8 @@ MAIN_OCCUPATIONS = ("Culture", "Discovery/Science", "Leadership", "Sports/Games"
 ALL = "All"
 BIN_WIDTH = 50
 YOUNG_DEATH_AGE = 18
+OLDEST_AGE = 110
+ESTIMATE = "life_expectancy_estimate"
 
 RULES = (
     "died_young",
@@ -56,6 +58,22 @@ COHORT = Enrichment(
     writes=("IndividualEnriched.cohort_age_stats",),
     rule="The row of cohort_age_stats the individual's peak_productivity was computed from — their cross-verified occupation, or All for anyone outside the four main categories, and their fifty-year birth cohort — copied with its life expectancy and productivity window. The cohort is that of the birth year; without one, of the birth estimated from the floruit, the death (by the median life expectancy), the centuries or the first work, in that order.",
     inputs=("CohortAgeStats.productivity_window_from_wikidata_floruit",),
+    answers=ROOT / "scripts" / "database_enrichment" / "05b_cohort_age_stats.py",
+)
+
+ESTIMATED_BIRTH = Enrichment(
+    reads=("Individual.death_date", "CohortAgeStats.life_expectancy_from_wikidata_birth_death"),
+    writes=("Individual.birth_date",),
+    rule="The birth year of an individual with a death year and no birth year stated to the year or the decade: the death year minus the median life expectancy of their cross-verified occupation and fifty-year birth cohort in cohort_age_stats, recomputed once on the cohort that first estimate falls in. An estimate, appended after every stated date.",
+    inputs=("Individual.death_date", "CohortAgeStats.life_expectancy_from_wikidata_birth_death"),
+    answers=ROOT / "scripts" / "database_enrichment" / "05b_cohort_age_stats.py",
+)
+
+ESTIMATED_DEATH = Enrichment(
+    reads=("Individual.birth_date", "CohortAgeStats.life_expectancy_from_wikidata_birth_death"),
+    writes=("Individual.death_date",),
+    rule=f"The death year of an individual with a birth year and no death year stated to the year or the decade: the birth year plus the median life expectancy of their cross-verified occupation and fifty-year birth cohort in cohort_age_stats, given only to someone born more than {OLDEST_AGE} years before {CURRENT_YEAR}, who cannot still be alive. An estimate, appended after every stated date.",
+    inputs=("Individual.birth_date", "CohortAgeStats.life_expectancy_from_wikidata_birth_death"),
     answers=ROOT / "scripts" / "database_enrichment" / "05b_cohort_age_stats.py",
 )
 
@@ -403,6 +421,22 @@ def cohort_year(facts, cohorts, occupation, typical_age):
     return None
 
 
+def estimated_date(year, enrichment):
+    provenance = enrichment.provenance()
+    return D.Date(year=year, precision="year", field_provenance={"year": provenance, "precision": provenance})
+
+
+def estimated_dates(facts, cohorts, occupation, typical_age):
+    """The birth or death year life expectancy supplies to an individual who has the other one and not this one."""
+    birth, death = None, None
+    if facts.birth is None and facts.death is not None:
+        birth = estimated_date(birth_from_death(cohorts, occupation, facts.death.year, typical_age), ESTIMATED_BIRTH)
+    if facts.death is None and facts.birth is not None and facts.birth.year + OLDEST_AGE < CURRENT_YEAR:
+        life = life_expectancy(cohort_of(cohorts, occupation, facts.birth.year), typical_age)
+        death = estimated_date(facts.birth.year + life, ESTIMATED_DEATH)
+    return birth, death
+
+
 def peak_productivity(row, cohorts, typical_age):
     facts = Facts(
         birth=preferred(row["birth_date"]),
@@ -413,23 +447,48 @@ def peak_productivity(row, cohorts, typical_age):
         floruit_period=preferred_period(row["floruit_date"]),
         works=row["works_period"],
     )
+    estimates = estimated_dates(facts, cohorts, row["occupation"], typical_age)
     year = cohort_year(facts, cohorts, row["occupation"], typical_age)
     if year is None:
-        return None, None
+        return None, None, estimates
     cohort = cohort_of(cohorts, row["occupation"], year)
     facts.low = round(cohort.productivity_window_from_wikidata_floruit.low)
     facts.high = round(cohort.productivity_window_from_wikidata_floruit.high)
     for name in RULES:
         window = IMPLEMENTATIONS[name](facts)
         if window is not None:
-            return window, cohort
-    return None, cohort
+            return window, cohort, estimates
+    return None, cohort, estimates
+
+
+def remove_estimates(connection):
+    """Drops the estimates a previous run appended, so the window is built on stated dates only and a rerun does not stack them."""
+    for column in ("birth_date", "death_date"):
+        connection.execute(f"""
+            UPDATE individual
+            SET {column} = list_filter({column}, d -> coalesce(d.field_provenance['year'].rule, '') NOT ILIKE '%life expectancy%')
+            WHERE list_bool_or(list_transform({column}, d -> coalesce(d.field_provenance['year'].rule, '') ILIKE '%life expectancy%'))
+        """)
+
+
+def append_estimates(connection, estimates):
+    stage(connection, "estimated", {"qid": "VARCHAR", "birth": duck_type(D.Date), "death": duck_type(D.Date)}, estimates)
+    for column, field in (("birth_date", "birth"), ("death_date", "death")):
+        connection.execute(f"""
+            UPDATE individual
+            SET {column} = list_append(individual.{column}, estimated.{field})
+            FROM estimated
+            WHERE individual.entity.qid = estimated.qid AND estimated.{field} IS NOT NULL
+        """)
 
 
 def main():
     ENRICHMENT.announce()
     COHORT.announce()
+    ESTIMATED_BIRTH.announce()
+    ESTIMATED_DEATH.announce()
     connection = open_database()
+    remove_estimates(connection)
     connection.execute(f"ATTACH '{CROSS_VERIFIED}' AS cv (READ_ONLY)")
     cohorts = load_cohort_age_stats(connection)
     typical_age = typical_age_at_floruit()
@@ -455,11 +514,14 @@ def main():
         """).fetch_record_batch(BATCH)
     counts = {}
     categories = {}
+    estimates = []
 
     def assigned():
         for batch in tqdm(reader, desc="peak window", unit=" batches of 200k", mininterval=5):
             for row in batch.to_pylist():
-                window, cohort = peak_productivity(row, cohorts, typical_age)
+                window, cohort, (birth, death) = peak_productivity(row, cohorts, typical_age)
+                if birth or death:
+                    estimates.append({"qid": row["entity"]["qid"], "birth": birth and as_json(birth), "death": death and as_json(death)})
                 method = window.method if window else NO_RULE_APPLIES
                 counts[method] = counts.get(method, 0) + 1
                 category = cohort.cv_occupation if cohort else "no cohort"
@@ -485,10 +547,14 @@ def main():
 
     total = stage(connection, "assigned", columns_of(D.IndividualEnriched), assigned())
     connection.execute("CREATE OR REPLACE TABLE individual_enriched AS SELECT * FROM assigned")
+    append_estimates(connection, estimates)
+    births = sum(1 for estimate in estimates if estimate["birth"])
+    deaths = sum(1 for estimate in estimates if estimate["death"])
 
     print(f"{total:,} individuals, by the rule that decided each one:")
     for method, count in sorted(counts.items(), key=lambda pair: -pair[1]):
         print(f"   {method:34} {count:>6,}")
+    print(f"\nestimated from life expectancy: {births:,} birth years, {deaths:,} death years")
     print("\nproductive-age window used, by occupation:")
     for category, count in sorted(categories.items(), key=lambda pair: -pair[1]):
         print(f"   {category:34} {count:>6,}")

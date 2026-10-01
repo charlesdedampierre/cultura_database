@@ -30,7 +30,7 @@ cannot drift apart.
 | 04 | `04_is_scientist_is_artist.py` | `Individual.occupation` | `Individual.is_scientist`, `Individual.is_artist` | `suboccupations_scientist_artist.json` |
 | 00 | `00_productive_age_window.py` | `IndividualWikidata.date_of_birth`, `.floruit`, `CrossVerifiedPerson.level1_main_occ` | `data/productive_age_window.csv` | the measurement itself |
 | 05b | `05b_cohort_age_stats.py` | `Individual.birth_date`, `.death_date`, `.floruit_date` (Wikidata entries only), `CrossVerifiedPerson.level1_main_occ` | `CohortAgeStats`, the table `cohort_age_stats` | the measurement itself |
-| 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity` | the database itself |
+| 06 | `06_peak_productivity.py` | `Individual.birth_date`, `.death_date`, `.floruit_date`, `.works_period` | `IndividualEnriched.peak_productivity`, and one more entry in `Individual.birth_date`, `.death_date` estimated from life expectancy | the database itself |
 | 06b | `06b_western_continents_and_worlds.py` | `Sitelink.url`, `PresentDayState.name`, `Polity.name` | `Sitelink.is_western`, `PresentDayState.continent`, `PresentDayState.is_western`, `Polity.world` (and the polities nested in `IndividualEnriched.polity`) | the lists in the script itself, drawn up by Claude |
 | 07b | `07b_polity_hierarchy.py` | `PolityCliopatria.name`, `.type`, `.components`, `.member_of` | `Polity.meta_polities`, `Polity.child_polities` (and splits each meta polity into a row of its own) | the Cliopatria GeoJSON |
 | 08 | `08_polity_assignment.py` | `Individual.place_of_birth`, `.place_of_death`, `.country_of_citizenship`, `Place.coordinates`, `Place.sitelink`, `Polity.territories`, `Polity.sitelink`, `IndividualEnriched.peak_productivity` | `IndividualEnriched.polity`, `.polity_count` | the database itself |
@@ -106,6 +106,17 @@ so 08 can test territories against them.
 The productive-age window and the life expectancy are read from
 `cohort_age_stats`, for the individual's cross-verified occupation (or All) and
 fifty-year birth cohort.
+
+06 also fills the birth or death year an individual lacks from the one they
+have, by the median life expectancy of the same cohort row: a death year and no
+birth year stated to the year or the decade gives a birth year (the same one
+`death_only` uses), and a birth year and no death year gives a death year, but
+only to someone born more than 110 years ago, who cannot still be alive. Each
+estimate is appended after every stated date, at precision `year` with no
+`iso`, and its own `field_provenance` names the rule and its inputs, so it reads
+as `life_expectancy_estimate` in `SOURCE_PRIORITY`. Each run first removes the
+estimates the previous run appended, so the window is always built on stated
+dates and a rerun does not stack them.
 
 ## The polity assignment
 
