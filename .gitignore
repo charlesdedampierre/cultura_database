@@ -33,6 +33,9 @@ other_docs/
 
 scripts/_one_off/
 
+# Local-only folders and files at the root (_archive, _logs, _one_off, _temp_files, _wt, ...)
+/_*
+
 
 # Claude AI workspace
 claude/
