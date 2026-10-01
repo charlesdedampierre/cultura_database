@@ -114,9 +114,11 @@ is `scripts/legacy/database_consolidation_V2/04_individuals_cliopatria_rs`
 rewritten in Python, and its priority is two tuples, as 06's is:
 
 - `TESTS` — the location and the way it is matched, in order: the country of
-  citizenship's Wikipedia article; the birthplace by polygon, then by article;
-  the deathplace by polygon, then by article; and last the country of
-  citizenship by polygon. A state's coordinates are one point near its middle,
+  citizenship's Wikipedia article; the deathplace by polygon, then by article;
+  the birthplace by polygon, then by article; and last the country of
+  citizenship by polygon. The deathplace comes before the birthplace because,
+  of every order of these tests, it agreed best with the Treccani biographies
+  (37 of 49 individuals, against 32 with the birthplace first). A state's coordinates are one point near its middle,
   which puts anyone with Italian citizenship in the Papal States, so that test
   only runs when nothing else matched. The first test that matches anything
   ends the search.
