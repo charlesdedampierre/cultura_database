@@ -88,11 +88,11 @@ refuses to start if the two disagree. The first rule that yields a window wins:
    younger: the whole life counts), `floruit`, `birth_and_death`, `birth_only`,
    `death_only` (the birth is the death minus the cohort's median life
    expectancy, then the productive-age window runs from it, cut at the death).
-2. Dates stated only to the century or millennium — the same rules, giving a
+2. Births and deaths stated only to the century or millennium, giving a
    window named in centuries: born and dead in the same century → that century;
    in consecutive centuries → "late 4th century – early 5th century"; birth
    only → that century and the next; death only → the century before and that
-   one; floruit → its century.
+   one. A floruit stated only to the century or millennium is never used.
 3. Dated works — `works_span`, `works_single` — the last resort, used only when
    no birth, death or floruit says anything.
 
@@ -106,6 +106,9 @@ so 08 can test territories against them.
 The productive-age window and the life expectancy are read from
 `cohort_age_stats`, for the individual's cross-verified occupation (or All) and
 fifty-year birth cohort.
+Only dates stated to the year or the decade choose the cohort; an individual
+dated by nothing finer than a century has no cohort, and so no life expectancy
+or productive-age window, though a century rule can still give them a window.
 
 06 also fills the birth or death year an individual lacks from the one they
 have, by the median life expectancy of the same cohort row: a death year and no

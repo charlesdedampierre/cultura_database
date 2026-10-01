@@ -23,7 +23,6 @@ RULES = (
     "birth_and_death",
     "birth_only",
     "death_only",
-    "floruit_century",
     "birth_and_death_century",
     "birth_only_century",
     "death_only_century",
@@ -49,14 +48,14 @@ BATCH = 200_000
 ENRICHMENT = Enrichment(
     reads=("Individual.birth_date", "Individual.death_date", "Individual.floruit_date", "Individual.works_period", "CohortAgeStats.productivity_window_from_wikidata_floruit", "CohortAgeStats.life_expectancy_from_wikidata_birth_death", "CrossVerifiedPerson.level1_main_occ"),
     writes=("IndividualEnriched.peak_productivity",),
-    rule="The years the individual is taken to have been at work, with how finely they are known and the name of the rule that produced them. Every rule in RULES is tried in the order written and the first that yields a window wins: first the rules on birth, death and floruit dates stated to the year or the decade, then the same rules on dates stated only to the century or millennium, which give a window named in centuries ('late 4th century – early 5th century'), and only then the individual's dated works, the last resort. Someone who died aged 18 or younger is taken to have counted for their whole life. With a death and no birth, the birth is the death minus the median life expectancy of the cohort. Where a rule needs a date the individual has from several sources, the source earliest in SOURCE_PRIORITY is the one used. The productive-age window is the quartiles of age at floruit in cohort_age_stats, for the individual's cross-verified occupation and fifty-year birth cohort; an individual whose occupation is Other, Missing or absent from the cross-verified database takes the All row of the same cohort.",
+    rule="The years the individual is taken to have been at work, with how finely they are known and the name of the rule that produced them. Every rule in RULES is tried in the order written and the first that yields a window wins: first the rules on birth, death and floruit dates stated to the year or the decade, then the birth and death rules on dates stated only to the century or millennium, which give a window named in centuries ('late 4th century – early 5th century'), and only then the individual's dated works, the last resort. A floruit stated only to the century or millennium is never used. Someone who died aged 18 or younger is taken to have counted for their whole life. With a death and no birth, the birth is the death minus the median life expectancy of the cohort. Where a rule needs a date the individual has from several sources, the source earliest in SOURCE_PRIORITY is the one used. The productive-age window is the quartiles of age at floruit in cohort_age_stats, for the individual's cross-verified occupation and fifty-year birth cohort; an individual whose occupation is Other, Missing or absent from the cross-verified database takes the All row of the same cohort.",
     answers=ROOT / "scripts" / "database_enrichment" / "05b_cohort_age_stats.py",
 )
 
 COHORT = Enrichment(
     reads=("CohortAgeStats.cv_occupation", "CohortAgeStats.date_range", "CohortAgeStats.life_expectancy_from_wikidata_birth_death", "CohortAgeStats.productivity_window_from_wikidata_floruit", "CrossVerifiedPerson.level1_main_occ"),
     writes=("IndividualEnriched.cohort_age_stats",),
-    rule="The row of cohort_age_stats the individual's peak_productivity was computed from — their cross-verified occupation, or All for anyone outside the four main categories, and their fifty-year birth cohort — copied with its life expectancy and productivity window. The cohort is that of the birth year; without one, of the birth estimated from the floruit, the death (by the median life expectancy), the centuries or the first work, in that order.",
+    rule="The row of cohort_age_stats the individual's peak_productivity was computed from — their cross-verified occupation, or All for anyone outside the four main categories, and their fifty-year birth cohort — copied with its life expectancy and productivity window. The cohort is that of the birth year; without one, of the birth estimated from the floruit, the death (by the median life expectancy) or the first work, in that order, each stated to the year or the decade. A date stated only to the century or millennium never chooses a cohort, so an individual dated by nothing finer has none.",
     inputs=("CohortAgeStats.productivity_window_from_wikidata_floruit",),
     answers=ROOT / "scripts" / "database_enrichment" / "05b_cohort_age_stats.py",
 )
@@ -118,7 +117,6 @@ class Facts:
     floruit: Dated | None
     birth_period: Period | None
     death_period: Period | None
-    floruit_period: Period | None
     works: dict | None
     estimated_birth: int | None = None
     low: int = 0
@@ -315,15 +313,6 @@ def from_death_only(facts):
     return Window(start, end, f"death_only_{death.source}")
 
 
-@rule("floruit_century")
-def from_floruit_century(facts):
-    """A floruit known only to the century is the century they were active in."""
-    floruit = facts.floruit_period
-    if floruit is None:
-        return None
-    return period_window(floruit.number, floruit.number, floruit.unit, f"floruit_century_{floruit.source}")
-
-
 @rule("birth_and_death_century")
 def from_birth_and_death_century(facts):
     """Born and dead in the same century: that century. Born in one and dead in the next: the late part of the first and the early part of the second. Further apart: every century between."""
@@ -384,11 +373,6 @@ def from_works_single(facts):
 assert tuple(IMPLEMENTATIONS) == RULES, f"{tuple(IMPLEMENTATIONS)} is not {RULES}"
 
 
-def middle(period):
-    start, end = bounds(period.number, period.unit)
-    return (start + end) // 2
-
-
 def life_expectancy(cohort, typical_age):
     life = cohort.life_expectancy_from_wikidata_birth_death
     return round(life.median) if life and life.median is not None else typical_age
@@ -410,12 +394,6 @@ def cohort_year(facts, cohorts, occupation, typical_age):
     if facts.death is not None:
         facts.estimated_birth = birth_from_death(cohorts, occupation, facts.death.year, typical_age)
         return facts.estimated_birth
-    if facts.birth_period is not None:
-        return middle(facts.birth_period)
-    if facts.floruit_period is not None:
-        return middle(facts.floruit_period) - typical_age
-    if facts.death_period is not None:
-        return middle(facts.death_period) - typical_age
     if facts.works and facts.works.get("first_year") is not None:
         return facts.works["first_year"] - typical_age
     return None
@@ -444,16 +422,14 @@ def peak_productivity(row, cohorts, typical_age):
         floruit=preferred(row["floruit_date"]),
         birth_period=preferred_period(row["birth_date"]),
         death_period=preferred_period(row["death_date"]),
-        floruit_period=preferred_period(row["floruit_date"]),
         works=row["works_period"],
     )
     estimates = estimated_dates(facts, cohorts, row["occupation"], typical_age)
     year = cohort_year(facts, cohorts, row["occupation"], typical_age)
-    if year is None:
-        return None, None, estimates
-    cohort = cohort_of(cohorts, row["occupation"], year)
-    facts.low = round(cohort.productivity_window_from_wikidata_floruit.low)
-    facts.high = round(cohort.productivity_window_from_wikidata_floruit.high)
+    cohort = cohort_of(cohorts, row["occupation"], year) if year is not None else None
+    if cohort is not None:
+        facts.low = round(cohort.productivity_window_from_wikidata_floruit.low)
+        facts.high = round(cohort.productivity_window_from_wikidata_floruit.high)
     for name in RULES:
         window = IMPLEMENTATIONS[name](facts)
         if window is not None:
