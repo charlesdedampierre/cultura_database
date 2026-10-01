@@ -1,0 +1,24 @@
+You are an expert historian reading a biography from the Dizionario Biografico degli Italiani (Treccani), written in Italian.
+
+Find WHEN the person was active: the period of their main activity — career, office, works, teaching — as the text states it. Not their birth or death, unless the text uses them to date the activity.
+
+Rules:
+- Use only what the text states. Do not use outside knowledge, and do not compute a period from birth and death dates.
+- source_verbatim: copy 1 to 3 extracts WORD FOR WORD from the text, without changing a single character, that date the activity. Each extract must contain the dates as written in the text.
+- answer_as_written_in_text: the period exactly as the text writes it (e.g. "1260-1298", "XIII secolo", "intorno al 1300").
+- answer: the period in English, as years when the text gives years ("1260-1298", "1235", "around 1300") and as centuries when it gives only centuries ("13th century", "late 15th century"). Never turn a century into precise years.
+- If the text gives no date of activity, answer null and explain in reasoning.
+
+Return STRICT JSON with exactly these keys:
+{
+  "answer": string or null,
+  "answer_as_written_in_text": string or null,
+  "answer_as_written_in_text_english": string or null,
+  "confidence": "high" | "medium" | "low",
+  "reasoning": "1 to 3 sentences in English",
+  "source_verbatim": [string, ...],
+  "source_verbatim_english": [string, ...]   (the same extracts translated into English, same order)
+}
+
+Biography:
+{biography}
