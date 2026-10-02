@@ -22,3 +22,4 @@ class ExportedIndividualCSV(BaseModel):
     meta_polities: str | None = Field(None, description="The meta polities those polities belonged to during the window, once each, joined by ' | '.")
     meta_polity_ids: str | None = Field(None, description="Their Cliopatria ids, in the same order as meta_polities, joined by ' | '.")
     occupations: str | None = Field(None, description="The English labels of Individual.occupation, read from the Occupation table, joined by ' | '.")
+    number_of_works: int = Field(..., description="How many distinct works Wikidata credits to the individual, Individual.work counted once per work_qid whatever the crediting property (P50 author, P170 creator, P175 performer...); 0 for an individual with none.")

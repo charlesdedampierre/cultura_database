@@ -1,4 +1,4 @@
-"""Export one row per individual of the enriched database to a CSV shaped by ExportedIndividualCSV: identity, dates, period of activity, polities and occupations."""
+"""Export one row per individual of the enriched database to a CSV shaped by ExportedIndividualCSV: identity, dates, period of activity, polities, occupations and number of works."""
 
 import argparse
 import sys
@@ -48,8 +48,9 @@ SELECT
     END AS seshat_ids,
     joined(list_transform(meta_polities(enriched.polity, enriched.peak_productivity), meta -> meta.name)) AS meta_polities,
     joined(list_transform(meta_polities(enriched.polity, enriched.peak_productivity), meta -> CAST(meta.cliopatria_id AS VARCHAR))) AS meta_polity_ids,
-    joined(list_transform(person.occupation, one_occupation -> occupation_label.labels[one_occupation.entity.qid])) AS occupations
-FROM (SELECT entity, birth_date, death_date, occupation FROM individual WHERE hash(entity.qid) % {chunks} = {chunk}) AS person
+    joined(list_transform(person.occupation, one_occupation -> occupation_label.labels[one_occupation.entity.qid])) AS occupations,
+    len(list_distinct(list_transform(person.work, one_work -> one_work.work_qid))) AS number_of_works
+FROM (SELECT entity, birth_date, death_date, occupation, work FROM individual WHERE hash(entity.qid) % {chunks} = {chunk}) AS person
 CROSS JOIN occupation_label
 LEFT JOIN (SELECT entity, peak_productivity, polity FROM individual_enriched WHERE hash(entity.qid) % {chunks} = {chunk}) AS enriched
     ON enriched.entity.qid = person.entity.qid
