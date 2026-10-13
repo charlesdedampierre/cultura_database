@@ -136,6 +136,7 @@ class Place(BaseModel):
 class Occupation(BaseModel):
     entity: WikidataEntity = Field(..., description="The occupation's Wikidata item, as Individual.occupation names it.")
     subclass_of: tuple[WikidataEntity, ...] = Field((), description="P279, the occupations this one is a kind of. This is the tree Individual.is_scientist and .is_artist walk, so it is here rather than left implicit in the flags.")
+    meta_occupation: Literal["Culture", "Discovery/Science", "Leadership", "Sports/Games", "Other"] | None = Field(None, description="Cross-Verified level-1 domain of the occupation, from an AI classification of its label (enrichment step 12).")
     field_provenance: dict[str, Provenance] = Field({}, description="How each value on this row came to be, keyed by column — the raw field it was read from, or the rule that produced it.")
 
 

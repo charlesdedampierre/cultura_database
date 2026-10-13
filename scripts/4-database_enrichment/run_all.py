@@ -28,6 +28,7 @@ STEPS = (
     "09_polity_hierarchy.py",
     "10_individual_polity_assignment.py",
     "11_seshat_id.py",
+    "12_occupation_meta_occupation.py",
 )
 
 

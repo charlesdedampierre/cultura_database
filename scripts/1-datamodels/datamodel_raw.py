@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -221,6 +222,16 @@ class AIRun(BaseModel):
 
 class SettlementClassificationRun(AIRun):
     answers: tuple[EntityTypeClassification, ...] = Field(..., description="One answer per Wikidata class of place the model was shown.")
+
+
+class OccupationMetaClassification(BaseModel):
+    qid: str = Field(..., description="An occupation's Wikidata item, 'Q1028181' for painter. The classification was run over the occupations, not the individuals holding them.")
+    label: str | None = Field(None, description="The occupation's label, as given to the model.")
+    meta_occupation: Literal["Culture", "Discovery/Science", "Leadership", "Sports/Games", "Other"] = Field(..., description="The Cross-Verified level-1 domain the model put the occupation in.")
+
+
+class MetaOccupationRun(AIRun):
+    answers: tuple[OccupationMetaClassification, ...] = Field(..., description="One answer per labelled occupation the model was shown, in batches of 500.")
 
 
 class WesternAndWorldsRun(AIRun):
