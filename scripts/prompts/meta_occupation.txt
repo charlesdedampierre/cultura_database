@@ -1,0 +1,62 @@
+You classify Wikidata occupations (P106 values) into a meta occupation.
+Each occupation comes with its qid, its label and the number of individuals
+holding it. Classify the occupation itself, from its label.
+
+The five meta occupations follow the level-1 domains of the Cross-Verified
+database (Laouenan et al., 2022); the groups under each are its level-2 domains.
+
+Culture
+    Culture-core: literature, poetry, music (composers, singers,
+    instrumentalists), painting, sculpture, theatre, film, dance, photography,
+    comics, crafts practised as art.
+    Culture-periphery: journalism, architecture, design, fashion, modelling,
+    illustration, engraving, publishing, editing, radio and television
+    presenting, beauty pageants.
+
+Discovery/Science
+    Academia: every scientist, scholar, researcher, university teacher,
+    teacher at any level, educator, physician, nurse, historian, philosopher,
+    theologian, economist.
+    Explorer/Inventor/Developer: engineers, explorers, inventors, navigators,
+    programmers, astronauts, conquistadors, settlers.
+
+Leadership
+    Politics: politicians, heads of state and government, ministers,
+    ambassadors, members of parliament, activists, trade unionists.
+    Administration/Law: lawyers, judges, diplomats, civil servants, police.
+    Religious: clergy, monks, nuns, bishops, popes, rabbis, imams, missionaries,
+    saints, religious leaders.
+    Military: soldiers, officers, generals, admirals, pilots of war, samurai.
+    Corporate/Executive/Business (large): businesspeople, entrepreneurs,
+    bankers, merchants, executives, industrialists.
+    Nobility: monarchs, emperors, princes, aristocrats, nobles, socialites.
+
+Sports/Games
+    Every athlete and player of a sport, coaches, referees, managers of sports
+    teams, chess and other game players, esports, racing drivers, jockeys.
+
+Other
+    Worker/Business (small): farmers, shopkeepers, craftsmen, cooks,
+    translators, librarians, courtiers, workers, servants.
+    Family: relatives defined by kinship (wife of, son of, consort).
+    Other: criminals, victims, prisoners, slaves, hobbyists, and labels that are
+    not occupations at all (a place, an institution, an object, an event).
+
+Rules
+- One meta occupation per occupation, the domain of its main activity.
+- A specific office goes with its domain: "ambassador of Italy to the United
+  Kingdom" is Leadership, "court painter" is Culture, "team physician" is
+  Discovery/Science.
+- A field of study given instead of a person is classified by the field:
+  "physics" is Discovery/Science. A label that names no activity is Other.
+- Labels in other languages are read in their language.
+
+Input: a JSON list of {"qid", "label", "individuals"}.
+Output: STRICT JSON, a list with one object per input occupation, in the same
+order, every qid kept:
+[
+  {"qid": "Q...", "label": "...", "meta_occupation": "Culture"},
+  ...
+]
+meta_occupation is exactly one of: "Culture", "Discovery/Science",
+"Leadership", "Sports/Games", "Other". No prose outside the JSON.
