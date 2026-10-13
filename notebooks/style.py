@@ -196,3 +196,44 @@ def categorical_palette(names):
 def hex_to_rgba(hex_color, alpha):
     r, g, b = (int(hex_color.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))
     return f'rgba({r},{g},{b},{alpha})'
+
+
+def show_table(df, decimals=2, font_size=11, font_family='Arial', row_height=0.3, padding=0.15, dpi=300):
+    """Display a dataframe as a journal-style table: three rules, no vertical lines, numbers right-aligned."""
+    from matplotlib.font_manager import FontProperties
+    from matplotlib.textpath import TextToPath
+
+    def fmt(v):
+        if isinstance(v, int):
+            return f'{v:,}'
+        return f'{v:,.{decimals}f}' if isinstance(v, float) else str(v)
+
+    def text_width(text, weight):
+        font = FontProperties(family=font_family, size=font_size, weight=weight)
+        return TextToPath().get_text_width_height_descent(text, font, ismath=False)[0] / 72
+
+    headers = list(df.columns)
+    numeric = [df[c].dtype.is_numeric() for c in headers]
+    cells = [[fmt(v) for v in row] for row in df.rows()]
+    widths = [max(text_width(h, 'bold'), *(text_width(row[i], 'normal') for row in cells)) + 2 * padding
+              for i, h in enumerate(headers)]
+    lefts = [sum(widths[:i]) for i in range(len(widths))]
+    width, height = sum(widths), (len(cells) + 1) * row_height + 0.1
+
+    fig, ax = plt.subplots(figsize=(width, height), dpi=dpi)
+    ax.set_position([0, 0, 1, 1])
+    ax.set_xlim(0, width)
+    ax.set_ylim(height, 0)
+    ax.axis('off')
+
+    top, header_bottom = 0.05, 0.05 + row_height
+    for y, lw in [(top, 1.0), (header_bottom, 0.6), (height - 0.05, 1.0)]:
+        ax.plot([0, width], [y, y], color='black', lw=lw)
+
+    for row_index, row in enumerate([headers] + cells):
+        y = top + (row_index + 0.5) * row_height
+        for left, w, text, is_numeric in zip(lefts, widths, row, numeric):
+            x, ha = (left + w - padding, 'right') if is_numeric else (left + padding, 'left')
+            ax.text(x, y, text, ha=ha, va='center', fontsize=font_size, family=font_family, color='black',
+                    fontweight='bold' if row_index == 0 else 'normal')
+    plt.show()
