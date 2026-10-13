@@ -6,6 +6,8 @@ Usage, in the config cell of a notebook:
     apply_style()
 """
 
+import re
+
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
@@ -213,8 +215,9 @@ def show_table(df, decimals=2, font_size=11, font_family='Arial', row_height=0.3
         return TextToPath().get_text_width_height_descent(text, font, ismath=False)[0] / 72
 
     headers = list(df.columns)
-    numeric = [df[c].dtype.is_numeric() for c in headers]
     cells = [[fmt(v) for v in row] for row in df.rows()]
+    numeric = [df[c].dtype.is_numeric() or all(re.fullmatch(r'[\d,.%—-]+', row[i]) for row in cells)
+               for i, c in enumerate(headers)]
     widths = [max(text_width(h, 'bold'), *(text_width(row[i], 'normal') for row in cells)) + 2 * padding
               for i, h in enumerate(headers)]
     lefts = [sum(widths[:i]) for i in range(len(widths))]
