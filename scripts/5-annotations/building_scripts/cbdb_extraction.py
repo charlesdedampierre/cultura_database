@@ -2,7 +2,7 @@
 
 Each record is saved as the API returns it, keyed by Wikidata id, in
 scripts/5-annotations/cbdb_validation/cbdb_persons.json. Records already downloaded are kept,
-failed ones are retried once.
+failed ones are retried once, and progress is saved every 500 records.
 
 Usage: .venv/bin/python scripts/5-annotations/building_scripts/cbdb_extraction.py
 """
@@ -21,6 +21,7 @@ OUT = FOLDER / "cbdb_persons.json"
 API = "https://cbdb.fas.harvard.edu/cbdbapi/person.php"
 HEADERS = {"User-Agent": "cultura-database research (cdedampierre@bunka.ai)"}
 WORKERS = 5
+CHECKPOINT = 500
 
 
 def person(cbdb_id):
@@ -32,12 +33,18 @@ def person(cbdb_id):
         return None
 
 
+def save(records):
+    OUT.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
+
+
 def download(todo, records):
     with ThreadPoolExecutor(WORKERS) as pool:
         results = pool.map(lambda row: (row["qid"], person(row["cbdb_id"])), todo)
-        for qid, record in tqdm(results, total=len(todo), desc="CBDB records"):
+        for done, (qid, record) in enumerate(tqdm(results, total=len(todo), desc="CBDB records"), 1):
             if record is not None:
                 records[qid] = record
+            if done % CHECKPOINT == 0:
+                save(records)
 
 
 def main():
@@ -47,7 +54,7 @@ def main():
         todo = [row for row in sample if row["qid"] not in records]
         print(f"{len(todo)} records to download, {len(sample) - len(todo)} already saved")
         download(todo, records)
-        OUT.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
+        save(records)
     missing = [row["qid"] for row in sample if row["qid"] not in records]
     print(f"{len(records)} records saved to {OUT.relative_to(ROOT)}, {len(missing)} failed: {', '.join(missing[:10])}")
 
