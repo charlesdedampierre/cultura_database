@@ -52,7 +52,7 @@ WITH wikidata_dates AS (
     FROM individual
 )
 SELECT cv.level1_main_occ AS occupation,
-       w.birth.year // $bin_width * $bin_width AS birth_bin,
+       CAST(floor(w.birth.year / $bin_width) AS BIGINT) * $bin_width AS birth_bin,
        CASE WHEN list_contains($year_or_finer, w.death.precision)
             THEN frac_year(w.death) - frac_year(w.birth) END AS lifespan,
        CASE WHEN list_contains($year_or_finer, w.floruit.precision)
