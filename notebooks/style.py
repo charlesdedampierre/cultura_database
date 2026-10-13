@@ -206,6 +206,8 @@ def show_table(df, decimals=2, font_size=11, font_family='Arial', row_height=0.3
     from matplotlib.textpath import TextToPath
 
     def fmt(v):
+        if v is None:
+            return '—'
         if isinstance(v, int):
             return f'{v:,}'
         return f'{v:,.{decimals}f}' if isinstance(v, float) else str(v)
