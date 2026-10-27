@@ -7,6 +7,7 @@ from pydantic_to_duckdb_schema import duck_type
 
 CURRENT_YEAR = 2026
 OLDEST_AGE = 110
+LAST_BIRTH_YEAR = 1920
 CENTURY = 100
 MIN_LIVES = 10
 LIFESPAN_RANGE = (0, 110)
@@ -18,7 +19,7 @@ RULE_PREFIX = "Estimated from life expectancy:"
 DEATH = Enrichment(
     reads=("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death"),
     writes=("Individual.death_date",),
-    rule=f"{RULE_PREFIX} the birth year plus the mean life expectancy of the individuals of the same meta occupation born in the same century, among those of the four meta occupations Culture, Discovery/Science, Leadership and Sports/Games whose Wikidata birth and death are both stated to the year or the decade and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. Someone with none of the four meta occupations takes the mean of all four together. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie. Only for someone born more than {OLDEST_AGE} years before {CURRENT_YEAR}, who cannot still be alive.",
+    rule=f"{RULE_PREFIX} the birth year plus the mean life expectancy of the individuals of the same meta occupation born in the same century, among those of the four meta occupations Culture, Discovery/Science, Leadership and Sports/Games whose Wikidata birth and death are both stated to the year or the decade and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart, born in {LAST_BIRTH_YEAR} or earlier (some born later are still alive). Someone with none of the four meta occupations takes the mean of all four together. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie. Only for someone born more than {OLDEST_AGE} years before {CURRENT_YEAR}, who cannot still be alive.",
     inputs=("Individual.birth_date", "Individual.death_date", "Occupation.meta_occupation"),
     answers=ROOT / "notebooks" / "01_life_expectancy.ipynb",
 )
@@ -26,7 +27,7 @@ DEATH = Enrichment(
 BIRTH = Enrichment(
     reads=("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death"),
     writes=("Individual.birth_date",),
-    rule=f"{RULE_PREFIX} the death year minus the mean life expectancy of the individuals of the same meta occupation who died in the same century, among those of the four meta occupations Culture, Discovery/Science, Leadership and Sports/Games whose Wikidata birth and death are both stated to the year or the decade and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. Someone with none of the four meta occupations takes the mean of all four together. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie.",
+    rule=f"{RULE_PREFIX} the death year minus the mean life expectancy of the individuals of the same meta occupation who died in the same century, among those of the four meta occupations Culture, Discovery/Science, Leadership and Sports/Games whose Wikidata birth and death are both stated to the year or the decade and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart, born in {LAST_BIRTH_YEAR} or earlier (some born later are still alive). Someone with none of the four meta occupations takes the mean of all four together. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie.",
     inputs=("Individual.birth_date", "Individual.death_date", "Occupation.meta_occupation"),
     answers=ROOT / "notebooks" / "01_life_expectancy.ipynb",
 )
@@ -77,7 +78,7 @@ def lives_of(people):
     return (
         people.filter(pl.col("birth_year").is_not_null() & pl.col("death_year").is_not_null())
         .with_columns((pl.col("death_year") - pl.col("birth_year")).alias("life_expectancy"))
-        .filter(pl.col("life_expectancy").is_between(*LIFESPAN_RANGE) & pl.col("meta_occupation").is_in(list(META_OCCUPATIONS)))
+        .filter(pl.col("life_expectancy").is_between(*LIFESPAN_RANGE) & pl.col("meta_occupation").is_in(list(META_OCCUPATIONS)) & (pl.col("birth_year") <= LAST_BIRTH_YEAR))
     )
 
 
