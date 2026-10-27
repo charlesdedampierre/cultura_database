@@ -1,4 +1,4 @@
-"""Estimate a missing birth or death year from the mean life expectancy of the individual's meta occupation and century, appended to individual.birth_date or individual.death_date."""
+"""Estimate a missing birth or death year from the mean life expectancy of the individual's meta occupation (one of four) and century, appended to individual.birth_date or individual.death_date."""
 
 import polars as pl
 
@@ -10,15 +10,15 @@ OLDEST_AGE = 110
 CENTURY = 100
 MIN_LIVES = 10
 LIFESPAN_RANGE = (0, 110)
-STATED = ("day", "month", "year")
 KNOWN = ("day", "month", "year", "decade")
-NO_META_OCCUPATION = "Missing"
+META_OCCUPATIONS = ("Culture", "Discovery/Science", "Leadership", "Sports/Games")
+ALL = "All"
 RULE_PREFIX = "Estimated from life expectancy:"
 
 DEATH = Enrichment(
     reads=("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death"),
     writes=("Individual.death_date",),
-    rule=f"{RULE_PREFIX} the birth year plus the mean life expectancy of the individuals of the same meta occupation born in the same century, among those whose Wikidata birth and death are stated to the year or finer and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie. Only for someone born more than {OLDEST_AGE} years before {CURRENT_YEAR}, who cannot still be alive.",
+    rule=f"{RULE_PREFIX} the birth year plus the mean life expectancy of the individuals of the same meta occupation born in the same century, among those of the four meta occupations Culture, Discovery/Science, Leadership and Sports/Games whose Wikidata birth and death are both stated to the year or the decade and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. Someone with none of the four meta occupations takes the mean of all four together. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie. Only for someone born more than {OLDEST_AGE} years before {CURRENT_YEAR}, who cannot still be alive.",
     inputs=("Individual.birth_date", "Individual.death_date", "Occupation.meta_occupation"),
     answers=ROOT / "notebooks" / "01_life_expectancy.ipynb",
 )
@@ -26,7 +26,7 @@ DEATH = Enrichment(
 BIRTH = Enrichment(
     reads=("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death"),
     writes=("Individual.birth_date",),
-    rule=f"{RULE_PREFIX} the death year minus the mean life expectancy of the individuals of the same meta occupation who died in the same century, among those whose Wikidata birth and death are stated to the year or finer and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie.",
+    rule=f"{RULE_PREFIX} the death year minus the mean life expectancy of the individuals of the same meta occupation who died in the same century, among those of the four meta occupations Culture, Discovery/Science, Leadership and Sports/Games whose Wikidata birth and death are both stated to the year or the decade and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. Someone with none of the four meta occupations takes the mean of all four together. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie.",
     inputs=("Individual.birth_date", "Individual.death_date", "Occupation.meta_occupation"),
     answers=ROOT / "notebooks" / "01_life_expectancy.ipynb",
 )
@@ -40,7 +40,7 @@ counted AS (
     SELECT held.qid, occupation.meta_occupation, count(*) AS occupations, min(held.position) AS first_position
     FROM held
     JOIN occupation ON occupation.entity.qid = held.occupation_qid
-    WHERE occupation.meta_occupation IS NOT NULL
+    WHERE list_contains($meta_occupations, occupation.meta_occupation)
     GROUP BY ALL
 ),
 main_meta_occupation AS (
@@ -49,7 +49,7 @@ main_meta_occupation AS (
     QUALIFY row_number() OVER (PARTITION BY qid ORDER BY occupations DESC, first_position) = 1
 )
 SELECT individual.entity.qid AS qid,
-       coalesce(main_meta_occupation.meta_occupation, $no_meta_occupation) AS meta_occupation,
+       coalesce(main_meta_occupation.meta_occupation, $all) AS meta_occupation,
        list_filter(individual.birth_date, d -> d.field_provenance['year'].rule IS NULL AND list_contains($known, d.precision))[1] AS birth,
        list_filter(individual.death_date, d -> d.field_provenance['year'].rule IS NULL AND list_contains($known, d.precision))[1] AS death,
        len(individual.birth_date) = 0 AS no_birth,
@@ -65,30 +65,30 @@ def century_label(start):
 
 
 def load_people(connection):
-    people = connection.execute(PEOPLE, {"known": list(KNOWN), "no_meta_occupation": NO_META_OCCUPATION}).pl()
+    people = connection.execute(PEOPLE, {"known": list(KNOWN), "meta_occupations": list(META_OCCUPATIONS), "all": ALL}).pl()
     return people.select(
         "qid", "meta_occupation", "no_birth", "no_death",
         pl.col("birth").struct.field("year").alias("birth_year"),
         pl.col("death").struct.field("year").alias("death_year"),
-        pl.col("birth").struct.field("precision").is_in(list(STATED)).alias("birth_stated"),
-        pl.col("death").struct.field("precision").is_in(list(STATED)).alias("death_stated"),
     )
 
 
 def lives_of(people):
     return (
-        people.filter(pl.col("birth_stated") & pl.col("death_stated"))
+        people.filter(pl.col("birth_year").is_not_null() & pl.col("death_year").is_not_null())
         .with_columns((pl.col("death_year") - pl.col("birth_year")).alias("life_expectancy"))
-        .filter(pl.col("life_expectancy").is_between(*LIFESPAN_RANGE))
+        .filter(pl.col("life_expectancy").is_between(*LIFESPAN_RANGE) & pl.col("meta_occupation").is_in(list(META_OCCUPATIONS)))
     )
 
 
 def cohorts(lives, anchor):
-    """Mean life expectancy per meta occupation and century of the anchor date, with the century each cell borrows from when it holds fewer than MIN_LIVES."""
-    cells = (
-        lives.group_by("meta_occupation", (pl.col(anchor) // CENTURY * CENTURY).alias("century"))
-        .agg(pl.len().alias("individuals"), pl.col("life_expectancy").mean().alias("mean"))
-    )
+    """Mean life expectancy per meta occupation, and for the four together (ALL), per century of the anchor date."""
+    lives = lives.with_columns((pl.col(anchor) // CENTURY * CENTURY).alias("century"))
+    stats = (pl.len().alias("individuals"), pl.col("life_expectancy").mean().alias("mean"))
+    cells = pl.concat([
+        lives.group_by("meta_occupation", "century").agg(*stats),
+        lives.group_by("century").agg(*stats).select(pl.lit(ALL).alias("meta_occupation"), "century", "individuals", "mean"),
+    ])
     large = cells.filter(pl.col("individuals") >= MIN_LIVES).select(
         "meta_occupation", pl.col("century").alias("used_century"), pl.col("individuals").alias("used_individuals"), "mean"
     )
@@ -122,7 +122,8 @@ def estimate(people, lives, missing):
 
 def group_rule(enrichment, row, missing):
     dated = "born" if missing == "death" else "who died"
-    rule = f"{enrichment.rule} Here {row['mean']:.1f} years, the mean of {row['used_individuals']:,} {row['meta_occupation']} individuals {dated} in {century_label(row['used_century'])}"
+    group = "individuals of the four meta occupations" if row["meta_occupation"] == ALL else f"{row['meta_occupation']} individuals"
+    rule = f"{enrichment.rule} Here {row['mean']:.1f} years, the mean of {row['used_individuals']:,} {group} {dated} in {century_label(row['used_century'])}"
     if row["used_century"] != row["century"]:
         rule += f", the closest century with {MIN_LIVES}; {century_label(row['century'])} has {row['individuals'] or 0}"
     return rule + "."
@@ -164,7 +165,7 @@ def main():
     connection = open_database()
     people = load_people(connection)
     lives = lives_of(people)
-    print(f"{people.height:,} individuals with a birth or a death, {lives.height:,} with both stated to the year ({LIFESPAN_RANGE[0]}-{LIFESPAN_RANGE[1]} years)")
+    print(f"{people.height:,} individuals with a birth or a death, {lives.height:,} with both stated to the year or the decade ({LIFESPAN_RANGE[0]}-{LIFESPAN_RANGE[1]} years)")
     for missing in ("death", "birth"):
         estimated, used, enrichment = estimate(people, lives, missing)
         report(estimated, used, missing)

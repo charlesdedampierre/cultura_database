@@ -200,7 +200,7 @@ def hex_to_rgba(hex_color, alpha):
     return f'rgba({r},{g},{b},{alpha})'
 
 
-def show_table(df, decimals=2, font_size=11, font_family='Arial', row_height=0.3, padding=0.15, dpi=300):
+def show_table(df, decimals=2, font_size=11, font_family='Arial', row_height=0.3, padding=0.15, dpi=300, red_columns=()):
     """Display a dataframe as a journal-style table: three rules, no vertical lines, numbers right-aligned."""
     from matplotlib.font_manager import FontProperties
     from matplotlib.textpath import TextToPath
@@ -237,8 +237,9 @@ def show_table(df, decimals=2, font_size=11, font_family='Arial', row_height=0.3
 
     for row_index, row in enumerate([headers] + cells):
         y = top + (row_index + 0.5) * row_height
-        for left, w, text, is_numeric in zip(lefts, widths, row, numeric):
+        for left, w, text, is_numeric, header in zip(lefts, widths, row, numeric, headers):
             x, ha = (left + w - padding, 'right') if is_numeric else (left + padding, 'left')
-            ax.text(x, y, text, ha=ha, va='center', fontsize=font_size, family=font_family, color='black',
+            color = HIGHLIGHT_COLOR if header in red_columns else 'black'
+            ax.text(x, y, text, ha=ha, va='center', fontsize=font_size, family=font_family, color=color,
                     fontweight='bold' if row_index == 0 else 'normal')
     plt.show()
