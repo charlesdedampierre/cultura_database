@@ -1,4 +1,6 @@
-"""Copy the non-enriched database to CULTURA_DB and run every enrichment step on the copy, in order, so the non-enriched one is never touched."""
+"""Copy the non-enriched database to CULTURA_DB (cultura_enriched_v3.2) and run the enrichment steps on the copy, in order, so the non-enriched one is never touched.
+
+The former date and polity steps (05, 06, 10, 11 and those between) are left out: a new date pipeline replaces them."""
 
 import argparse
 import os
@@ -9,7 +11,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from common import BASE, DATABASE, ROOT
+import duckdb
+
+from common import BASE, DATABASE, ROOT, D
+from pydantic_to_duckdb_schema import columns_of
 
 DATABASE = DATABASE.resolve()
 
@@ -17,18 +22,8 @@ HERE = Path(__file__).resolve().parent
 TASK_LOG = ROOT / "task.log"
 
 STEPS = (
-    "01_place_is_settlement.py",
-    "02_individual_dates_from_description.py",
-    "03_individual_works_period.py",
-    "04_individual_is_scientist_artist_human.py",
-    "05_cohort_life_expectancy_and_floruit_age.py",
-    "06_individual_peak_activity_window.py",
-    "07_western_continents_and_cultural_worlds.py",
-    "08_individual_notability.py",
-    "09_polity_hierarchy.py",
-    "10_individual_polity_assignment.py",
-    "11_seshat_id.py",
     "12_occupation_meta_occupation.py",
+    "13_individual_dates_from_life_expectancy.py",
 )
 
 
@@ -45,6 +40,16 @@ def copy_base(base):
     report(f"copying {base} to {DATABASE}")
     shutil.copyfile(base, DATABASE)
     DATABASE.chmod(0o644)
+    reset_individual_enriched()
+
+
+def reset_individual_enriched():
+    """The non-enriched database holds an empty individual_enriched with the former columns: recreate it with the current datamodel."""
+    connection = duckdb.connect(str(DATABASE))
+    assert connection.execute("SELECT count(*) FROM individual_enriched").fetchone()[0] == 0
+    declared = ", ".join(f'"{column}" {kind}' for column, kind in columns_of(D.IndividualEnriched).items())
+    connection.execute(f"CREATE OR REPLACE TABLE individual_enriched ({declared})")
+    connection.close()
 
 
 def main():
