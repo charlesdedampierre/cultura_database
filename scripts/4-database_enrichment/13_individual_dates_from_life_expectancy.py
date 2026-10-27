@@ -20,7 +20,7 @@ DEATH = Enrichment(
     writes=("Individual.death_date",),
     rule=f"{RULE_PREFIX} the birth year plus the mean life expectancy of the individuals of the same meta occupation born in the same century, among those whose Wikidata birth and death are stated to the year or finer and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie. Only for someone born more than {OLDEST_AGE} years before {CURRENT_YEAR}, who cannot still be alive.",
     inputs=("Individual.birth_date", "Individual.death_date", "Occupation.meta_occupation"),
-    answers=ROOT / "notebooks" / "05_life_expectancy.ipynb",
+    answers=ROOT / "notebooks" / "01_life_expectancy.ipynb",
 )
 
 BIRTH = Enrichment(
@@ -28,7 +28,7 @@ BIRTH = Enrichment(
     writes=("Individual.birth_date",),
     rule=f"{RULE_PREFIX} the death year minus the mean life expectancy of the individuals of the same meta occupation who died in the same century, among those whose Wikidata birth and death are stated to the year or finer and {LIFESPAN_RANGE[0]} to {LIFESPAN_RANGE[1]} years apart. A century with fewer than {MIN_LIVES} of them takes the closest century that has {MIN_LIVES}, the later one on a tie.",
     inputs=("Individual.birth_date", "Individual.death_date", "Occupation.meta_occupation"),
-    answers=ROOT / "notebooks" / "05_life_expectancy.ipynb",
+    answers=ROOT / "notebooks" / "01_life_expectancy.ipynb",
 )
 
 PEOPLE = """
