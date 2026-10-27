@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-BATCHES = ROOT / "_temp_files" / "meta_occupation"
+BATCHES = ROOT / "_one_off" / "meta_occupation"
 OUT = Path(__file__).resolve().parents[1] / "interfaces" / "meta_occupation_review.html"
 CATEGORIES = ["Culture", "Discovery/Science", "Leadership", "Sports/Games", "Other"]
 TIERS = [("top 500", 0, 500), ("500 to 5,000", 500, 5000), ("tail", 5000, None)]
