@@ -49,8 +49,8 @@ NEW_VALUES = {
     "entity": "individual.entity",
     "birth_date": f"coalesce(coarse_dates.birth_date, {as_individual_date('age_at_death.birth_date')})",
     "death_date": f"coalesce(coarse_dates.death_date, {as_individual_date('age_at_death.death_date')})",
-    "first_work_date": as_individual_date("work_dates.first_work_date"),
-    "last_work_date": as_individual_date("work_dates.last_work_date"),
+    "first_work_date": "work_dates.first_work_date",
+    "last_work_date": "work_dates.last_work_date",
     "field_provenance": f"map_concat(coalesce(previous.field_provenance, MAP {{}}), (SELECT map_from_entries(list((date_provenance.column_name, date_provenance.provenance))) FROM date_provenance))",
 }
 
