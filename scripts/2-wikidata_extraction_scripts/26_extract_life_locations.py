@@ -70,9 +70,9 @@ def statement_query(qids: list[str]) -> str:
 
 
 def parse_point(token: str) -> dict | None:
-    """'"Point(2.35 48.85)"^^<...>' -> {latitude, longitude}."""
+    """'POINT(2.35 48.85)' -> {latitude, longitude}."""
     text = time_value(token)
-    if not text.startswith("Point("):
+    if not text.upper().startswith("POINT("):
         return None
     longitude, latitude = text[6:-1].split()[:2]
     return {"latitude": float(latitude), "longitude": float(longitude)}
