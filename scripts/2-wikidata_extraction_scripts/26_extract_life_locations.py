@@ -172,13 +172,18 @@ def merge_targets() -> None:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--size", type=int, default=5_000, help="individuals per chunk")
+    parser.add_argument("--size", type=int, default=500, help="individuals per chunk; qlever.dev rejects queries above ~8 KB, about 600 qids")
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--test", action="store_true", help="first 20,000 individuals, written under life_locations/test/")
     args = parser.parse_args()
+    global OUT_DIR
+    if args.test:
+        OUT_DIR = OUT_DIR / "test"
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     start = time.time()
     qids = [row[0] for row in duckdb.connect(str(DATABASE), read_only=True).sql("select entity.qid from individual order by entity.qid").fetchall()]
+    qids = qids[:20_000] if args.test else qids
     log(f"start: {len(qids):,} individuals, chunks of {args.size:,}, {args.threads} threads")
 
     failed_statements = run_chunks("statements", fetch_statements, qids, args.size, args.threads)

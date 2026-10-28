@@ -12,7 +12,7 @@ from typing import Iterable, Iterator
 import requests
 
 
-QLEVER_ENDPOINT = "https://qlever.cs.uni-freiburg.de/api/wikidata"
+QLEVER_ENDPOINT = "https://qlever.dev/api/wikidata"
 WDQS_ENDPOINT = "https://query.wikidata.org/sparql"
 
 USER_AGENT = "cultura-database-research/1.0 (cdedampierre@bunka.ai)"

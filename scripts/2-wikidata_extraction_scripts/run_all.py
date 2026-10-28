@@ -28,6 +28,9 @@ SCRIPTS = [
     "12_extract_occupation_metadata.py",
     "13_extract_modern_countries.py",
     "14_extract_catalog_metadata.py",
+    # Life locations: statements of every individual, then the places of their targets
+    "26_extract_life_locations.py",
+    "28_extract_life_location_places.py",
 ]
 
 
