@@ -11,8 +11,10 @@ To be done when asked.
 ## 2. Wrong stage limits (5,218 of 10,002 individuals, 52%)
 
 - A 1-year or backwards stage, or an early stage of 40+ years. 94% of individuals have estimated work dates: the last work is often capped at the death year, so the active and late stages shrink to that year, while the early stage stretches over the adult life.
-- Rule: the early stage ends at age 30 at the latest (early = birth → min(first work, birth + 30)).
-- Fix: apply that cap in `01_life_stage_polities`; stop capping estimated work dates at the death in `notebooks_dates/02_works_periods`; merge any stage shorter than about 5 years into its neighbour.
+- Rule: the early stage ends at the first work; with no first work, at age 30.
+- If first work = last work (a single work date), it counts as a unique floruit date, to be treated in `notebooks/notebooks_dates/03_floruit_dates_DRAFT.ipynb`. For the moment, these individuals are treated as if they had no work at all (early stage ends at 30).
+- Fix: apply these rules in `01_life_stage_polities`; stop capping estimated work dates at the death in `notebooks_dates/02_works_periods`; merge any stage shorter than about 5 years into its neighbour.
+- To decide: the active and late stages of individuals with no work (proposal: active = age 30 → 60 or death, late = age 60 → death).
 
 ## 3. Stop matching the country of citizenship by one coordinate point
 
