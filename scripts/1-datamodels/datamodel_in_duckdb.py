@@ -24,6 +24,18 @@ class Date(BaseModel):
     field_provenance: dict[str, Provenance] = Field({}, description="Where this one date came from: no rule for a stated date, a rule for one the project worked out.")
 
 
+class Cohort(BaseModel):
+    occupation: str | None = Field(None, description="Meta occupation of the cohort; empty when the cohort is every individual.")
+    century: int | None = Field(None, description="First year of the cohort's century of birth, -500 for 500-401 BC; empty when the age is averaged over the centuries.")
+    individuals: int | None = Field(None, description="Individuals the cohort's age was learnt from.")
+    age: float | None = Field(None, description="Age the estimate used: the cohort's mean age at death, or its median age at the first or the last work.")
+
+
+class IndividualDate(Date):
+    source: Literal["wikidata", "dated works", "estimated"] | None = Field(None, description="'wikidata' for a birth or death stated in Wikidata, 'dated works' for a work date read from the individual's works, 'estimated' when imputed from the ages of the cohort.")
+    cohort: Cohort | None = Field(None, description="Cohort whose age gave an estimated date.")
+
+
 class WikidataEntity(BaseModel):
     qid: str = Field(..., description="Wikidata identifier, 'Q937'; the join key between tables.")
     label_en: str | None = Field(None, description="English (or 'mul') label.")
@@ -117,9 +129,9 @@ class Notability(BaseModel):
 
 class PolityMatch(BaseModel):
     polity: Polity | None = Field(None, description="Matched polity: id, name, world and meta_polities only.")
-    years_spent_in_polity: int | None = Field(None, description="Years of the flourishing range inside this polity, each year counted once.")
+    years_spent_in_polity: int | None = Field(None, description="Years from first_work_date to last_work_date inside this polity, each year counted once.")
     assignation_method: Literal["polygon_of_birthplace", "polygon_of_deathplace", "polygon_of_country_of_citizenship", "url_of_birthplace", "url_of_deathplace", "url_of_country_of_citizenship"] | None = Field(None, description="Which location and which test made the match.")
-    seshat_ids: tuple[str, ...] = Field((), description="Seshat ids of the polity's territories overlapping the flourishing range.")
+    seshat_ids: tuple[str, ...] = Field((), description="Seshat ids of the polity's territories overlapping first_work_date to last_work_date.")
 
 
 class Place(BaseModel):
@@ -207,9 +219,12 @@ class Individual(BaseModel):
 class IndividualEnriched(BaseModel):
     entity: WikidataEntity = Field(..., description="Individual, joining to Individual.entity.qid.")
 
-    flourishing_year_range: YearRange | None = Field(None, description="Years the individual flourished, from the new date pipeline.")
+    birth_date: IndividualDate | None = Field(None, description="The Wikidata birth, else the death year minus the cohort's mean age at death (notebooks_dates/01_age_at_death).")
+    death_date: IndividualDate | None = Field(None, description="The Wikidata death, else the birth year plus the cohort's mean age at death, for births up to 1920 (notebooks_dates/01_age_at_death).")
+    first_work_date: IndividualDate | None = Field(None, description="The earliest cleaned work date, else the birth year plus the cohort's median age at the first work (notebooks_dates/02_works_periods).")
+    last_work_date: IndividualDate | None = Field(None, description="The latest cleaned work date, else the birth year plus the cohort's median age at the last work, capped at the death (notebooks_dates/02_works_periods).")
 
-    polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched during the flourishing range, longest overlap first (enrichment step 10).")
+    polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from first_work_date to last_work_date, longest overlap first (enrichment step 10).")
     polity_count: int | None = Field(None, description="Number of polities matched, len(polity).")
 
     notability: Notability | None = Field(None, description="Western and non-Western Wikipedia coverage and the cross-cultural score (enrichment step 08).")
