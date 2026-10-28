@@ -22,6 +22,7 @@ from pydantic_to_duckdb_schema import columns_of, duck_type
 
 STEP = "08 life locations"
 PROVENANCE = duck_type(datamodel_in_duckdb.Provenance)
+MEMORY_LIMIT = "6GB"
 
 FIELDS = {
     "work_location": raw_file_readers.WORK_LOCATION,
@@ -76,7 +77,7 @@ def held_row(field, qid, targets, labels):
 
 def fill_field(connection, field, statements, labels, present):
     kind = columns_of(datamodel_in_duckdb.Individual)[field]
-    connection.execute(f"ALTER TABLE individual ADD COLUMN IF NOT EXISTS {field} {kind} DEFAULT []")
+    connection.execute(f"ALTER TABLE individual ADD COLUMN IF NOT EXISTS {field} {kind}")
     model = {**dict.fromkeys(PLACE_FIELDS, HeldPlaces), **dict.fromkeys(INSTITUTION_FIELDS, HeldInstitutions)}.get(field, HeldPositions)
     with Table(connection, "held_stage", model) as stage:
         for qid, values in statements.items():
@@ -100,6 +101,7 @@ def fill_field(connection, field, statements, labels, present):
 
 def main():
     connection = build_helpers.open_database()
+    connection.execute(f"SET memory_limit = '{MEMORY_LIMIT}'")
     labels = json_to_raw_models.life_location_labels()
     present = {qid for (qid,) in connection.execute("SELECT entity.qid FROM individual").fetchall()}
     build_helpers.report(STEP, f"{len(present):,} individuals in {build_helpers.DATABASE.name}")
