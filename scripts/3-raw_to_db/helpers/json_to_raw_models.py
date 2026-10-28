@@ -218,6 +218,47 @@ def polity_existence(qids):
     }
 
 
+def qualified_values(path):
+    """Every individual's statements of one life-location property: {qid: (QualifiedValue, ...)}."""
+    return {
+        qid: tuple(
+            datamodel_raw.QualifiedValue(
+                value=statement["target"],
+                rank=statement["rank"],
+                **{
+                    f"{field}{suffix}": (statement[key] or {}).get(part)
+                    for key, field in (("start", "start_time"), ("end", "end_time"), ("point_in_time", "point_in_time"))
+                    for suffix, part in (("", "time"), ("_precision", "precision"))
+                },
+            )
+            for statement in statements
+        )
+        for qid, statements in json.loads(path.read_text()).items()
+    }
+
+
+def life_location_labels():
+    return {qid: entry["label_en"] for qid, entry in json.loads(raw_file_readers.LIFE_LOCATION_TARGET.read_text()).items()}
+
+
+def institutions(qids, labels):
+    locations = json.loads(raw_file_readers.INSTITUTION_LOCATION.read_text())
+    return [
+        datamodel_raw.InstitutionWikidata(
+            qid=qid,
+            label=labels.get(qid),
+            located_in_the_administrative_territorial_entity=tuple((locations.get(qid) or {}).get("P131", ())),
+            headquarters_location=tuple((locations.get(qid) or {}).get("P159", ())),
+            location=tuple((locations.get(qid) or {}).get("P276", ())),
+        )
+        for qid in qids
+    ]
+
+
+def life_location_places():
+    return [datamodel_raw.PlaceWikidata(**entry) for entry in json.loads(raw_file_readers.LIFE_LOCATION_PLACE.read_text()).values()]
+
+
 def wikimedia_sites():
     return {
         url: datamodel_raw.WikimediaSiteWikidata(url=url, qid=entry.get("qid"), label=entry.get("label_en"), language=entry.get("language"))

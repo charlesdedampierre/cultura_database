@@ -289,3 +289,27 @@ def polity(cliopatria_id, spans):
             "territories": read_from("PolityCliopatria.from_year", "PolityCliopatria.to_year", "PolityCliopatria.area", "PolityCliopatria.geometry"),
         },
     )
+
+
+INSTITUTION_LOCATION_RULE = "The first place with coordinates among P131, else P159, else P276."
+
+
+def institution(raw, places_with_coordinates):
+    candidates = raw.located_in_the_administrative_territorial_entity + raw.headquarters_location + raw.location
+    chosen = next((qid for qid in candidates if qid in places_with_coordinates), None)
+    return datamodel_in_duckdb.Institution(
+        entity=entity(raw.qid, raw.label),
+        location=datamodel_in_duckdb.Place(entity=entity(chosen)) if chosen else None,
+        field_provenance={
+            "entity": read_from("InstitutionWikidata.qid", "InstitutionWikidata.label"),
+            "location": datamodel_in_duckdb.Provenance(
+                raw=("InstitutionWikidata.located_in_the_administrative_territorial_entity", "InstitutionWikidata.headquarters_location", "InstitutionWikidata.location", "PlaceWikidata.latitude"),
+                rule=INSTITUTION_LOCATION_RULE,
+            ),
+        },
+    )
+
+
+def held(values):
+    """Targets of the non-deprecated statements, once each, in Wikidata's order."""
+    return tuple(dict.fromkeys(value.value for value in values if value.rank != "deprecated"))

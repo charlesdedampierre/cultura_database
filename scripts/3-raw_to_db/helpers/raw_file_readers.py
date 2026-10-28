@@ -51,6 +51,16 @@ EXTERNAL_ID_PROPERTY_DETAILS = EXTRACTION_V2 / "identifier_metadata.json"
 
 WIKIMEDIA_SITE = EXTRACTION_V2 / "wiki_editions.json"
 
+LIFE_LOCATIONS = EXTRACTION_V2 / "life_locations"
+WORK_LOCATION = LIFE_LOCATIONS / "work_location_P937_statements.json"
+RESIDENCE = LIFE_LOCATIONS / "residence_P551_statements.json"
+EMPLOYER = LIFE_LOCATIONS / "employer_P108_statements.json"
+EDUCATED_AT = LIFE_LOCATIONS / "educated_at_P69_statements.json"
+POSITION_HELD = LIFE_LOCATIONS / "position_held_P39_statements.json"
+LIFE_LOCATION_TARGET = LIFE_LOCATIONS / "targets.json"
+INSTITUTION_LOCATION = LIFE_LOCATIONS / "institution_locations.json"
+LIFE_LOCATION_PLACE = LIFE_LOCATIONS / "life_location_places.json"
+
 PROPERTY = WIKIDATA / "properties.json"
 POLITY = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
 POLITY_EXISTENCE = EXTRACTION_V2 / "polity_existence.json"

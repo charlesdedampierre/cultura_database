@@ -83,6 +83,14 @@ class LifeLocationTargetWikidata(BaseModel):
     applies_to_jurisdiction: dict[str, tuple[float, float] | None] = Field({}, description="P1001 of a position, each with its (latitude, longitude) where it has one.")
 
 
+class InstitutionWikidata(BaseModel):
+    qid: str = Field(..., description="An employer (P108) or school (P69) of an individual.")
+    label: str | None = Field(None, description="English label, from life_locations/targets.json.")
+    located_in_the_administrative_territorial_entity: tuple[str, ...] = Field((), description="P131, from life_locations/institution_locations.json.")
+    headquarters_location: tuple[str, ...] = Field((), description="P159.")
+    location: tuple[str, ...] = Field((), description="P276.")
+
+
 class CountryWikidata(BaseModel):
     qid: str = Field(..., description="The country's Wikidata item, as P27 names it.")
     label: str | None = None

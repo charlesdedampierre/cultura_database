@@ -17,6 +17,7 @@ PARTS = (
     "05_add_identifier_types.py",
     "06_add_works.py",
     "07_add_individuals.py",
+    "08_add_life_locations.py",
 )
 
 
