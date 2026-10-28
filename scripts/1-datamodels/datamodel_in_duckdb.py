@@ -252,8 +252,6 @@ class IndividualEnriched(BaseModel):
 
     notability: Notability | None = Field(None, description="Western and non-Western Wikipedia coverage and the cross-cultural score (enrichment step 08).")
 
-    life_period_location: tuple[DatedLocation, ...] = Field((), description="Every work location, residence, employer and school resolved to a place and a period, oldest first.")
-
     field_provenance: dict[str, Provenance] = Field({}, description="Rule and inputs of each value, keyed by column.")
 
 
