@@ -101,8 +101,12 @@ class Polity(BaseModel):
 
 
 class WorksPeriod(BaseModel):
-    first_year: int | None = Field(None, description="Year of the earliest dated work (publication, else inception).")
-    last_year: int | None = Field(None, description="Year of the latest dated work.")
+    first_year: int | None = Field(None, description="Year of the earliest cleaned work date (inception, else publication); estimated as birth year + age_at_first_work when no work is dated.")
+    last_year: int | None = Field(None, description="Year of the latest cleaned work date; estimated as birth year + age_at_last_work when no work is dated.")
+    age_at_first_work: int | None = Field(None, description="first_year minus the birth year.")
+    age_at_last_work: int | None = Field(None, description="last_year minus the birth year.")
+    source: Literal["dated works", "estimated"] | None = Field(None, description="'dated works' when read from the individual's works, 'estimated' when imputed from the mean ages of their cohort (notebooks_dates/02_works_periods).")
+    field_provenance: dict[str, Provenance] = Field({}, description="Rule of each value, keyed by field: how the dated works were cleaned, or which cohort mean estimated it.")
 
 
 class Notability(BaseModel):
