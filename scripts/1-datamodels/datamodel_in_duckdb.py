@@ -34,6 +34,7 @@ class Cohort(BaseModel):
 class IndividualDate(Date):
     source: Literal["wikidata", "dated works", "estimated"] | None = Field(None, description="'wikidata' for a birth or death stated in Wikidata, 'dated works' for a work date read from the individual's works, 'estimated' when imputed from the ages of the cohort.")
     cohort: Cohort | None = Field(None, description="Cohort whose age gave an estimated date.")
+    coarse_label: str | None = Field(None, description="'6th AC', '6th BC' ('2nd millennium BC' for a millennium) for an individual with only coarse dates, who could not be imputed: the year is left empty so that analyses do not draw it in, and these categories must be removed before any use of the year (notebooks_dates/04_coarse_dates).")
 
 
 class WikidataEntity(BaseModel):
@@ -239,8 +240,8 @@ class DatedLocation(BaseModel):
 class IndividualEnriched(BaseModel):
     entity: WikidataEntity = Field(..., description="Individual, joining to Individual.entity.qid.")
 
-    birth_date: IndividualDate | None = Field(None, description="The Wikidata birth, else the death year minus the cohort's mean age at death (notebooks_dates/01_age_at_death).")
-    death_date: IndividualDate | None = Field(None, description="The Wikidata death, else the birth year plus the cohort's mean age at death, for births up to 1920 (notebooks_dates/01_age_at_death).")
+    birth_date: IndividualDate | None = Field(None, description="The Wikidata birth, else the death year minus the cohort's mean age at death (notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (notebooks_dates/04_coarse_dates).")
+    death_date: IndividualDate | None = Field(None, description="The Wikidata death, else the birth year plus the cohort's mean age at death, for births up to 1920 (notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (notebooks_dates/04_coarse_dates).")
     first_work_date: IndividualDate | None = Field(None, description="The earliest cleaned work date, else the birth year plus the cohort's median age at the first work (notebooks_dates/02_works_periods).")
     last_work_date: IndividualDate | None = Field(None, description="The latest cleaned work date, else the birth year plus the cohort's median age at the last work, capped at the death (notebooks_dates/02_works_periods).")
 
