@@ -21,6 +21,17 @@ class WorkCredit(BaseModel):
     property: str | None = Field(None, description="The credit property that links the individual to it — 'P50' for author, 'P170' for creator, 'P175' for performer. It is not resolved to a role name here.")
 
 
+class QualifiedValue(BaseModel):
+    value: str = Field(..., description="The statement's value, as a qid. Statements whose value is 'unknown' or 'no value' are not kept.")
+    rank: Literal["preferred", "normal", "deprecated"] | None = Field(None, description="The statement's Wikidata rank. Deprecated statements are kept here; the curated model decides what to do with them.")
+    start_time: str | None = Field(None, description="P580 qualifier, the most precise one where several are stated.")
+    start_time_precision: int | None = Field(None, description="Precision of P580's time value.")
+    end_time: str | None = Field(None, description="P582 qualifier, on the same terms.")
+    end_time_precision: int | None = Field(None, description="Precision of P582's time value.")
+    point_in_time: str | None = Field(None, description="P585 qualifier, on the same terms.")
+    point_in_time_precision: int | None = Field(None, description="Precision of P585's time value.")
+
+
 class IndividualWikidata(BaseModel):
     qid: str = Field(..., description="The individual's Wikidata item. It is the key every raw file is indexed by.")
     label: str | None = None
@@ -38,6 +49,11 @@ class IndividualWikidata(BaseModel):
     occupation: tuple[str, ...] = ()
     country_of_citizenship: tuple[str, ...] = ()
     writing_language: tuple[str, ...] = ()
+    work_location: tuple[QualifiedValue, ...] = Field((), description="P937 statements with their dates, from life_locations/work_location_P937_statements.json.")
+    residence: tuple[QualifiedValue, ...] = Field((), description="P551 statements with their dates, from life_locations/residence_P551_statements.json.")
+    employer: tuple[QualifiedValue, ...] = Field((), description="P108 statements with their dates, from life_locations/employer_P108_statements.json.")
+    educated_at: tuple[QualifiedValue, ...] = Field((), description="P69 statements with their dates, from life_locations/educated_at_P69_statements.json.")
+    position_held: tuple[QualifiedValue, ...] = Field((), description="P39 statements with their dates, from life_locations/position_held_P39_statements.json.")
     external_id: dict[str, tuple[str, ...]] = Field({}, description="A map of property to the identifiers it carries, exactly as the raw file gives them: {'P214': ('7007870',)}. The values are a list because Wikidata lets one property carry several — a person indexed twice in the same database, under two records that were never merged. It is not rare: 28 of 500 sampled individuals have at least one such property, 23 distinct properties do it, and reading only the first value would have dropped 132 identifiers from that sample alone. Which database it is, is the property and nothing else — Wikidata has 10 329 external-id properties, and Property holds what each one is.")
     sitelink: tuple[Sitelink, ...] = ()
     work: tuple[WorkCredit, ...] = Field((), description="Every work credited to the individual, as a pair of the work's qid and the property that credits them. Neither is resolved here; the labels are in WorkWikidata.")
@@ -55,6 +71,16 @@ class PlaceWikidata(BaseModel):
     dissolved_abolished_or_demolished_date: str | None = None
     dissolved_abolished_or_demolished_date_precision: int | None = Field(None, description="Precision of P576's time value. A place with one no longer exists, which is how a birthplace since razed or absorbed shows itself.")
     sitelink: tuple[Sitelink, ...] = Field((), description="Its English Wikipedia article, from place_sitelinks.json.")
+
+
+class LifeLocationTargetWikidata(BaseModel):
+    qid: str = Field(..., description="A value of P937, P551, P108, P69 or P39: a place, an institution or a position. The key of life_locations/targets.json.")
+    label: str | None = None
+    latitude: float | None = Field(None, description="The latitude half of P625.")
+    longitude: float | None = Field(None, description="The longitude half of P625.")
+    country: str | None = None
+    location: dict[str, tuple[float, float] | None] = Field({}, description="Places the target is in, each with its (latitude, longitude): P131, P159 and P276 read together, so which of the three gave a place is not kept.")
+    applies_to_jurisdiction: dict[str, tuple[float, float] | None] = Field({}, description="P1001 of a position, each with its (latitude, longitude) where it has one.")
 
 
 class CountryWikidata(BaseModel):

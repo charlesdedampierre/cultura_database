@@ -146,6 +146,13 @@ class Place(BaseModel):
     field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
 
 
+class Institution(BaseModel):
+    entity: WikidataEntity = Field(..., description="Employer or school's Wikidata item.")
+    instance_of: tuple[WikidataEntity, ...] = Field((), description="Classes of the institution, P31: university, company, monastery...")
+    location: Place | None = Field(None, description="Place it is in: P131, else headquarters P159, else location P276; qid and name only, coordinates and country are in the Place table.")
+    field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
+
+
 class Occupation(BaseModel):
     entity: WikidataEntity = Field(..., description="Occupation's Wikidata item.")
     subclass_of: tuple[WikidataEntity, ...] = Field((), description="Parent occupations, P279.")
@@ -205,6 +212,11 @@ class Individual(BaseModel):
     sex_or_gender: str | None = Field(None, description="P21, as a qid.")
     occupation: tuple[Occupation, ...] = Field((), description="Occupations, P106, as qids; labels are in the Occupation table.")
     country_of_citizenship: tuple[Place, ...] = Field((), description="Countries of citizenship, P27, historical states included.")
+    work_location: tuple[Place, ...] = Field((), description="Work locations, P937: qid and name only.")
+    residence: tuple[Place, ...] = Field((), description="Residences, P551: qid and name only.")
+    employer: tuple[Institution, ...] = Field((), description="Employers, P108: qid and name only; details in the Institution table.")
+    educated_at: tuple[Institution, ...] = Field((), description="Schools and universities, P69: qid and name only; details in the Institution table.")
+    position_held: tuple[str, ...] = Field((), description="Positions held, P39, as qids.")
     writing_language: tuple[str, ...] = Field((), description="Writing languages, P6886, as qids.")
     external_id: tuple[IndividualIdentifier, ...] = Field((), description="Records held by external databases.")
     sitelink: tuple[IndividualSitelink, ...] = Field((), description="Wikimedia pages about the individual, one per edition.")
@@ -214,6 +226,14 @@ class Individual(BaseModel):
     is_scientist: bool | None = Field(None, description="True when an occupation descends from scientist, Q901.")
     is_artist: bool | None = Field(None, description="True when an occupation descends from artist, Q483501.")
     field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
+
+
+class DatedLocation(BaseModel):
+    place: Place | None = Field(None, description="Place the individual was at: qid, name and coordinates.")
+    source: Literal["work_location", "residence", "employer", "educated_at"] | None = Field(None, description="Individual field the place was read from; for an employer or a school, the place is the institution's location.")
+    start_date: Date | None = Field(None, description="When they arrived: the statement's start time P580, else its point in time P585.")
+    end_date: Date | None = Field(None, description="When they left: the statement's end time P582, else its point in time P585.")
+    field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by field: which statement and qualifier, or how a missing date was estimated.")
 
 
 class IndividualEnriched(BaseModel):
@@ -229,7 +249,9 @@ class IndividualEnriched(BaseModel):
 
     notability: Notability | None = Field(None, description="Western and non-Western Wikipedia coverage and the cross-cultural score (enrichment step 08).")
 
+    life_period_location: tuple[DatedLocation, ...] = Field((), description="Every work location, residence, employer and school resolved to a place and a period, oldest first.")
+
     field_provenance: dict[str, Provenance] = Field({}, description="Rule and inputs of each value, keyed by column.")
 
 
-TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink, "individual_work": IndividualWork}
+TABLES = {"individual": Individual, "individual_enriched": IndividualEnriched, "polity": Polity, "place": Place, "institution": Institution, "occupation": Occupation, "work": Work, "identifier": Identifier, "individual_identifier": IndividualIdentifier, "sitelink": Sitelink, "wikidata_property": WikidataProperty, "individual_sitelink": IndividualSitelink, "individual_work": IndividualWork}
