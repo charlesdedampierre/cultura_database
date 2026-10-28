@@ -130,9 +130,9 @@ class Notability(BaseModel):
 
 class PolityMatch(BaseModel):
     polity: Polity | None = Field(None, description="Matched polity: id, name, world and meta_polities only.")
-    years_spent_in_polity: int | None = Field(None, description="Years from first_work_date to last_work_date inside this polity, each year counted once.")
+    years_spent_in_polity: int | None = Field(None, description="Years of the stage spent inside this polity, each year counted once.")
     assignation_method: Literal["polygon_of_birthplace", "polygon_of_deathplace", "polygon_of_country_of_citizenship", "url_of_birthplace", "url_of_deathplace", "url_of_country_of_citizenship"] | None = Field(None, description="Which location and which test made the match.")
-    seshat_ids: tuple[str, ...] = Field((), description="Seshat ids of the polity's territories overlapping first_work_date to last_work_date.")
+    seshat_ids: tuple[str, ...] = Field((), description="Seshat ids of the polity's territories overlapping the stage.")
 
 
 class Place(BaseModel):
@@ -245,8 +245,10 @@ class IndividualEnriched(BaseModel):
     first_work_date: IndividualDate | None = Field(None, description="The earliest cleaned work date, else the birth year plus the cohort's median age at the first work (notebooks_dates/02_works_periods).")
     last_work_date: IndividualDate | None = Field(None, description="The latest cleaned work date, else the birth year plus the cohort's median age at the last work, capped at the death (notebooks_dates/02_works_periods).")
 
-    polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from first_work_date to last_work_date, longest overlap first (enrichment step 10).")
-    polity_count: int | None = Field(None, description="Number of polities matched, len(polity).")
+    early_stage_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from birth_date to first_work_date, longest overlap first.")
+    active_stage_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from first_work_date to last_work_date, longest overlap first.")
+    late_stage_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from last_work_date to death_date, longest overlap first.")
+    main_polity: PolityMatch | None = Field(None, description="The first match of active_stage_polity, the polity with the longest overlap.")
 
     notability: Notability | None = Field(None, description="Western and non-Western Wikipedia coverage and the cross-cultural score (enrichment step 08).")
 
