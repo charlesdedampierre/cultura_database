@@ -59,11 +59,11 @@ class ReferenceDatabase(BaseModel):
     url: str | None = Field(None, description="The reference's home page.")
 
 
-class ReferenceAnnotation(BaseModel):
-    wikidata_entity: WikidataEntity = Field(..., description="The individual.")
-    reference_database: ReferenceDatabase = Field(..., description="The reference the biography comes from.")
-    reference_id: str | None = Field(None, description="The individual's id in the reference.")
-    reference_url: str | None = Field(None, description="The biography's page in the reference, if online.")
-    reference_text_path: str | None = Field(None, description="The file holding the downloaded text or record.")
-    biography: BiographyData = Field(default_factory=BiographyData, description="What the reference says, field by field, with the same names as IndividualEnriched.")
-    human: BiographyReview = Field(default_factory=BiographyReview, description="The annotator's review of each field.")
+class ReferenceBiographyValidation(BaseModel):
+    wikidata_entity: WikidataEntity = Field(..., description="The individual of the Cultura database being validated.")
+    reference_database: ReferenceDatabase = Field(..., description="The external database the biography comes from.")
+    id_in_reference_database: str | None = Field(None, description="The individual's id in the reference database.")
+    biography_url: str | None = Field(None, description="The individual's biography page in the reference database, if online.")
+    biography_text_path: str | None = Field(None, description="The file holding the downloaded biography text or record.")
+    biography_extracted: BiographyData = Field(default_factory=BiographyData, description="What the reference biography says, field by field, with the same names as IndividualEnriched.")
+    human_review: BiographyReview = Field(default_factory=BiographyReview, description="The annotator's review of each extracted field.")
