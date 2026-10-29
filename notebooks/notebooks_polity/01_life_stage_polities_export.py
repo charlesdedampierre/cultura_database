@@ -85,6 +85,8 @@ def stage_limits(person):
         active[0] = limits.pop('early')[0]
     if active and early and 'late' not in limits and active[1] - active[0] < MIN_STAGE:
         early[1] = limits.pop('active')[1]
+    if 'late' not in limits:
+        limits['late'] = [death, death]  # no late stage: the death year alone
     return limits
 
 
