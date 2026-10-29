@@ -23,15 +23,15 @@ class AIAnswer(BaseModel):
 
 
 class BiographyData(BaseModel):
-    birth_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was born, according to the reference.")
-    death_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual died, according to the reference.")
+    birth_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was born, according to the biography database.")
+    death_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual died, according to the biography database.")
     first_work_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual's first work or first recorded activity took place.")
     last_work_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual's last work or last recorded activity took place.")
-    early_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from birth to the first work, as the reference says it.")
+    early_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from birth to the first work, as the biography database says it.")
     early_stage_polity: Polity | None = Field(None, description="The Cliopatria polity of the polity table linked to early_stage_place over the stage's years.")
-    active_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from the first to the last work, as the reference says it.")
+    active_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from the first to the last work, as the biography database says it.")
     active_stage_polity: Polity | None = Field(None, description="The Cliopatria polity of the polity table linked to active_stage_place over the stage's years.")
-    late_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from the last work to death, as the reference says it.")
+    late_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from the last work to death, as the biography database says it.")
     late_stage_polity: Polity | None = Field(None, description="The Cliopatria polity of the polity table linked to late_stage_place over the stage's years.")
 
 
@@ -53,17 +53,17 @@ class BiographyReview(BaseModel):
     late_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the late-stage polity linked to the place.")
 
 
-class ReferenceDatabase(BaseModel):
-    name: str = Field(..., description="Short name of the reference: 'treccani', 'cbdb'...")
-    description: str | None = Field(None, description="What the reference is and what it covers, in one sentence.")
-    url: str | None = Field(None, description="The reference's home page.")
+class BiographyDatabase(BaseModel):
+    name: str = Field(..., description="Short name of the biography database: 'treccani', 'cbdb'...")
+    description: str | None = Field(None, description="What the biography database is and what it covers, in one sentence.")
+    url: str | None = Field(None, description="The biography database's home page.")
 
 
-class ReferenceBiographyValidation(BaseModel):
+class BiographyDatabaseValidation(BaseModel):
     wikidata_entity: WikidataEntity = Field(..., description="The individual of the Cultura database being validated.")
-    reference_database: ReferenceDatabase = Field(..., description="The external database the biography comes from.")
-    id_in_reference_database: str | None = Field(None, description="The individual's id in the reference database.")
-    biography_url: str | None = Field(None, description="The individual's biography page in the reference database, if online.")
-    biography_text_path: str | None = Field(None, description="The file holding the downloaded biography text or record.")
-    biography_extracted: BiographyData = Field(default_factory=BiographyData, description="What the reference biography says, field by field, with the same names as IndividualEnriched.")
+    biography_database: BiographyDatabase = Field(..., description="The external biography database the biography comes from.")
+    biography_database_id: str | None = Field(None, description="The individual's id in the biography database.")
+    biography_database_url: str | None = Field(None, description="The individual's biography page in the biography database, if online.")
+    biography_database_text_path: str | None = Field(None, description="The file holding the biography text or record downloaded from the biography database.")
+    biography_database_extracted: BiographyData = Field(default_factory=BiographyData, description="What the biography database says, field by field, with the same names as IndividualEnriched.")
     human_review: BiographyReview = Field(default_factory=BiographyReview, description="The annotator's review of each extracted field.")
