@@ -60,7 +60,7 @@ class ReferenceDatabase(BaseModel):
 
 
 class ReferenceAnnotation(BaseModel):
-    entity: WikidataEntity = Field(..., description="The individual.")
+    wikidata_entity: WikidataEntity = Field(..., description="The individual.")
     reference_database: ReferenceDatabase = Field(..., description="The reference the biography comes from.")
     reference_id: str | None = Field(None, description="The individual's id in the reference.")
     reference_url: str | None = Field(None, description="The biography's page in the reference, if online.")
