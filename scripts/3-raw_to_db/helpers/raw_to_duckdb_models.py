@@ -295,11 +295,12 @@ INSTITUTION_LOCATION_RULE = "The first place with coordinates among P131, else P
 
 
 def institution(raw, places_with_coordinates):
+    """places_with_coordinates: {qid: English label} of the places that have coordinates."""
     candidates = raw.located_in_the_administrative_territorial_entity + raw.headquarters_location + raw.location
     chosen = next((qid for qid in candidates if qid in places_with_coordinates), None)
     return datamodel_in_duckdb.Institution(
         entity=entity(raw.qid, raw.label),
-        location=datamodel_in_duckdb.Place(entity=entity(chosen)) if chosen else None,
+        location=datamodel_in_duckdb.Place(entity=entity(chosen, places_with_coordinates[chosen])) if chosen else None,
         field_provenance={
             "entity": read_from("InstitutionWikidata.qid", "InstitutionWikidata.label"),
             "location": datamodel_in_duckdb.Provenance(

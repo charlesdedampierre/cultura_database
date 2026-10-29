@@ -60,7 +60,7 @@ def add_places(connection):
 
 
 def add_institutions(connection, qids, labels):
-    with_coordinates = {qid for (qid,) in connection.execute("SELECT entity.qid FROM place WHERE coordinates.latitude IS NOT NULL").fetchall()}
+    with_coordinates = dict(connection.execute("SELECT entity.qid, entity.label_en FROM place WHERE coordinates.latitude IS NOT NULL").fetchall())
     with Table(connection, "institution", datamodel_in_duckdb.Institution) as table:
         table.extend(raw_to_duckdb_models.institution(raw, with_coordinates) for raw in json_to_raw_models.institutions(qids, labels))
     located = connection.execute("SELECT count(*) FROM institution WHERE location IS NOT NULL").fetchone()[0]
