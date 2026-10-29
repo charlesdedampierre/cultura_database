@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from datamodel_in_duckdb import WikidataEntity
+from datamodel_in_duckdb import Polity, WikidataEntity
 
 
 class AIAnswer(BaseModel):
@@ -22,20 +22,17 @@ class AIAnswer(BaseModel):
     cost_estimated: float | None = Field(None, description="Cost of the query, in US dollars.")
 
 
-class StagePolity(BaseModel):
-    place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived over the stage, as the reference says it.")
-    cliopatria_polity: AIAnswer = Field(default_factory=AIAnswer, description="The Cliopatria polity of the database linked to the place over the stage's years; the answer is its name.")
-    cliopatria_id: int | None = Field(None, description="The linked polity's id in the polity table.")
-
-
 class BiographyData(BaseModel):
     birth_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was born, according to the reference.")
     death_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual died, according to the reference.")
     first_work_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual's first work or first recorded activity took place.")
     last_work_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual's last work or last recorded activity took place.")
-    early_stage_polity: StagePolity = Field(default_factory=StagePolity, description="The polity the individual lived in from birth to the first work.")
-    active_stage_polity: StagePolity = Field(default_factory=StagePolity, description="The polity the individual lived in from the first to the last work.")
-    late_stage_polity: StagePolity = Field(default_factory=StagePolity, description="The polity the individual lived in from the last work to death.")
+    early_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from birth to the first work, as the reference says it.")
+    early_stage_polity: Polity | None = Field(None, description="The Cliopatria polity of the polity table linked to early_stage_place over the stage's years.")
+    active_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from the first to the last work, as the reference says it.")
+    active_stage_polity: Polity | None = Field(None, description="The Cliopatria polity of the polity table linked to active_stage_place over the stage's years.")
+    late_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from the last work to death, as the reference says it.")
+    late_stage_polity: Polity | None = Field(None, description="The Cliopatria polity of the polity table linked to late_stage_place over the stage's years.")
 
 
 class AnswerReview(BaseModel):
@@ -43,19 +40,17 @@ class AnswerReview(BaseModel):
     note: str | None = Field(None, description="The annotator's comment.")
 
 
-class StagePolityReview(BaseModel):
-    place: AnswerReview = Field(default_factory=AnswerReview, description="Review of the place.")
-    cliopatria_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the polity linked to the place.")
-
-
 class BiographyReview(BaseModel):
     birth_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the birth date.")
     death_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the death date.")
     first_work_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the first work date.")
     last_work_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the last work date.")
-    early_stage_polity: StagePolityReview = Field(default_factory=StagePolityReview, description="Review of the early-stage polity.")
-    active_stage_polity: StagePolityReview = Field(default_factory=StagePolityReview, description="Review of the active-stage polity.")
-    late_stage_polity: StagePolityReview = Field(default_factory=StagePolityReview, description="Review of the late-stage polity.")
+    early_stage_place: AnswerReview = Field(default_factory=AnswerReview, description="Review of the early-stage place.")
+    early_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the early-stage polity linked to the place.")
+    active_stage_place: AnswerReview = Field(default_factory=AnswerReview, description="Review of the active-stage place.")
+    active_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the active-stage polity linked to the place.")
+    late_stage_place: AnswerReview = Field(default_factory=AnswerReview, description="Review of the late-stage place.")
+    late_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the late-stage polity linked to the place.")
 
 
 class ReferenceAnnotation(BaseModel):
