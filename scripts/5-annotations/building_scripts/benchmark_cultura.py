@@ -56,7 +56,7 @@ def main():
             biography_url=pl.struct("dictionary", "dictionary_id").map_elements(lambda row: URLS[row["dictionary"]].format(row["dictionary_id"]), return_dtype=pl.Utf8))
         .join(values, on="qid", how="left")
         .select("qid", "label", "wikidata_url", pl.col("region").alias("claude_estimated_region"), pl.col("country").alias("claude_estimated_country"),
-                "period", "dictionary_name", "dictionary_id", "biography_url", *[column for column in values.columns if column != "qid"])
+                pl.col("period").alias("claude_estimated_period"), "dictionary_name", "dictionary_id", "biography_url", *[column for column in values.columns if column != "qid"])
         .sort("claude_estimated_region", "cultura_birth_date_year"))
     assert len(table) == 300 and table["qid"].is_unique().all()
     table.write_csv(OUT, separator="\t")
