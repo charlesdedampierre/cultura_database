@@ -1,0 +1,72 @@
+"""The 300 benchmark individuals with what Cultura says about them, to be compared later with their biography.
+
+Reads the individuals drawn by benchmark_sample.py and adds, from the enriched Cultura database,
+the fields that BiographyData (datamodel_annotations.py) will extract from the biography: birth and
+death dates, first and last work dates (start and end of active life), with their source, and the
+early, active and late stage polities (empty until the polity step of the enrichment has run).
+Saved to scripts/5-annotations/benchmark/benchmark_cultura.tsv.
+
+Usage: .venv/bin/python scripts/5-annotations/building_scripts/benchmark_cultura.py
+"""
+
+from pathlib import Path
+
+import duckdb
+import polars as pl
+
+from dictionary_texts import DICTIONARIES
+
+ROOT = Path(__file__).resolve().parents[3]
+ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
+FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark"
+SAMPLE = FOLDER / "benchmark_sample.parquet"
+OUT = FOLDER / "benchmark_cultura.tsv"
+URLS = {key: dictionary["url"] for key, dictionary in DICTIONARIES.items() if "url" in dictionary} | {
+    "treccani": "https://www.treccani.it/enciclopedia/{}_(Dizionario-Biografico)"}
+NAMES = {key: dictionary["name"] for key, dictionary in DICTIONARIES.items()} | {"treccani": "Dizionario Biografico degli Italiani (Treccani)"}
+
+
+def date_columns(field):
+    return f"""individual_enriched.{field}.year AS {field}_year, individual_enriched.{field}.precision AS {field}_precision,
+               individual_enriched.{field}.source AS {field}_source"""
+
+
+def stage_columns(stage):
+    return f"""array_to_string(list_transform(individual_enriched.{stage}, match -> match.polity.name), '; ') AS {stage}"""
+
+
+def cultura_values(qids):
+    connection = duckdb.connect(str(ENRICHED_DB), read_only=True)
+    return connection.execute(f"""
+        SELECT individual_enriched.entity.qid AS qid,
+               {date_columns('birth_date')}, {date_columns('death_date')},
+               {date_columns('first_work_date')}, {date_columns('last_work_date')},
+               {stage_columns('early_stage_polity')}, {stage_columns('active_stage_polity')}, {stage_columns('late_stage_polity')}
+        FROM individual_enriched
+        WHERE individual_enriched.entity.qid IN (SELECT unnest(?))
+    """, [qids]).pl()
+
+
+def main():
+    benchmark = pl.read_parquet(SAMPLE).filter(pl.col("in_benchmark"))
+    values = cultura_values(benchmark["qid"].to_list())
+    table = (benchmark
+        .with_columns(
+            wikidata_url="https://www.wikidata.org/wiki/" + pl.col("qid"),
+            dictionary_name=pl.col("dictionary").replace_strict(NAMES),
+            biography_url=pl.struct("dictionary", "dictionary_id").map_elements(lambda row: URLS[row["dictionary"]].format(row["dictionary_id"]), return_dtype=pl.Utf8))
+        .join(values, on="qid", how="left")
+        .select("qid", "label", "wikidata_url", "region", "country", "period", "dictionary", "dictionary_name", "dictionary_id", "biography_url",
+                *[column for column in values.columns if column != "qid"])
+        .sort("region", "birth_date_year"))
+    assert len(table) == 300 and table["qid"].is_unique().all()
+    table.write_csv(OUT, separator="\t")
+    print(f"{len(table)} individuals saved to {OUT.relative_to(ROOT)}")
+    for field in ("birth_date", "death_date", "first_work_date", "last_work_date", "early_stage_polity", "active_stage_polity", "late_stage_polity"):
+        column = table[f"{field}_year" if field.endswith("date") else field]
+        filled = column.drop_nulls().filter(column.drop_nulls() != "") if column.dtype == pl.Utf8 else column.drop_nulls()
+        print(f"  {field:20} {len(filled):3} / 300")
+
+
+if __name__ == "__main__":
+    main()
