@@ -2,12 +2,13 @@
 
 For each dictionary of DICTIONARIES, reads the identifiers from the individual_identifier table of
 the Cultura database, or, for a property missing there, from the Wikidata SPARQL endpoint the
-Wikidata items carrying it (or the Wikisource article describing them); keeps the Cultura individuals with an English label, a birth year, a
-death year, and downloads the biography of a random one; when the page
+Wikidata items carrying it (or the Wikisource article describing them); keeps the Cultura individuals with an English label, a birth year and a
+death year in the enriched database (for the Deutsche Biographie, only those with an NDB or ADB
+article), and downloads the biography of a random one; when the page
 cannot be read, the next candidate is tried. The text is extracted from the page with trafilatura.
 Saved to scripts/5-annotations/dictionary_exploration/dictionary_texts.json.
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/dictionary_texts.py [--only dbe,hls]
+Usage: .venv/bin/python scripts/5-annotations/building_scripts/dictionary_texts.py [--only dbe,hls] [--born-before 1500]
 """
 
 import argparse
@@ -27,6 +28,7 @@ from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parents[3]
 DB = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
+ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
 OUT = ROOT / "scripts" / "5-annotations" / "dictionary_exploration" / "dictionary_texts.json"
 RAW = OUT.parent / "raw"
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
@@ -39,10 +41,10 @@ TRIES = 3
 MIN_TEXT = 400
 
 DICTIONARIES = {
-    "deutsche_biographie": {"name": "Deutsche Biographie (NDB/ADB)", "pid": "P7902", "url": "https://www.deutsche-biographie.de/{}.html", "tries": 40, "home": "https://www.deutsche-biographie.de"},
+    "deutsche_biographie": {"name": "Deutsche Biographie (NDB/ADB)", "pid": "P7902", "sparql": "SELECT DISTINCT ?h ?id WHERE { VALUES ?source { wd:Q222784 wd:Q590208 } ?h wdt:P1343 ?source ; wdt:P7902 ?id }", "url": "https://www.deutsche-biographie.de/{}.html", "tries": 40, "home": "https://www.deutsche-biographie.de"},
     "dbe": {"name": "Diccionario Biográfico Español", "pid": "P4459", "url": "https://dbe.rah.es/biografias/{}", "home": "https://dbe.rah.es"},
     "hls": {"name": "Historisches Lexikon der Schweiz", "pid": "P902", "url": "https://hls-dhs-dss.ch/de/articles/{}", "home": "https://hls-dhs-dss.ch"},
-    "oebl": {"name": "Österreichisches Biographisches Lexikon", "pid": "P6194", "url": "https://www.biographien.ac.at/oebl/oebl_{}.xml", "home": "https://www.biographien.ac.at"},
+    "oebl": {"name": "Österreichisches Biographisches Lexikon", "pid": "P6194", "url": "https://www.biographien.ac.at/oebl/oebl_{}.xml", "reject": ("s. unter", "miterwähnt"), "home": "https://www.biographien.ac.at"},
     "dib": {"name": "Dictionary of Irish Biography", "pid": "P6829", "url": "https://doi.org/10.3318/dib.{}.v1", "home": "https://www.dib.ie"},
     "dwb": {"name": "Dictionary of Welsh Biography", "pid": "P1648", "url": "https://biography.wales/article/{}", "home": "https://biography.wales"},
     "sbl": {"name": "Svenskt biografiskt lexikon", "pid": "P3217", "url": "https://sok.riksarkivet.se/sbl/Presentation.aspx?id={}", "home": "https://sok.riksarkivet.se/sbl"},
@@ -75,6 +77,8 @@ def query(sparql):
 
 
 def identifiers(connection, dictionary):
+    if "sparql" in dictionary:
+        return query(dictionary["sparql"])
     if "pid" in dictionary:
         rows = connection.execute("SELECT qid, value FROM individual_identifier WHERE pid = ?", [dictionary["pid"]]).fetchall()
         if rows:
@@ -87,18 +91,20 @@ def identifiers(connection, dictionary):
         ?id schema:about ?article ; schema:isPartOf <https://{site}.wikisource.org/> }}""")
 
 
-def candidates(connection, ids):
+def candidates(connection, ids, born_before=None):
     connection.execute("CREATE OR REPLACE TEMP TABLE dictionary (qid VARCHAR, id VARCHAR)")
     connection.executemany("INSERT INTO dictionary VALUES (?, ?)", ids)
     rows = connection.execute("""
-        SELECT dictionary.qid, min(dictionary.id), individual.entity.label_en
+        SELECT dictionary.qid, min(dictionary.id), individual_enriched.entity.label_en, individual_enriched.birth_date.year
         FROM dictionary
-        JOIN individual ON individual.entity.qid = dictionary.qid
-        WHERE individual.birth_date[1].year IS NOT NULL AND individual.death_date[1].year IS NOT NULL
-          AND individual.entity.label_en IS NOT NULL
+        JOIN enriched.individual_enriched ON individual_enriched.entity.qid = dictionary.qid
+        WHERE individual_enriched.birth_date.year IS NOT NULL AND individual_enriched.death_date.year IS NOT NULL
+          AND individual_enriched.entity.label_en IS NOT NULL
         GROUP BY ALL ORDER BY dictionary.qid
     """).fetchall()
-    return random.Random(SEED).sample(rows, len(rows))
+    rows = random.Random(SEED).sample(rows, len(rows))
+    early = [row for row in rows if born_before and row[3] < born_before]
+    return [row[:3] for row in early or rows]
 
 
 def wikisource_text(url):
@@ -119,9 +125,9 @@ def page_text(url, selector=None):
     return response.url, html, trafilatura.extract(html, include_comments=False, favor_recall=True) or ""
 
 
-def download(key, dictionary, connection):
+def download(key, dictionary, connection, born_before=None):
     ids = identifiers(connection, dictionary)
-    found = candidates(connection, ids)
+    found = candidates(connection, ids, born_before)
     result = {"dictionary": key, "name": dictionary["name"], "home": dictionary["home"], "wikidata_items": len(ids), "cultura_candidates": len(found), "attempts": []}
     for qid, identifier, label in found[:dictionary.get("tries", TRIES)]:
         url = identifier if "wikisource" in dictionary else dictionary["url"].format(identifier)
@@ -131,7 +137,7 @@ def download(key, dictionary, connection):
             result["attempts"].append({"qid": qid, "url": url, "error": str(error)[:200]})
             continue
         result["attempts"].append({"qid": qid, "url": final_url, "characters": len(text)})
-        if len(text) >= MIN_TEXT:
+        if len(text) >= MIN_TEXT and not any(mark in text for mark in dictionary.get("reject", ())):
             raw = RAW / f"{key}_{qid}.html"
             raw.parent.mkdir(parents=True, exist_ok=True)
             raw.write_text(html, encoding="utf-8")
@@ -142,14 +148,16 @@ def download(key, dictionary, connection):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default="")
+    parser.add_argument("--born-before", type=int, help="draw the example among individuals born before this year, when the dictionary has any")
     args = parser.parse_args()
     keys = [key for key in DICTIONARIES if not args.only or key in args.only.split(",")]
 
     saved = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     connection = duckdb.connect(str(DB), read_only=True)
+    connection.execute(f"ATTACH '{ENRICHED_DB}' AS enriched (READ_ONLY)")
     for key in tqdm(keys, desc="dictionaries"):
         try:
-            saved[key] = download(key, DICTIONARIES[key], connection)
+            saved[key] = download(key, DICTIONARIES[key], connection, args.born_before)
         except requests.RequestException as error:
             saved[key] = {"dictionary": key, "name": DICTIONARIES[key]["name"], "error": str(error)[:200]}
         OUT.parent.mkdir(parents=True, exist_ok=True)
