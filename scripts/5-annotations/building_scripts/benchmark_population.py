@@ -1,4 +1,4 @@
-"""Cultura individuals covered by at least one scholarly biography dictionary, with their region and century.
+"""Cultura individuals covered by at least one scholarly biography dictionary, with their region, century and period of birth.
 
 Membership comes from the individual_identifier table of the Cultura database, or from the
 Wikidata SPARQL endpoint for the properties missing there; for the Deutsche Biographie, only the
@@ -40,6 +40,8 @@ IN_WIKIDATA = {
     "encykorea": "SELECT ?h ?id WHERE { ?h wdt:P9475 ?id }",
     "deutsche_biographie": "SELECT DISTINCT ?h ?id WHERE { VALUES ?source { wd:Q222784 wd:Q590208 } ?h wdt:P1343 ?source ; wdt:P7902 ?id }",
 }
+PERIODS = [(-10_000, 500, "before 500"), (500, 1000, "500–999"), (1000, 1300, "1000–1299"), (1300, 1500, "1300–1499"),
+           (1500, 1600, "1500s"), (1600, 1700, "1600s"), (1700, 1800, "1700s"), (1800, 1900, "1800s"), (1900, 3000, "1900s")]
 REGIONS = {
     "Western Europe": "Western Europe", "Northern Europe": "Northern Europe", "Southern Europe": "Southern Europe",
     "Eastern Europe": "Eastern Europe", "Western Asia": "Middle East & North Africa", "Northern Africa": "Middle East & North Africa",
@@ -109,7 +111,10 @@ def main():
     members = memberships(connection)
     print(f"{len(members):,} dictionary entries, {members['qid'].n_unique():,} distinct individuals")
     people = regions(individuals(connection, members["qid"].unique().to_list()).unique("qid"))
-    people = people.with_columns(century=(pl.col("birth_year") // 100 + 1))
+    period = pl.lit(None, dtype=pl.Utf8)
+    for low, high, label in reversed(PERIODS):
+        period = pl.when((pl.col("birth_year") >= low) & (pl.col("birth_year") < high)).then(pl.lit(label)).otherwise(period)
+    people = people.with_columns(century=(pl.col("birth_year") // 100 + 1), period=period)
     population = members.join(people, on="qid")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     population.write_parquet(OUT)
