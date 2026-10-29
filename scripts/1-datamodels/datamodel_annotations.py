@@ -65,5 +65,5 @@ class BiographyDatabaseValidation(BaseModel):
     biography_database_id: str | None = Field(None, description="The individual's id in the biography database.")
     biography_database_url: str | None = Field(None, description="The individual's biography page in the biography database, if online.")
     biography_database_text_path: str | None = Field(None, description="The file holding the biography text or record downloaded from the biography database.")
-    biography_database_extracted: BiographyData = Field(default_factory=BiographyData, description="What the biography database says, field by field, with the same names as IndividualEnriched.")
+    biography_database_structured_data: BiographyData = Field(default_factory=BiographyData, description="Structured data extracted from the biography database (dates, places, polities), one field each, with the same names as IndividualEnriched so it can be compared with the Cultura database.")
     human_review: BiographyReview = Field(default_factory=BiographyReview, description="The annotator's review of each extracted field.")
