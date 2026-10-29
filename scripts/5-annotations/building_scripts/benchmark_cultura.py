@@ -27,12 +27,11 @@ NAMES = {key: dictionary["name"] for key, dictionary in DICTIONARIES.items()} | 
 
 
 def date_columns(field):
-    return f"""individual_enriched.{field}.year AS {field}_year, individual_enriched.{field}.precision AS {field}_precision,
-               individual_enriched.{field}.source AS {field}_source"""
+    return f"""individual_enriched.{field}.year AS cultura_{field}_year, individual_enriched.{field}.source AS cultura_{field}_source"""
 
 
 def stage_columns(stage):
-    return f"""array_to_string(list_transform(individual_enriched.{stage}, match -> match.polity.name), '; ') AS {stage}"""
+    return f"""array_to_string(list_transform(individual_enriched.{stage}, match -> match.polity.name), '; ') AS cultura_{stage}"""
 
 
 def cultura_values(qids):
@@ -56,14 +55,14 @@ def main():
             dictionary_name=pl.col("dictionary").replace_strict(NAMES),
             biography_url=pl.struct("dictionary", "dictionary_id").map_elements(lambda row: URLS[row["dictionary"]].format(row["dictionary_id"]), return_dtype=pl.Utf8))
         .join(values, on="qid", how="left")
-        .select("qid", "label", "wikidata_url", "region", "country", "period", "dictionary", "dictionary_name", "dictionary_id", "biography_url",
-                *[column for column in values.columns if column != "qid"])
-        .sort("region", "birth_date_year"))
+        .select("qid", "label", "wikidata_url", pl.col("region").alias("claude_estimated_region"), pl.col("country").alias("claude_estimated_country"),
+                "period", "dictionary_name", "dictionary_id", "biography_url", *[column for column in values.columns if column != "qid"])
+        .sort("claude_estimated_region", "cultura_birth_date_year"))
     assert len(table) == 300 and table["qid"].is_unique().all()
     table.write_csv(OUT, separator="\t")
     print(f"{len(table)} individuals saved to {OUT.relative_to(ROOT)}")
     for field in ("birth_date", "death_date", "first_work_date", "last_work_date", "early_stage_polity", "active_stage_polity", "late_stage_polity"):
-        column = table[f"{field}_year" if field.endswith("date") else field]
+        column = table[f"cultura_{field}_year" if field.endswith("date") else f"cultura_{field}"]
         filled = column.drop_nulls().filter(column.drop_nulls() != "") if column.dtype == pl.Utf8 else column.drop_nulls()
         print(f"  {field:20} {len(filled):3} / 300")
 
