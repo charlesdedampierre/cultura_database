@@ -25,7 +25,7 @@ WORK_DATES = PARQUETS / "individual_work_dates.parquet"
 COARSE_DATES = PARQUETS / "individual_coarse_dates.parquet"
 
 BIRTH_DEATH_READS = ("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death", "IndividualWikidata.occupation")
-WORK_READS = ("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death", "IndividualWikidata.occupation", "Work.inception", "Work.publication_date")
+WORK_READS = ("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death", "IndividualEnriched.birth_date", "IndividualWikidata.occupation", "Work.inception", "Work.publication_date")
 
 
 def enrichment(column, reads, answers):
