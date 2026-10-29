@@ -53,9 +53,15 @@ class BiographyReview(BaseModel):
     late_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the late-stage polity linked to the place.")
 
 
+class ReferenceDatabase(BaseModel):
+    name: str = Field(..., description="Short name of the reference: 'treccani', 'cbdb'...")
+    description: str | None = Field(None, description="What the reference is and what it covers, in one sentence.")
+    url: str | None = Field(None, description="The reference's home page.")
+
+
 class ReferenceAnnotation(BaseModel):
     entity: WikidataEntity = Field(..., description="The individual.")
-    reference_database: str = Field(..., description="The reference the biography comes from: 'treccani', 'cbdb'...")
+    reference_database: ReferenceDatabase = Field(..., description="The reference the biography comes from.")
     reference_id: str | None = Field(None, description="The individual's id in the reference.")
     reference_url: str | None = Field(None, description="The biography's page in the reference, if online.")
     reference_text_path: str | None = Field(None, description="The file holding the downloaded text or record.")
