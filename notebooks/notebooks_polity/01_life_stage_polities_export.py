@@ -1,8 +1,9 @@
 """Life-stage polities of every individual with a birth and a death year, written as
 parquets of 1,000,000 individuals for ingestion into the enriched database.
 
-Same method as 01_life_stage_polities.ipynb (stage limits, field priorities, URL then
-coordinates, smallest Cliopatria polity); the notebook explores it on a sample."""
+Same method as 01_life_stage_polities.ipynb (stage limits at the first and last work,
+dated or estimated, else ages 30 and 60; field priorities; URL then coordinates; smallest
+Cliopatria polity); the notebook explores it on a sample."""
 import json
 import sys
 import time
@@ -39,7 +40,7 @@ METHODS = ['URL', 'coordinates']
 
 DATED = '''
     SELECT entity.qid AS qid, entity.label_en AS name, birth_date.year AS birth, death_date.year AS death,
-           coalesce(first_work_date.source = 'dated works' AND first_work_date.year < last_work_date.year, false) AS dated_works,
+           coalesce(first_work_date.year < last_work_date.year, false) AS dated_works,
            CASE WHEN dated_works THEN first_work_date.year END AS first_work,
            CASE WHEN dated_works THEN last_work_date.year END AS last_work
     FROM individual_enriched
