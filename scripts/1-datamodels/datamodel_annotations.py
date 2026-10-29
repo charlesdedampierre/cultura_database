@@ -16,10 +16,20 @@ class AIAnswer(BaseModel):
     source_verbatim_english: tuple[str, ...] = Field((), description="The extracts, in English.")
     source_verbatim_not_invented: bool | None = Field(None, description="Check: every extract exists in the source.")
     answer_supported_by_source_verbatim: bool | None = Field(None, description="Check: the answer appears in the extracts.")
-    model_name: str | None = Field(None, description="The model used.")
+    model_name: str | None = Field(None, description="The model used; empty when the value was read from a structured field, not by a model.")
     prompt_id: str | None = Field(None, description="The prompt's name.")
     prompt: str | None = Field(None, description="The full prompt sent.")
     cost_estimated: float | None = Field(None, description="Cost of the query, in US dollars.")
+
+
+class BiographyData(BaseModel):
+    birth_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was born, according to the reference.")
+    death_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual died, according to the reference.")
+    first_work_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual's first work or first recorded activity took place.")
+    last_work_date: AIAnswer = Field(default_factory=AIAnswer, description="When the individual's last work or last recorded activity took place.")
+    early_stage_polity: AIAnswer = Field(default_factory=AIAnswer, description="The polity the individual lived in from birth to the first work.")
+    active_stage_polity: AIAnswer = Field(default_factory=AIAnswer, description="The polity the individual lived in from the first to the last work.")
+    late_stage_polity: AIAnswer = Field(default_factory=AIAnswer, description="The polity the individual lived in from the last work to death.")
 
 
 class AnswerReview(BaseModel):
@@ -27,17 +37,21 @@ class AnswerReview(BaseModel):
     note: str | None = Field(None, description="The annotator's comment.")
 
 
-class HumanAnnotation(BaseModel):
-    location_ai_extracted: AnswerReview = Field(default_factory=AnswerReview, description="Review of the location.")
-    productivity_window_ai_extracted: AnswerReview = Field(default_factory=AnswerReview, description="Review of the productivity window.")
-    polity_ai_matched: AnswerReview = Field(default_factory=AnswerReview, description="Review of the polity.")
+class BiographyReview(BaseModel):
+    birth_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the birth date.")
+    death_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the death date.")
+    first_work_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the first work date.")
+    last_work_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the last work date.")
+    early_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the early-stage polity.")
+    active_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the active-stage polity.")
+    late_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the late-stage polity.")
 
 
-class TreccaniAnnotation(BaseModel):
+class ReferenceAnnotation(BaseModel):
     entity: WikidataEntity = Field(..., description="The individual.")
-    treccani_url: str = Field(..., description="The biography on treccani.it.")
-    treccani_text_path: str = Field("annotations/treccani_validation/treccani_texts.parquet", description="The file holding the downloaded text.")
-    location_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual was active, found by AI in the text.")
-    productivity_window_ai_extracted: AIAnswer = Field(default_factory=AIAnswer, description="When the individual was active, found by AI in the text.")
-    polity_ai_matched: AIAnswer = Field(default_factory=AIAnswer, description="The Cliopatria polity matched by AI to the location and window.")
-    human: HumanAnnotation = Field(default_factory=HumanAnnotation, description="The annotator's review.")
+    reference_database: str = Field(..., description="The reference the biography comes from: 'treccani', 'cbdb'...")
+    reference_id: str | None = Field(None, description="The individual's id in the reference.")
+    reference_url: str | None = Field(None, description="The biography's page in the reference, if online.")
+    reference_text_path: str | None = Field(None, description="The file holding the downloaded text or record.")
+    biography: BiographyData = Field(default_factory=BiographyData, description="What the reference says, field by field, with the same names as IndividualEnriched.")
+    human: BiographyReview = Field(default_factory=BiographyReview, description="The annotator's review of each field.")
