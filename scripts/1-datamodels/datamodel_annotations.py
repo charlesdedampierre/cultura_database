@@ -32,11 +32,11 @@ class BiographyData(BaseModel):
     start_of_active_life: DateAnswer = Field(default_factory=DateAnswer, description="When the individual's active life began: the first work or first recorded activity.")
     end_of_active_life: DateAnswer = Field(default_factory=DateAnswer, description="When the individual's active life ended: the last work or last recorded activity.")
     early_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from birth to start_of_active_life, as the biography database says it.")
-    early_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table linked to early_stage_place over the stage's years, most years first.")
+    early_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding early_stage_place over the stage's years, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
     active_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from start_of_active_life to end_of_active_life, as the biography database says it.")
-    active_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table linked to active_stage_place over the stage's years, most years first.")
+    active_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding active_stage_place over the stage's years, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
     late_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from end_of_active_life to death, as the biography database says it.")
-    late_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table linked to late_stage_place over the stage's years, most years first.")
+    late_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding late_stage_place over the stage's years, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
 
 
 class AnswerReview(BaseModel):
