@@ -2,7 +2,7 @@
 
 For each dictionary of DICTIONARIES, reads the identifiers from the individual_identifier table of
 the Cultura database, or, for a property missing there, from the Wikidata SPARQL endpoint the
-Wikidata items carrying it (or the Wikisource article describing them); keeps the Cultura individuals with a birth year, a
+Wikidata items carrying it (or the Wikisource article describing them); keeps the Cultura individuals with an English label, a birth year, a
 death year, and downloads the biography of a random one; when the page
 cannot be read, the next candidate is tried. The text is extracted from the page with trafilatura.
 Saved to scripts/5-annotations/dictionary_exploration/dictionary_texts.json.
@@ -95,6 +95,7 @@ def candidates(connection, ids):
         FROM dictionary
         JOIN individual ON individual.entity.qid = dictionary.qid
         WHERE individual.birth_date[1].year IS NOT NULL AND individual.death_date[1].year IS NOT NULL
+          AND individual.entity.label_en IS NOT NULL
         GROUP BY ALL ORDER BY dictionary.qid
     """).fetchall()
     return random.Random(SEED).sample(rows, len(rows))
