@@ -27,16 +27,12 @@ class DateAnswer(AIAnswer):
 
 
 class BiographyData(BaseModel):
-    birth_date: DateAnswer = Field(default_factory=DateAnswer, description="When the individual was born, according to the biography database.")
-    death_date: DateAnswer = Field(default_factory=DateAnswer, description="When the individual died, according to the biography database.")
-    start_of_active_life: DateAnswer = Field(default_factory=DateAnswer, description="When the individual's active life began: the first work or first recorded activity.")
-    end_of_active_life: DateAnswer = Field(default_factory=DateAnswer, description="When the individual's active life ended: the last work or last recorded activity.")
-    early_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from birth to start_of_active_life, as the biography database says it.")
-    early_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding early_stage_place over the stage's years, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
-    active_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from start_of_active_life to end_of_active_life, as the biography database says it.")
-    active_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding active_stage_place over the stage's years, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
-    late_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived from end_of_active_life to death, as the biography database says it.")
-    late_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding late_stage_place over the stage's years, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
+    early_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual was born and grew up, before the active life, as the biography database says it: the most granular place (a city, a region...).")
+    early_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding early_stage_place over the years Cultura gives the stage, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
+    active_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual worked during the active life, as the biography database says it: the most granular place (a city, a region...).")
+    active_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding active_stage_place over the years Cultura gives the stage, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
+    late_stage_place: AIAnswer = Field(default_factory=AIAnswer, description="Where the individual lived at the end of life and died, as the biography database says it: the most granular place (a city, a region...).")
+    late_stage_polity: tuple[Polity, ...] = Field((), description="Every Cliopatria polity of the polity table holding late_stage_place over the years Cultura gives the stage, most years first. Only the smallest entity of the hierarchy is kept: a polity is left out for a year when one of its components (Cliopatria Components / MemberOf) also holds the place that year.")
 
 
 class AnswerReview(BaseModel):
@@ -45,10 +41,6 @@ class AnswerReview(BaseModel):
 
 
 class BiographyReview(BaseModel):
-    birth_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the birth date.")
-    death_date: AnswerReview = Field(default_factory=AnswerReview, description="Review of the death date.")
-    start_of_active_life: AnswerReview = Field(default_factory=AnswerReview, description="Review of the start of active life.")
-    end_of_active_life: AnswerReview = Field(default_factory=AnswerReview, description="Review of the end of active life.")
     early_stage_place: AnswerReview = Field(default_factory=AnswerReview, description="Review of the early-stage place.")
     early_stage_polity: AnswerReview = Field(default_factory=AnswerReview, description="Review of the early-stage polities linked to the place.")
     active_stage_place: AnswerReview = Field(default_factory=AnswerReview, description="Review of the active-stage place.")
