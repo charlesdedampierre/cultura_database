@@ -5,8 +5,11 @@ rounds: each round visits every period of birth the region has, and in each peri
 individual from the dictionary least drawn so far in the region. An individual is drawn once, with
 the dictionary it was drawn from. Only individuals with the three Cultura life stages (early, active
 and late, each with its years, dated or estimated, in the life-stage polity export) enter the
-benchmark: the first QUOTAS eligible candidates of each region in drawing order. The rest of the
-region's candidates are kept in order as replacements, for when a biography cannot be downloaded.
+benchmark. Each region's quota is split between two notability levels, read from the number of
+Wikipedia editions with an article on the individual: famous (FAMOUS editions or more) and less
+known; half of the quota (rounded up) goes to the famous, the rest to the less known, each taken in
+drawing order, and a level short of candidates is completed from the other. The rest of the region's
+candidates are kept in order as replacements, for when a biography cannot be downloaded.
 Saved to scripts/5-annotations/benchmark/benchmark_sample.parquet.
 
 Usage: .venv/bin/python scripts/5-annotations/building_scripts/benchmark_sample.py
@@ -16,14 +19,17 @@ import random
 from collections import Counter
 from pathlib import Path
 
+import duckdb
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[3]
 FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark"
+DB = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
 POPULATION = FOLDER / "benchmark_population.parquet"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 OUT = FOLDER / "benchmark_sample.parquet"
 SEED = 42
+FAMOUS = 10
 QUOTAS = {
     "Western Europe": 30, "Northern Europe": 30, "Southern Europe": 30, "Eastern Europe": 30,
     "Middle East & North Africa": 40, "East Asia": 40, "South & Central Asia": 35,
@@ -60,19 +66,31 @@ def three_stages(qids):
     return set(stages["qid"])
 
 
+def wikipedia_editions(qids):
+    connection = duckdb.connect(str(DB), read_only=True)
+    connection.register("candidates", pl.DataFrame({"qid": qids}))
+    return dict(connection.execute("""
+        SELECT individual.entity.qid, len(list_filter(individual.sitelink, link -> link.site_url LIKE '%.wikipedia.org'))
+        FROM individual JOIN candidates ON candidates.qid = individual.entity.qid
+    """).fetchall())
+
+
 def main():
     population = pl.read_parquet(POPULATION)
-    eligible = three_stages(population["qid"].unique().to_list())
+    qids = population["qid"].unique().to_list()
+    eligible, editions = three_stages(qids), wikipedia_editions(qids)
+    population = population.with_columns(wikipedia_editions=pl.col("qid").replace_strict(editions, default=0, return_dtype=pl.Int64))
+    population = population.with_columns(notability=pl.when(pl.col("wikipedia_editions") >= FAMOUS).then(pl.lit("famous")).otherwise(pl.lit("less known")))
     rng = random.Random(SEED)
     rows = []
     for region, quota in QUOTAS.items():
         order = draw(population.filter(pl.col("region") == region).sort("qid", "dictionary").to_dicts(), rng)
-        taken = 0
-        for rank, row in enumerate(order):
-            has_stages = row["qid"] in eligible
-            rows.append({**row, "rank": rank, "three_stages": has_stages, "in_benchmark": has_stages and taken < quota})
-            taken += has_stages
-        print(f"{region:28} {min(quota, taken):3} drawn of {taken:6} candidates with three stages ({len(order):6} in all)")
+        ranked = [{**row, "rank": rank, "three_stages": row["qid"] in eligible} for rank, row in enumerate(order)]
+        levels = {level: [row["rank"] for row in ranked if row["three_stages"] and row["notability"] == level] for level in ("famous", "less known")}
+        famous = min(len(levels["famous"]), max(-(-quota // 2), quota - len(levels["less known"])))
+        chosen = set(levels["famous"][:famous] + levels["less known"][:quota - famous])
+        rows += [{**row, "in_benchmark": row["rank"] in chosen} for row in ranked]
+        print(f"{region:28} {famous:3} famous + {len(chosen) - famous:3} less known, of {len(levels['famous']):6} + {len(levels['less known']):6} candidates with three stages")
     sample = pl.DataFrame(rows)
     sample.write_parquet(OUT)
     print(f"{sample['in_benchmark'].sum()} individuals in the benchmark, {len(sample):,} ranked candidates saved to {OUT.relative_to(ROOT)}")
