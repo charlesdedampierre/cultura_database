@@ -9,9 +9,14 @@ polity of the hierarchy; it is compared only when both sides have a polity.
 Saved to biography_examples/biography_example_validation.json (BiographyDatabaseValidation) and
 biography_examples/biography_examples_benchmark.tsv (one row per individual and stage).
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/biography_example_validation.py
+With --benchmark50, the same comparison runs on the 50 benchmark individuals of benchmark50_texts.py,
+extracted by five agents (benchmark/benchmark50/extraction/agent_*.json), and is saved to
+benchmark/benchmark50/benchmark50_validation.json and benchmark50.tsv.
+
+Usage: .venv/bin/python scripts/5-annotations/building_scripts/biography_example_validation.py [--benchmark50]
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -30,6 +35,7 @@ FOLDER = ROOT / "scripts" / "5-annotations" / "biography_examples"
 EXTRACTION = FOLDER / "claude_extraction.json"
 TEXTS = ROOT / "scripts" / "5-annotations" / "dictionary_exploration" / "dictionary_texts.json"
 TRECCANI = ROOT / "scripts" / "5-annotations" / "treccani_validation" / "treccani_texts.parquet"
+BENCHMARK50 = ROOT / "scripts" / "5-annotations" / "benchmark" / "benchmark50"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 CLIOPATRIA = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
 ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
@@ -100,6 +106,11 @@ def texts():
     return found
 
 
+def benchmark50_texts():
+    return {person["qid"]: {"name": person["dictionary_name"], "id": str(person["dictionary_id"]), "url": person["biography_url"], "text": person["text"]}
+            for person in json.loads((BENCHMARK50 / "benchmark50_texts.json").read_text())}
+
+
 def answer(stage, url):
     if not stage:
         return AIAnswer()
@@ -110,8 +121,14 @@ def answer(stage, url):
 
 
 def main():
-    extraction = json.loads(EXTRACTION.read_text())
-    sources = texts()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--benchmark50", action="store_true")
+    if parser.parse_args().benchmark50:
+        extraction = {qid: person for path in sorted((BENCHMARK50 / "extraction").glob("agent_*.json")) for qid, person in json.loads(path.read_text()).items()}
+        sources, folder, validation_file, table_file = benchmark50_texts(), BENCHMARK50, "benchmark50_validation.json", "benchmark50.tsv"
+    else:
+        extraction = json.loads(EXTRACTION.read_text())
+        sources, folder, validation_file, table_file = texts(), FOLDER, "biography_example_validation.json", "biography_examples_benchmark.tsv"
     cultura = pl.scan_parquet(STAGES_EXPORT / "batch_*.parquet").filter(pl.col("qid").is_in(list(extraction))).collect()
     cultura = {(row["qid"], row["stage"]): row for row in cultura.iter_rows(named=True)}
     labels = dict(duckdb.connect(str(ENRICHED_DB), read_only=True).execute(
@@ -157,9 +174,9 @@ def main():
             biography_database_id=source.get("id"), biography_database_url=source.get("url"),
             biography_database_structured_data=data))
 
-    (FOLDER / "biography_example_validation.json").write_text(json.dumps([v.model_dump(exclude_defaults=True) for v in validations], ensure_ascii=False, indent=1))
+    (folder / validation_file).write_text(json.dumps([v.model_dump(exclude_defaults=True) for v in validations], ensure_ascii=False, indent=1))
     table = pl.DataFrame(rows)
-    table.write_csv(FOLDER / "biography_examples_benchmark.tsv", separator="\t")
+    table.write_csv(folder / table_file, separator="\t")
     compared = table.filter(pl.col("compared"))
     print(f"{table['qid'].n_unique()} individuals, {len(compared)} stages compared of {len(table)}")
     print(compared.group_by("stage").agg(compared=pl.len(), validated=pl.col("validated").sum()).sort(pl.col("stage").cast(pl.Enum(STAGES)))
