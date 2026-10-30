@@ -1,4 +1,4 @@
-"""Polity validation on the 13 biography examples of the paper table (notebooks_validation/01_biography_database.ipynb).
+"""Polity validation on the 13 biography examples of the paper table (notebooks_validation/01_benchmark_creation.ipynb).
 
 Claude read each biography and wrote, for the early, active and late stage, the most granular
 place the text gives, with word-for-word extracts and coordinates (biography_examples/claude_extraction.json).
