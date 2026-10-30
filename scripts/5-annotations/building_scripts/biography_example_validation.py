@@ -10,7 +10,7 @@ Saved to biography_examples/biography_example_validation.json (BiographyDatabase
 biography_examples/biography_examples_benchmark.tsv (one row per individual and stage).
 
 With --benchmark50, the same comparison runs on the 50 benchmark individuals of benchmark50_texts.py,
-extracted by five agents (benchmark/benchmark50/extraction/agent_*.json), and is saved to
+extracted by agents (benchmark/benchmark50/extraction/agent_*.json; individuals no longer in the 50 are left out), and is saved to
 benchmark/benchmark50/benchmark50_validation.json and benchmark50.tsv.
 
 Usage: .venv/bin/python scripts/5-annotations/building_scripts/biography_example_validation.py [--benchmark50]
@@ -127,8 +127,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark50", action="store_true")
     if parser.parse_args().benchmark50:
-        extraction = {qid: person for path in sorted((BENCHMARK50 / "extraction").glob("agent_*.json")) for qid, person in json.loads(path.read_text()).items()}
         sources, folder, validation_file, table_file = benchmark50_texts(), BENCHMARK50, "benchmark50_validation.json", "benchmark50.tsv"
+        extraction = {qid: person for path in sorted((BENCHMARK50 / "extraction").glob("agent_*.json")) for qid, person in json.loads(path.read_text()).items() if qid in sources}
     else:
         extraction = json.loads(EXTRACTION.read_text())
         sources, folder, validation_file, table_file = texts(), FOLDER, "biography_example_validation.json", "biography_examples_benchmark.tsv"

@@ -2,7 +2,9 @@
 
 Each region gets a sixth of its benchmark individuals (QUOTAS), drawn at random (seed 42). When a
 biography cannot be read (error, under MIN_TEXT characters, cross-reference page), the next drawn
-individual of the region is tried. Each text is saved to benchmark/benchmark50/texts/{qid}.txt for the
+individual of the region is tried. Individuals already drawn in an earlier run (benchmark50_texts.json)
+are kept, with their text, when they are still in the benchmark, so that only the replacements need a
+new extraction. Each text is saved to benchmark/benchmark50/texts/{qid}.txt for the
 extraction agents, and all of them to benchmark/benchmark50/benchmark50_texts.json.
 
 Usage: .venv/bin/python scripts/5-annotations/building_scripts/benchmark50_texts.py
@@ -44,13 +46,17 @@ def fetch(person):
 def main():
     benchmark = pl.read_csv(BENCHMARK, separator="\t")
     (FOLDER / "texts").mkdir(parents=True, exist_ok=True)
+    previous = FOLDER / "benchmark50_texts.json"
+    earlier = {person["qid"]: person["text"] for person in json.loads(previous.read_text())} if previous.exists() else {}
     found = []
     for region, quota in tqdm(QUOTAS.items(), desc="regions"):
         people = benchmark.filter(pl.col("claude_estimated_region") == region).sort("qid").sample(fraction=1.0, shuffle=True, seed=SEED)
-        drawn = []
+        drawn = [{**person, "text": earlier[person["qid"]]} for person in people.iter_rows(named=True) if person["qid"] in earlier][:quota]
         for person in people.iter_rows(named=True):
             if len(drawn) == quota:
                 break
+            if person["qid"] in earlier:
+                continue
             text = fetch(person)
             time.sleep(1)
             if text:
