@@ -7,7 +7,7 @@ keeping the smallest polity of the hierarchy, as in notebooks_polity/01_life_sta
 A stage is validated when a benchmark polity matches a Cultura polity directly or through a parent
 polity of the hierarchy; it is compared only when both sides have a polity.
 Saved to biography_examples/biography_example_validation.json (BiographyDatabaseValidation) and
-biography_examples/polity_comparison.tsv.
+biography_examples/biography_examples_benchmark.tsv (one row per individual and stage).
 
 Usage: .venv/bin/python scripts/5-annotations/building_scripts/biography_example_validation.py
 """
@@ -126,17 +126,27 @@ def main():
             found = cliopatria.polities(person[stage]["points"], given["start_year"], given["end_year"]) if person[stage] and given else []
             cultura_polities = given["polities"] if given else []
             pairs = cliopatria.match(found, cultura_polities)
+            extracted = person[stage] or {}
             rows.append({
-                "qid": qid, "label": labels.get(qid), "dictionary": person["dictionary"], "stage": stage,
-                "cultura_years": f"{given['start_year']}–{given['end_year']}" if given else None,
-                "benchmark_place": person[stage]["place"] if person[stage] else None,
+                "qid": qid, "label": labels.get(qid), "wikidata_url": f"https://www.wikidata.org/wiki/{qid}",
+                "dictionary_name": source.get("name"), "biography_url": source.get("url"), "stage": stage,
+                "cultura_stage_start_year": given["start_year"] if given else None, "cultura_stage_end_year": given["end_year"] if given else None,
+                "benchmark_place": extracted.get("place"),
+                "benchmark_place_as_written": extracted.get("written"),
+                "benchmark_place_as_written_english": extracted.get("written_en"),
+                "benchmark_verbatim": " | ".join(extracted.get("verbatim", [])) or None,
+                "benchmark_verbatim_english": " | ".join(extracted.get("verbatim_en", [])) or None,
+                "benchmark_confidence": extracted.get("confidence"),
+                "benchmark_reasoning": extracted.get("reasoning"),
+                "benchmark_coordinates": " | ".join(f"{name} ({latitude}, {longitude})" for name, longitude, latitude in extracted.get("points", [])) or None,
                 "benchmark_polity": "; ".join(map(bare, found)) or None,
-                "cultura_location": given["location"] if given else None,
-                "cultura_wikidata_field": given["wikidata_field"] if given else None,
                 "cultura_polity": "; ".join(cultura_polities) or None,
+                "cultura_wikidata_field": given["wikidata_field"] if given else None,
+                "cultura_location": given["location"] if given else None,
                 "compared": bool(found and cultura_polities),
                 "validated": bool(pairs) if found and cultura_polities else None,
                 "match": "; ".join(pairs) or None,
+                "model_name": MODEL if extracted else None,
             })
             person[f"{stage}_polities"] = found
         data = BiographyData(**{f"{stage}_stage_place": answer(person[stage], source["url"]) for stage in STAGES},
@@ -149,7 +159,7 @@ def main():
 
     (FOLDER / "biography_example_validation.json").write_text(json.dumps([v.model_dump(exclude_defaults=True) for v in validations], ensure_ascii=False, indent=1))
     table = pl.DataFrame(rows)
-    table.write_csv(FOLDER / "polity_comparison.tsv", separator="\t")
+    table.write_csv(FOLDER / "biography_examples_benchmark.tsv", separator="\t")
     compared = table.filter(pl.col("compared"))
     print(f"{table['qid'].n_unique()} individuals, {len(compared)} stages compared of {len(table)}")
     print(compared.group_by("stage").agg(compared=pl.len(), validated=pl.col("validated").sum()).sort(pl.col("stage").cast(pl.Enum(STAGES)))
