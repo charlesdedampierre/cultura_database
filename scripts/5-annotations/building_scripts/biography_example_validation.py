@@ -35,7 +35,7 @@ from datamodel_in_duckdb import Polity, WikidataEntity
 FOLDER = ROOT / "scripts" / "5-annotations" / "biography_examples"
 EXTRACTION = FOLDER / "claude_extraction.json"
 TEXTS = ROOT / "scripts" / "5-annotations" / "dictionary_exploration" / "dictionary_texts.json"
-TRECCANI = ROOT / "scripts" / "5-annotations" / "treccani_validation" / "treccani_texts.parquet"
+TRECCANI = ROOT / "scripts" / "5-annotations" / "legacy" / "treccani_validation" / "treccani_texts.parquet"
 BENCHMARKS = ROOT / "scripts" / "5-annotations" / "benchmark"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 CLIOPATRIA = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
