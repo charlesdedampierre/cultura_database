@@ -1,6 +1,7 @@
 """Download the biography of every individual of the benchmark of 300 (benchmark_cultura.tsv).
 
-Texts already downloaded for the benchmark of 50 (benchmark50_texts.json) are reused. A biography
+Texts already downloaded (benchmark50_texts.json, benchmark_additions_texts.json and an earlier
+benchmark300_texts.json) are reused. The benchmark includes the individuals added by benchmark_fill.py. A biography
 that cannot be read (error, under MIN_TEXT characters, cross-reference page) is listed as failed.
 Each text is saved to benchmark/benchmark300/texts/{qid}.txt for the extraction agents, and all of
 them to benchmark/benchmark300/benchmark300_texts.json.
@@ -19,13 +20,16 @@ from benchmark50_texts import fetch
 
 ROOT = Path(__file__).resolve().parents[3]
 BENCHMARK = ROOT / "scripts" / "5-annotations" / "benchmark" / "benchmark_cultura.tsv"
-EARLIER = ROOT / "scripts" / "5-annotations" / "benchmark" / "benchmark50" / "benchmark50_texts.json"
+BENCHMARK_FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark"
 FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark" / "benchmark300"
 
 
 def main():
     benchmark = pl.read_csv(BENCHMARK, separator="\t")
-    earlier = {person["qid"]: person["text"] for person in json.loads(EARLIER.read_text())}
+    earlier = json.loads((BENCHMARK_FOLDER / "benchmark_additions_texts.json").read_text())
+    for path in (BENCHMARK_FOLDER / "benchmark50" / "benchmark50_texts.json", FOLDER / "benchmark300_texts.json"):
+        if path.exists():
+            earlier |= {person["qid"]: person["text"] for person in json.loads(path.read_text())}
     (FOLDER / "texts").mkdir(parents=True, exist_ok=True)
     found, failed = [], []
     for person in tqdm(benchmark.iter_rows(named=True), total=len(benchmark), desc="biographies"):
