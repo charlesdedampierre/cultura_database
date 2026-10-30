@@ -64,23 +64,26 @@ class Cliopatria:
                     todo.append(parent)
         return found
 
+    def smallest(self, indices, start, end):
+        years = {}
+        for index in indices:
+            low, high = max(self.properties[index]["FromYear"], start), min(self.properties[index]["ToYear"], end)
+            if low <= high:
+                years.setdefault(self.properties[index]["Name"], set()).update(range(low, high + 1))
+        above = {parent for name in years for parent in self.ancestors(name)}
+        return {name: len(covered) for name, covered in years.items() if name not in above}
+
     def polities(self, spots, start, end):
         """Smallest polity holding each spot over the most years of [start, end], most years first."""
         ranked = {}
         by_spot = {}
         for spot, index in zip(*self.tree.query(points([(longitude, latitude) for _, longitude, latitude in spots]), predicate="within")):
             by_spot.setdefault(int(spot), []).append(int(index))
-        for spot, indices in by_spot.items():
-            years = {}
-            for index in indices:
-                low, high = max(self.properties[index]["FromYear"], start), min(self.properties[index]["ToYear"], end)
-                if low <= high:
-                    years.setdefault(self.properties[index]["Name"], set()).update(range(low, high + 1))
-            above = {parent for name in years for parent in self.ancestors(name)}
-            smallest = {name: len(covered) for name, covered in years.items() if name not in above}
-            if smallest:
-                polity = max(smallest, key=smallest.get)
-                ranked[polity] = max(smallest[polity], ranked.get(polity, 0))
+        for indices in by_spot.values():
+            found = self.smallest(indices, start, end)
+            if found:
+                polity = max(found, key=found.get)
+                ranked[polity] = max(found[polity], ranked.get(polity, 0))
         return sorted(ranked, key=ranked.get, reverse=True)
 
     def match(self, benchmark, cultura):
