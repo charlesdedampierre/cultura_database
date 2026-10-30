@@ -103,8 +103,10 @@ def texts():
 def answer(stage, url):
     if not stage:
         return AIAnswer()
-    return AIAnswer(answer=stage["place"], answer_as_written_in_text=stage["written"], confidence=stage["confidence"], reasoning=stage["reasoning"],
-                    source=url, source_verbatim=tuple(stage["verbatim"]), model_name=MODEL, prompt_id="biography_polity_extraction")
+    return AIAnswer(answer=stage["place"], answer_as_written_in_text=stage["written"],
+                    answer_as_written_in_text_english=stage["written_en"], confidence=stage["confidence"], reasoning=stage["reasoning"],
+                    source=url, source_verbatim=tuple(stage["verbatim"]),
+                    source_verbatim_english=tuple(stage["verbatim_en"]), model_name=MODEL, prompt_id="biography_polity_extraction")
 
 
 def main():
