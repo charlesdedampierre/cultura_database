@@ -9,11 +9,12 @@ polity of the hierarchy; it is compared only when both sides have a polity.
 Saved to biography_examples/biography_example_validation.json (BiographyDatabaseValidation) and
 biography_examples/biography_examples_benchmark.tsv (one row per individual and stage).
 
-With --benchmark50, the same comparison runs on the 50 benchmark individuals of benchmark50_texts.py,
-extracted by agents (benchmark/benchmark50/extraction/agent_*.json; individuals no longer in the 50 are left out), and is saved to
-benchmark/benchmark50/benchmark50_validation.json and benchmark50.tsv.
+With --benchmark 50 or --benchmark 300, the same comparison runs on the benchmark individuals of
+benchmark50_texts.py or benchmark300_texts.py, extracted by agents (benchmark/benchmark{N}/extraction/agent_*.json;
+individuals no longer in the benchmark are left out), and is saved to benchmark/benchmark{N}/benchmark{N}_validation.json
+and benchmark{N}.tsv.
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/biography_example_validation.py [--benchmark50]
+Usage: .venv/bin/python scripts/5-annotations/building_scripts/biography_example_validation.py [--benchmark 50|300]
 """
 
 import argparse
@@ -35,7 +36,7 @@ FOLDER = ROOT / "scripts" / "5-annotations" / "biography_examples"
 EXTRACTION = FOLDER / "claude_extraction.json"
 TEXTS = ROOT / "scripts" / "5-annotations" / "dictionary_exploration" / "dictionary_texts.json"
 TRECCANI = ROOT / "scripts" / "5-annotations" / "treccani_validation" / "treccani_texts.parquet"
-BENCHMARK50 = ROOT / "scripts" / "5-annotations" / "benchmark" / "benchmark50"
+BENCHMARKS = ROOT / "scripts" / "5-annotations" / "benchmark"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 CLIOPATRIA = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
 ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
@@ -109,9 +110,9 @@ def texts():
     return found
 
 
-def benchmark50_texts():
+def benchmark_texts(folder, size):
     return {person["qid"]: {"name": person["dictionary_name"], "id": str(person["dictionary_id"]), "url": person["biography_url"], "text": person["text"]}
-            for person in json.loads((BENCHMARK50 / "benchmark50_texts.json").read_text())}
+            for person in json.loads((folder / f"benchmark{size}_texts.json").read_text())}
 
 
 def answer(stage, url):
@@ -125,10 +126,12 @@ def answer(stage, url):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--benchmark50", action="store_true")
-    if parser.parse_args().benchmark50:
-        sources, folder, validation_file, table_file = benchmark50_texts(), BENCHMARK50, "benchmark50_validation.json", "benchmark50.tsv"
-        extraction = {qid: person for path in sorted((BENCHMARK50 / "extraction").glob("agent_*.json")) for qid, person in json.loads(path.read_text()).items() if qid in sources}
+    parser.add_argument("--benchmark", choices=["50", "300"])
+    size = parser.parse_args().benchmark
+    if size:
+        folder = BENCHMARKS / f"benchmark{size}"
+        sources, validation_file, table_file = benchmark_texts(folder, size), f"benchmark{size}_validation.json", f"benchmark{size}.tsv"
+        extraction = {qid: person for path in sorted((folder / "extraction").glob("agent_*.json")) for qid, person in json.loads(path.read_text()).items() if qid in sources}
     else:
         extraction = json.loads(EXTRACTION.read_text())
         sources, folder, validation_file, table_file = texts(), FOLDER, "biography_example_validation.json", "biography_examples_benchmark.tsv"
