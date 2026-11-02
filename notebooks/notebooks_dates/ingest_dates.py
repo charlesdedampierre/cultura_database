@@ -1,6 +1,6 @@
 """Ingest the date parquets of notebooks 01, 02 and 04 into individual_enriched of cultura_enriched_v3.2, shaped by datamodel_in_duckdb.IndividualEnriched.
 
-birth_date and death_date come from 01_age_at_death, replaced by the coarse label of 04_coarse_dates for the individuals with only coarse dates;
+birth_date and death_date come from 01_age_at_death, replaced by the coarse label of 05_coarse_dates for the individuals with only coarse dates;
 first_work_date and last_work_date come from 02_works_periods. Every other column keeps the value it already had."""
 
 import sys
