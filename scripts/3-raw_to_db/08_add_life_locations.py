@@ -1,6 +1,6 @@
 """Add the life locations: the places of work locations, residences and
-institution locations missing from `place`, the `institution` table, and the five
-life-location fields of `individual` (P937, P551, P108, P69, P39).
+institution locations missing from `place`, the `institution` table, and the four
+life-location fields of `individual` (P937, P551, P108, P69); positions held (P39) are step 09.
 
 Runs on the database at build_helpers.DATABASE (CULTURA_DB), after 07 in a full
 build or on its own to bring an existing database up to date: every write
@@ -29,7 +29,6 @@ FIELDS = {
     "residence": raw_file_readers.RESIDENCE,
     "employer": raw_file_readers.EMPLOYER,
     "educated_at": raw_file_readers.EDUCATED_AT,
-    "position_held": raw_file_readers.POSITION_HELD,
 }
 PLACE_FIELDS = ("work_location", "residence")
 INSTITUTION_FIELDS = ("employer", "educated_at")
@@ -43,11 +42,6 @@ class HeldPlaces(BaseModel):
 class HeldInstitutions(BaseModel):
     qid: str
     value: tuple[datamodel_in_duckdb.Institution, ...] = ()
-
-
-class HeldPositions(BaseModel):
-    qid: str
-    value: tuple[str, ...] = ()
 
 
 def add_places(connection):
@@ -70,15 +64,13 @@ def add_institutions(connection, qids, labels):
 def held_row(field, qid, targets, labels):
     if field in PLACE_FIELDS:
         return HeldPlaces(qid=qid, value=tuple(datamodel_in_duckdb.Place(entity=raw_to_duckdb_models.entity(t, labels.get(t))) for t in targets))
-    if field in INSTITUTION_FIELDS:
-        return HeldInstitutions(qid=qid, value=tuple(datamodel_in_duckdb.Institution(entity=raw_to_duckdb_models.entity(t, labels.get(t))) for t in targets))
-    return HeldPositions(qid=qid, value=targets)
+    return HeldInstitutions(qid=qid, value=tuple(datamodel_in_duckdb.Institution(entity=raw_to_duckdb_models.entity(t, labels.get(t))) for t in targets))
 
 
 def fill_field(connection, field, statements, labels, present):
     kind = columns_of(datamodel_in_duckdb.Individual)[field]
     connection.execute(f"ALTER TABLE individual ADD COLUMN IF NOT EXISTS {field} {kind}")
-    model = {**dict.fromkeys(PLACE_FIELDS, HeldPlaces), **dict.fromkeys(INSTITUTION_FIELDS, HeldInstitutions)}.get(field, HeldPositions)
+    model = HeldPlaces if field in PLACE_FIELDS else HeldInstitutions
     with Table(connection, "held_stage", model) as stage:
         for qid, values in statements.items():
             targets = raw_to_duckdb_models.held(values) if qid in present else ()

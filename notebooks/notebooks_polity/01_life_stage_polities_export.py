@@ -64,7 +64,7 @@ def load_people(connection, qids):
                list_transform(individual.residence, place -> place.entity.qid) AS residence,
                list_transform(individual.employer, institution -> institution.entity.qid) AS employer,
                list_transform(individual.educated_at, institution -> institution.entity.qid) AS educated_at,
-               individual.position_held AS position_held
+               list_distinct(list_transform(individual.position_held, held -> held.position.qid)) AS position_held
         FROM dated JOIN individual ON individual.entity.qid = dated.qid
         WHERE dated.qid IN (SELECT qid FROM batch_qids)
     ''').pl().with_columns(pl.col('place_of_birth', 'place_of_death').list.drop_nulls())

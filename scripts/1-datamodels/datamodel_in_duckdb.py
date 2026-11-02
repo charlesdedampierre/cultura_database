@@ -203,6 +203,12 @@ class IndividualWork(BaseModel):
     field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
 
 
+class PositionHeld(BaseModel):
+    position: WikidataEntity = Field(..., description="Position's Wikidata item, its name as the label: 'Pope', 'Dean of St Paul's'.")
+    start_date: Date | None = Field(None, description="When they took the position: the statement's start time P580.")
+    end_date: Date | None = Field(None, description="When they left it: the statement's end time P582.")
+
+
 class Individual(BaseModel):
     entity: WikidataEntity = Field(..., description="Individual's Wikidata item.")
     birth_date: tuple[Date, ...] = Field((), description="Every birth date, one per source, in order: Wikidata property, Wikidata description, life-expectancy estimate (enrichment step 13).")
@@ -217,7 +223,7 @@ class Individual(BaseModel):
     residence: tuple[Place, ...] = Field((), description="Residences, P551: qid and name only.")
     employer: tuple[Institution, ...] = Field((), description="Employers, P108: qid and name only; details in the Institution table.")
     educated_at: tuple[Institution, ...] = Field((), description="Schools and universities, P69: qid and name only; details in the Institution table.")
-    position_held: tuple[str, ...] = Field((), description="Positions held, P39, as qids.")
+    position_held: tuple[PositionHeld, ...] = Field((), description="Positions held, P39: one per non-deprecated statement, in Wikidata's order, with its start and end dates when stated (step 09).")
     writing_language: tuple[str, ...] = Field((), description="Writing languages, P6886, as qids.")
     external_id: tuple[IndividualIdentifier, ...] = Field((), description="Records held by external databases.")
     sitelink: tuple[IndividualSitelink, ...] = Field((), description="Wikimedia pages about the individual, one per edition.")

@@ -18,6 +18,7 @@ PARTS = (
     "06_add_works.py",
     "07_add_individuals.py",
     "08_add_life_locations.py",
+    "09_add_positions_held.py",
 )
 
 
