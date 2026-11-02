@@ -56,7 +56,7 @@ def main():
     provenance = datamodel_in_duckdb.Provenance(raw=("IndividualWikidata.position_held",), rule=RULE)
     connection.execute(f"CREATE OR REPLACE TEMP TABLE provenance_stage AS SELECT CAST(CAST(? AS JSON) AS {PROVENANCE}) AS value", [provenance.model_dump_json()])
     connection.execute("ALTER TABLE individual DROP COLUMN IF EXISTS position_held")
-    connection.execute(f"ALTER TABLE individual ADD COLUMN position_held {kind} DEFAULT []")
+    connection.execute(f"ALTER TABLE individual ADD COLUMN position_held {kind}")
     connection.execute(
         """
         UPDATE individual SET
@@ -65,6 +65,7 @@ def main():
         FROM held_stage, provenance_stage WHERE individual.entity.qid = held_stage.qid
         """
     )
+    connection.execute("UPDATE individual SET position_held = [] WHERE position_held IS NULL")
     connection.execute("DROP TABLE held_stage")
 
     held, positions, with_start, with_both = connection.execute(
