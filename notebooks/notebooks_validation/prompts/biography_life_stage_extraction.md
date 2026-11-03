@@ -1,12 +1,12 @@
 # Prompt: biography_life_stage_extraction
 
-Prompt given to each Claude Code agent (claude-opus-5-5, general-purpose subagents run in parallel) that extracts the
-pre-active, active and post-active places of the benchmark individuals from their biography
-(scripts/5-annotations/building_scripts/benchmark300_texts.py). Only `{QIDS}` and `{N}` change between agents.
+Prompt given to each Claude Code agent (`claude -p`, claude-opus-5-5, run in parallel by
+02_extract_polities_from_biographies.ipynb) that extracts the pre-active, active and post-active places and years of the
+benchmark individuals from their biography. Only `{QIDS}` and `{N}` change between agents.
 The stages follow the Cultura life stages of notebooks_polity/01_life_stage_polities_export.py: pre-active life
 (birth to start of active life), active life (start to end of active life) and post-active life (end of active life
-to death). The places are then mapped to Cliopatria polities over the Cultura stage years and compared with Cultura
-by biography_example_validation.py --benchmark 300. It replaces biography_polity_extraction.md (early, active, late).
+to death). The places are then associated with Cliopatria polities (biography_cliopatria_association.md) and compared with
+Cultura in 03_benchmark_results.ipynb. It replaces biography_polity_extraction.md (early, active, late).
 
 ---
 
@@ -20,7 +20,7 @@ The life of each individual is split into three stages around the active life. T
 - active: from the start to the end of the active life. Where the individual worked, held offices, created or published their works (several places allowed).
 - post_active: from the end of the active life to death. Where the individual lived after the last work or office (retirement, exile, last residence) and where they died. If the individual was active until death, give the place where they died.
 
-For each individual and each stage, write the most granular place the biography gives (a city, a region...). If the text says nothing usable for a stage, set that stage to null. Do not use outside knowledge to invent places the text does not mention; you may use your knowledge only to give coordinates.
+For each individual and each stage, give the years of the stage as the biography gives or implies them, and write the most granular place the biography gives (a city, a region...). If the text says nothing usable for a stage, set that stage to null. Do not use outside knowledge to invent places the text does not mention; you may use your knowledge only to give coordinates.
 
 Output format: the format of scripts/5-annotations/biography_examples/claude_extraction.json (read it first as the reference), with the stage keys renamed. Per QID: {"dictionary": <dictionary name from the header>, "pre_active": {...}|null, "active": {...}|null, "post_active": {...}|null}. Each stage object has:
 - "place": the place(s) in English, separated by "; "
@@ -30,6 +30,7 @@ Output format: the format of scripts/5-annotations/biography_examples/claude_ext
 - "verbatim_en": same list translated to English, same length and order (identical if English)
 - "confidence": "high" | "medium" | "low"
 - "reasoning": one short sentence
+- "years": [start_year, end_year] of the stage from the dates of the text (negative for BCE); use null for a bound the text does not let you date, even roughly
 - "points": list of [place name, longitude, latitude] for each place (decimal degrees, your best estimate of the place's location)
 
-Write the result as one JSON object (QID -> entry) to scripts/5-annotations/benchmark/benchmark300/extraction_life_stages/agent_{N}.json (ensure_ascii false, indent 2). Then check it with Python (.venv/bin/python): valid JSON, all your QIDs present, keys pre_active / active / post_active, verbatim and verbatim_en same length, and every verbatim string found in its text file (report and fix any that are not). Reply with a short summary: how many stages filled vs null, and any verbatim you could not match.
+Write the result as one JSON object (QID -> entry) to scripts/5-annotations/benchmark/benchmark300/extraction_life_stages/agent_{N}.json (ensure_ascii false, indent 2). Then check it with Python (.venv/bin/python): valid JSON, all your QIDs present, keys pre_active / active / post_active, years a list of two integers or nulls, verbatim and verbatim_en same length, and every verbatim string found in its text file (report and fix any that are not). Reply with a short summary: how many stages filled vs null, and any verbatim you could not match.
