@@ -1,8 +1,8 @@
 # Prompt: biography_cliopatria_association
 
 Prompt given to each Claude Code agent (`claude -p`, claude-opus-5-5, run in parallel by
-02_extract_polities_from_biographies.ipynb) that associates the places extracted from the biographies
-(biography_life_stage_extraction.md) with existing Cliopatria polities. Only `{CANDIDATES}` changes between agents.
+03_cliopatria_association.ipynb) that associates the places extracted from the biographies
+(biography_life_stage_extraction.md, 02_extract_places_from_biographies.ipynb) with existing Cliopatria polities. Only `{CANDIDATES}` changes between agents.
 For each stage, the candidates are the Cliopatria polities whose territory contains a point of the extracted place
 during the stage years given by the biography (over the life years the biography gives for the other stages when the stage
 has no years, over all years when the biography gives none). Cultura is never shown to the agent.
