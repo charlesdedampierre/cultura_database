@@ -40,9 +40,9 @@ METHODS = ['URL', 'coordinates']
 
 DATED = '''
     SELECT entity.qid AS qid, entity.label_en AS name, birth_date.year AS birth, death_date.year AS death,
-           coalesce(first_work_date.year < last_work_date.year, false) AS dated_works,
-           CASE WHEN dated_works THEN first_work_date.year END AS first_work,
-           CASE WHEN dated_works THEN last_work_date.year END AS last_work
+           coalesce(start_of_active_life.source = 'dated works and positions' AND start_of_active_life.year < end_of_active_life.year, false) AS dated_works,
+           CASE WHEN dated_works THEN start_of_active_life.year END AS first_work,
+           CASE WHEN dated_works THEN end_of_active_life.year END AS last_work
     FROM individual_enriched
     WHERE birth_date.year IS NOT NULL AND death_date.year IS NOT NULL
 '''

@@ -28,11 +28,11 @@ class Cohort(BaseModel):
     occupation: str | None = Field(None, description="Meta occupation of the cohort; empty when the cohort is every individual.")
     century: int | None = Field(None, description="First year of the cohort's century of birth, -500 for 500-401 BC; empty when the age is averaged over the centuries.")
     individuals: int | None = Field(None, description="Individuals the cohort's age was learnt from.")
-    age: float | None = Field(None, description="Age the estimate used: the cohort's mean age at death, or its median age at the first or the last work.")
+    age: float | None = Field(None, description="Age the estimate used: the cohort's mean age at death, its median age at the first or the last work, or its median age at the start or the end of the active life.")
 
 
 class IndividualDate(Date):
-    source: Literal["wikidata", "dated works", "estimated"] | None = Field(None, description="'wikidata' for a birth or death stated in Wikidata, 'dated works' for a work date read from the individual's works, 'estimated' when imputed from the ages of the cohort.")
+    source: Literal["wikidata", "dated works", "dated works and positions", "estimated"] | None = Field(None, description="'wikidata' for a birth or death stated in Wikidata, 'dated works' for a work date read from the individual's works, 'dated works and positions' for an active-life date read from the individual's dated works and positions held, 'estimated' when imputed from the ages of the cohort.")
     cohort: Cohort | None = Field(None, description="Cohort whose age gave an estimated date.")
     coarse_label: str | None = Field(None, description="'6th AC', '6th BC' ('2nd millennium BC' for a millennium) for an individual with only coarse dates, who could not be imputed: the year is left empty so that analyses do not draw it in, and these categories must be removed before any use of the year (notebooks_dates/05_coarse_dates).")
 
@@ -248,13 +248,13 @@ class IndividualEnriched(BaseModel):
 
     birth_date: IndividualDate | None = Field(None, description="The Wikidata birth, else the death year minus the cohort's mean age at death (notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (notebooks_dates/05_coarse_dates).")
     death_date: IndividualDate | None = Field(None, description="The Wikidata death, else the birth year plus the cohort's mean age at death, for births up to 1920 (notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (notebooks_dates/05_coarse_dates).")
-    first_work_date: IndividualDate | None = Field(None, description="The earliest cleaned work date, else the birth year plus the cohort's median age at the first work (notebooks_dates/02_works_periods).")
-    last_work_date: IndividualDate | None = Field(None, description="The latest cleaned work date, else the birth year plus the cohort's median age at the last work, capped at the death (notebooks_dates/02_works_periods).")
+    start_of_active_life: IndividualDate | None = Field(None, description="The earliest dated work, position start or position end, else the birth year plus the cohort's median age at the start of the active life, no later than its end (notebooks_dates/03_b_active_life).")
+    end_of_active_life: IndividualDate | None = Field(None, description="The latest dated work, position start or position end, else the birth year plus the cohort's median age at the end of the active life, capped at the death (notebooks_dates/03_b_active_life).")
 
-    early_stage_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from birth_date to first_work_date, longest overlap first.")
-    active_stage_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from first_work_date to last_work_date, longest overlap first.")
-    late_stage_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from last_work_date to death_date, longest overlap first.")
-    main_polity: PolityMatch | None = Field(None, description="The first match of active_stage_polity, the polity with the longest overlap.")
+    pre_active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from birth_date to start_of_active_life, longest overlap first.")
+    active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from start_of_active_life to end_of_active_life, longest overlap first.")
+    post_active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from end_of_active_life to death_date, longest overlap first.")
+    main_polity: PolityMatch | None = Field(None, description="The first match of active_life_polity, the polity with the longest overlap.")
 
     notability: Notability | None = Field(None, description="Western and non-Western Wikipedia coverage and the cross-cultural score (enrichment step 08).")
 

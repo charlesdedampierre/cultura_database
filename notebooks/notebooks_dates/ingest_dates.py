@@ -1,7 +1,7 @@
 """Ingest the date parquets of notebooks 01, 02 and 04 into individual_enriched of cultura_enriched_v3.2, shaped by datamodel_in_duckdb.IndividualEnriched.
 
 birth_date and death_date come from 01_age_at_death, replaced by the coarse label of 05_coarse_dates for the individuals with only coarse dates;
-first_work_date and last_work_date come from 02_works_periods. Every other column keeps the value it already had."""
+start_of_active_life and end_of_active_life come from 03_b_active_life. Every other column keeps the value it already had."""
 
 import sys
 import time
@@ -21,11 +21,11 @@ DATE_TYPE = duck_type(D.IndividualDate)
 TABLE = "individual_enriched"
 
 AGE_AT_DEATH = PARQUETS / "individual_dates_from_age_at_death.parquet"
-WORK_DATES = PARQUETS / "individual_work_dates.parquet"
+ACTIVE_LIFE = PARQUETS / "individual_active_life.parquet"
 COARSE_DATES = PARQUETS / "individual_coarse_dates.parquet"
 
 BIRTH_DEATH_READS = ("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death", "IndividualWikidata.occupation")
-WORK_READS = ("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death", "IndividualEnriched.birth_date", "IndividualWikidata.occupation", "Work.inception", "Work.publication_date")
+ACTIVE_LIFE_READS = ("IndividualWikidata.date_of_birth", "IndividualWikidata.date_of_death", "IndividualEnriched.birth_date", "IndividualEnriched.death_date", "IndividualWikidata.occupation", "IndividualWikidata.position_held", "Work.inception", "Work.publication_date")
 
 
 def enrichment(column, reads, answers):
@@ -35,8 +35,8 @@ def enrichment(column, reads, answers):
 ENRICHMENTS = {
     "birth_date": enrichment("birth_date", BIRTH_DEATH_READS, HERE / "01_age_at_death.ipynb"),
     "death_date": enrichment("death_date", BIRTH_DEATH_READS, HERE / "01_age_at_death.ipynb"),
-    "first_work_date": enrichment("first_work_date", WORK_READS, HERE / "02_works_periods.ipynb"),
-    "last_work_date": enrichment("last_work_date", WORK_READS, HERE / "02_works_periods.ipynb"),
+    "start_of_active_life": enrichment("start_of_active_life", ACTIVE_LIFE_READS, HERE / "03_b_active_life.ipynb"),
+    "end_of_active_life": enrichment("end_of_active_life", ACTIVE_LIFE_READS, HERE / "03_b_active_life.ipynb"),
 }
 
 
@@ -49,10 +49,14 @@ NEW_VALUES = {
     "entity": "individual.entity",
     "birth_date": f"coalesce(coarse_dates.birth_date, {as_individual_date('age_at_death.birth_date')})",
     "death_date": f"coalesce(coarse_dates.death_date, {as_individual_date('age_at_death.death_date')})",
-    "first_work_date": "work_dates.first_work_date",
-    "last_work_date": "work_dates.last_work_date",
+    "start_of_active_life": "active_life.start_of_active_life",
+    "end_of_active_life": "active_life.end_of_active_life",
     "field_provenance": f"map_concat(coalesce(previous.field_provenance, MAP {{}}), (SELECT map_from_entries(list((date_provenance.column_name, date_provenance.provenance))) FROM date_provenance))",
 }
+
+
+RENAMED = {"pre_active_life_polity": "early_stage_polity", "active_life_polity": "active_stage_polity", "post_active_life_polity": "late_stage_polity"}  # new column: old column whose values it keeps
+RETIRED = {"first_work_date", "last_work_date", *RENAMED.values()}  # replaced by the active life: dropped even when filled
 
 
 def report(message):
@@ -63,7 +67,7 @@ def report(message):
 
 
 def load_sources(connection):
-    for name, path in (("age_at_death", AGE_AT_DEATH), ("work_dates", WORK_DATES), ("coarse_dates", COARSE_DATES)):
+    for name, path in (("age_at_death", AGE_AT_DEATH), ("active_life", ACTIVE_LIFE), ("coarse_dates", COARSE_DATES)):
         connection.execute(f"CREATE OR REPLACE TEMP VIEW {name} AS SELECT * FROM read_parquet('{path}')")
         rows, unique = connection.execute(f"SELECT count(*), count(DISTINCT qid) FROM {name}").fetchone()
         assert rows == unique, f"{name}: {rows - unique} duplicated qids"
@@ -76,7 +80,7 @@ def keep_previous(connection):
     """individual_enriched as it is, so the columns this script does not write keep their values; a column outside the datamodel must be empty."""
     connection.execute(f"CREATE OR REPLACE TEMP TABLE previous AS SELECT * FROM {TABLE}")
     existing = [row[0] for row in connection.execute("DESCRIBE previous").fetchall()]
-    for column in set(existing) - set(columns_of(D.IndividualEnriched)):
+    for column in set(existing) - set(columns_of(D.IndividualEnriched)) - RETIRED:
         filled = connection.execute(f'SELECT count("{column}") FROM previous').fetchone()[0]
         assert filled == 0, f"{TABLE}.{column} is not in the datamodel and holds {filled:,} values"
         report(f"{TABLE}.{column} is not in the datamodel and is empty: dropped")
@@ -86,7 +90,8 @@ def keep_previous(connection):
 def select_list(existing):
     values = []
     for column, kind in columns_of(D.IndividualEnriched).items():
-        value = NEW_VALUES.get(column, f'previous."{column}"' if column in existing else "NULL")
+        kept = RENAMED.get(column, column) if RENAMED.get(column) in existing else column
+        value = NEW_VALUES.get(column, f'previous."{kept}"' if kept in existing else "NULL")
         values.append(f'CAST({value} AS {kind}) AS "{column}"')
     return ",\n       ".join(values)
 
@@ -98,7 +103,7 @@ def rebuild(connection, existing):
         FROM individual
         LEFT JOIN age_at_death ON age_at_death.qid = individual.entity.qid
         LEFT JOIN coarse_dates ON coarse_dates.qid = individual.entity.qid
-        LEFT JOIN work_dates ON work_dates.qid = individual.entity.qid
+        LEFT JOIN active_life ON active_life.qid = individual.entity.qid
         LEFT JOIN previous ON previous.entity.qid = individual.entity.qid
         ORDER BY individual.entity.qid
     """)
@@ -106,8 +111,8 @@ def rebuild(connection, existing):
 
 def check(connection):
     individuals = connection.execute("SELECT count(*) FROM individual").fetchone()[0]
-    rows, births, deaths, first_works, last_works, coarse = connection.execute(f"""
-        SELECT count(*), count(birth_date), count(death_date), count(first_work_date), count(last_work_date),
+    rows, births, deaths, active_starts, active_ends, coarse = connection.execute(f"""
+        SELECT count(*), count(birth_date), count(death_date), count(start_of_active_life), count(end_of_active_life),
                count(*) FILTER (birth_date.coarse_label IS NOT NULL OR death_date.coarse_label IS NOT NULL)
         FROM {TABLE}
     """).fetchone()
@@ -116,7 +121,7 @@ def check(connection):
     assert coarse == expected_coarse, f"{coarse:,} coarse individuals written, {expected_coarse:,} expected"
     coarse_years = connection.execute(f"SELECT count(*) FROM {TABLE} WHERE (birth_date.coarse_label IS NOT NULL AND birth_date.year IS NOT NULL) OR (death_date.coarse_label IS NOT NULL AND death_date.year IS NOT NULL)").fetchone()[0]
     assert coarse_years == 0, f"{coarse_years:,} coarse dates keep a year"
-    report(f"{rows:,} individuals: {births:,} births, {deaths:,} deaths ({coarse:,} with a coarse label), {first_works:,} first and {last_works:,} last work dates")
+    report(f"{rows:,} individuals: {births:,} births, {deaths:,} deaths ({coarse:,} with a coarse label), {active_starts:,} starts and {active_ends:,} ends of active life")
 
 
 def main():
