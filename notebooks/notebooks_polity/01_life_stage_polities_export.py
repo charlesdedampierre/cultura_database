@@ -1,9 +1,10 @@
 """Life-stage polities of every individual with a birth and a death year, written as
 parquets of 1,000,000 individuals for ingestion into the enriched database.
 
-Same method as 01_life_stage_polities.ipynb (stage limits at the first and last work,
-dated or estimated, else ages 30 and 60; field priorities; URL then coordinates; smallest
-Cliopatria polity); the notebook explores it on a sample."""
+The stages are the pre-active life (birth to start of active life), the active life
+(start_of_active_life to end_of_active_life, dated or estimated) and the post-active life
+(end of active life to death). An individual with no active life gets no stage. Then field
+priorities, URL then coordinates, smallest Cliopatria polity, as in 01_life_stage_polities.ipynb."""
 import json
 import sys
 import time
@@ -28,21 +29,17 @@ SOURCES = {
     'place_of_birth': 'birthplace', 'educated_at': 'educated at', 'residence': 'residence', 'country_of_citizenship': 'citizenship',
     'work_location': 'work location', 'employer': 'employer', 'position_held': 'position held', 'place_of_death': 'deathplace',
 }
-STAGES = ['early', 'active', 'late']
-ACTIVE_AGE, LATE_AGE = 30, 60
-MIN_STAGE = 5
+STAGES = ['pre_active', 'active', 'post_active']
 RULES = {
-    'early': [('place_of_birth', 'certain'), ('educated_at', 'certain'), ('residence', 'unsure'), ('country_of_citizenship', 'unsure'), ('work_location', 'unsure'), ('employer', 'unsure'), ('position_held', 'unsure'), ('place_of_death', 'unsure')],
+    'pre_active': [('place_of_birth', 'certain'), ('educated_at', 'certain'), ('residence', 'unsure'), ('country_of_citizenship', 'unsure'), ('work_location', 'unsure'), ('employer', 'unsure'), ('position_held', 'unsure'), ('place_of_death', 'unsure')],
     'active': [('work_location', 'certain'), ('employer', 'certain'), ('position_held', 'certain'), ('residence', 'certain'), ('country_of_citizenship', 'unsure'), ('place_of_death', 'unsure'), ('educated_at', 'unsure'), ('place_of_birth', 'unsure')],
-    'late': [('place_of_death', 'certain'), ('residence', 'unsure'), ('work_location', 'unsure'), ('position_held', 'unsure'), ('employer', 'unsure'), ('country_of_citizenship', 'unsure'), ('educated_at', 'unsure'), ('place_of_birth', 'unsure')],
+    'post_active': [('place_of_death', 'certain'), ('residence', 'unsure'), ('work_location', 'unsure'), ('position_held', 'unsure'), ('employer', 'unsure'), ('country_of_citizenship', 'unsure'), ('educated_at', 'unsure'), ('place_of_birth', 'unsure')],
 }
 METHODS = ['URL', 'coordinates']
 
 DATED = '''
     SELECT entity.qid AS qid, entity.label_en AS name, birth_date.year AS birth, death_date.year AS death,
-           coalesce(start_of_active_life.source = 'dated works and positions' AND start_of_active_life.year < end_of_active_life.year, false) AS dated_works,
-           CASE WHEN dated_works THEN start_of_active_life.year END AS first_work,
-           CASE WHEN dated_works THEN end_of_active_life.year END AS last_work
+           start_of_active_life.year AS start_active, end_of_active_life.year AS end_active
     FROM individual_enriched
     WHERE birth_date.year IS NOT NULL AND death_date.year IS NOT NULL
 '''
@@ -71,23 +68,15 @@ def load_people(connection, qids):
 
 
 def stage_limits(person):
+    """Pre-active, active and post-active years, the active life clipped to the lifetime; none without an active life."""
     birth, death = person['birth'], person['death']
-    if person['dated_works']:
-        first, last = person['first_work'], person['last_work']
-    else:
-        first, last = birth + ACTIVE_AGE, birth + LATE_AGE
-    limits = {'early': [birth, min(first, death)], 'active': [first, min(last, death)], 'late': [last, death]}
-    limits = {stage: bounds for stage, bounds in limits.items() if bounds[0] <= bounds[1]}
-    early, active, late = (limits.get(stage) for stage in STAGES)
-    if late and active and late[1] - late[0] < MIN_STAGE:
-        active[1] = limits.pop('late')[1]
-    if early and active and early[1] - early[0] < MIN_STAGE:
-        active[0] = limits.pop('early')[0]
-    if active and early and 'late' not in limits and active[1] - active[0] < MIN_STAGE:
-        early[1] = limits.pop('active')[1]
-    if 'late' not in limits:
-        limits['late'] = [death, death]  # no late stage: the death year alone
-    return limits
+    if person['start_active'] is None:
+        return {}
+    start, end = max(person['start_active'], birth), min(person['end_active'], death)
+    if start > end:
+        return {}
+    limits = {'pre_active': [birth, start], 'active': [start, end], 'post_active': [end, death]}
+    return {stage: bounds for stage, bounds in limits.items() if bounds[0] < bounds[1] or stage == 'active'}
 
 
 def article(url):
