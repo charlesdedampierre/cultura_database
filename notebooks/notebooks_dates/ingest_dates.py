@@ -12,13 +12,16 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / "scripts" / "4-database_enrichment"))
 
-from common import D, DATABASE, Enrichment, as_json, open_database, stage
+from common import D, DATABASE, SCRATCH, Enrichment, as_json, open_database, stage
 from pydantic_to_duckdb_schema import columns_of, duck_type
+from tqdm import tqdm
 
 PARQUETS = ROOT / "data" / "enriched_parquets"
 TASK_LOG = ROOT / "task.log"
 DATE_TYPE = duck_type(D.IndividualDate)
 TABLE = "individual_enriched"
+NEW_TABLE = "individual_enriched_rebuilt"
+BATCHES = 10  # qid ranges written one after the other
 
 AGE_AT_DEATH = PARQUETS / "individual_dates_from_age_at_death.parquet"
 ACTIVE_LIFE = PARQUETS / "individual_active_life.parquet"
@@ -77,11 +80,10 @@ def load_sources(connection):
 
 
 def keep_previous(connection):
-    """individual_enriched as it is, so the columns this script does not write keep their values; a column outside the datamodel must be empty."""
-    connection.execute(f"CREATE OR REPLACE TEMP TABLE previous AS SELECT * FROM {TABLE}")
-    existing = [row[0] for row in connection.execute("DESCRIBE previous").fetchall()]
+    """Columns of individual_enriched as it is, so the columns this script does not write keep their values; a column outside the datamodel must be empty."""
+    existing = [row[0] for row in connection.execute(f"DESCRIBE {TABLE}").fetchall()]
     for column in set(existing) - set(columns_of(D.IndividualEnriched)) - RETIRED:
-        filled = connection.execute(f'SELECT count("{column}") FROM previous').fetchone()[0]
+        filled = connection.execute(f'SELECT count("{column}") FROM {TABLE}').fetchone()[0]
         assert filled == 0, f"{TABLE}.{column} is not in the datamodel and holds {filled:,} values"
         report(f"{TABLE}.{column} is not in the datamodel and is empty: dropped")
     return existing
@@ -97,16 +99,26 @@ def select_list(existing):
 
 
 def rebuild(connection, existing):
-    connection.execute(f"""
-        CREATE OR REPLACE TABLE {TABLE} AS
-        SELECT {select_list(existing)}
-        FROM individual
-        LEFT JOIN age_at_death ON age_at_death.qid = individual.entity.qid
-        LEFT JOIN coarse_dates ON coarse_dates.qid = individual.entity.qid
-        LEFT JOIN active_life ON active_life.qid = individual.entity.qid
-        LEFT JOIN previous ON previous.entity.qid = individual.entity.qid
-        ORDER BY individual.entity.qid
-    """)
+    """Write the new table in qid ranges (the whole table at once does not fit in memory), then put it in place of the old one."""
+    cuts = connection.execute(f"SELECT quantile_disc(entity.qid, {[i / BATCHES for i in range(1, BATCHES)]}) FROM individual").fetchone()[0]
+    ranges = list(zip([None, *cuts], [*cuts, None]))
+    connection.execute(f"DROP TABLE IF EXISTS {NEW_TABLE}")
+    for number, (low, high) in enumerate(tqdm(ranges, desc="qid ranges")):
+        inside = " AND ".join([f"individual.entity.qid >= '{low}'"] * (low is not None) + [f"individual.entity.qid < '{high}'"] * (high is not None))
+        rows = f"""
+            SELECT {select_list(existing)}
+            FROM individual
+            LEFT JOIN age_at_death ON age_at_death.qid = individual.entity.qid
+            LEFT JOIN coarse_dates ON coarse_dates.qid = individual.entity.qid
+            LEFT JOIN active_life ON active_life.qid = individual.entity.qid
+            LEFT JOIN {TABLE} AS previous ON previous.entity.qid = individual.entity.qid
+            WHERE {inside}
+            ORDER BY individual.entity.qid
+        """
+        connection.execute(f"CREATE TABLE {NEW_TABLE} AS {rows}" if number == 0 else f"INSERT INTO {NEW_TABLE} {rows}")
+        report(f"qid range {number + 1}/{len(ranges)} written")
+    connection.execute(f"DROP TABLE {TABLE}")
+    connection.execute(f"ALTER TABLE {NEW_TABLE} RENAME TO {TABLE}")
 
 
 def check(connection):
@@ -130,6 +142,8 @@ def main():
     started = time.time()
     report(f"writing {TABLE} of {DATABASE}")
     connection = open_database()
+    SCRATCH.mkdir(parents=True, exist_ok=True)
+    connection.execute(f"SET memory_limit='8GB'; SET threads=4; SET preserve_insertion_order=false; SET temp_directory='{SCRATCH}'")  # 16 GB machine: spill the sort to disk
     load_sources(connection)
     existing = keep_previous(connection)
     connection.execute("BEGIN TRANSACTION")
