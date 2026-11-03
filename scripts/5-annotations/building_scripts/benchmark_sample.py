@@ -3,8 +3,8 @@
 Each region gets the number of individuals of QUOTAS. Within a region, individuals are drawn in
 rounds: each round visits every period of birth the region has, and in each period takes a random
 individual from the dictionary least drawn so far in the region. An individual is drawn once, with
-the dictionary it was drawn from. Only individuals with the three Cultura life stages (early, active
-and late, each with its years, dated or estimated, in the life-stage polity export) enter the
+the dictionary it was drawn from. Only individuals with the three Cultura life stages (pre-active, active
+and post-active, each with its years, dated or estimated, in the life-stage polity export) enter the
 benchmark. Each region's quota is split between two notability levels, read from the number of
 Wikipedia editions with an article on the individual: famous (FAMOUS editions or more) and less
 known; half of the quota (rounded up) goes to the famous, the rest to the less known, each taken in
@@ -59,7 +59,7 @@ def draw(candidates, rng):
 
 
 def three_stages(qids):
-    """Individuals with an early, an active and a late stage, each with its years, in the life-stage export."""
+    """Individuals with a pre-active, an active and a post-active stage, each with its years, in the life-stage export."""
     stages = (pl.scan_parquet(STAGES_EXPORT / "batch_*.parquet").filter(pl.col("qid").is_in(pl.Series(qids).implode()))
               .filter(pl.col("start_year").is_not_null() & pl.col("end_year").is_not_null())
               .group_by("qid").agg(stages=pl.col("stage").n_unique()).filter(pl.col("stages") == 3).collect())

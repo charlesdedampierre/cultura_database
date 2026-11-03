@@ -1,6 +1,6 @@
 """Add individuals to the benchmark so that every region and century of birth has at least MINIMUM individuals.
 
-The century is that of the Cultura birth year (start of the early life stage in the life-stage
+The century is that of the Cultura birth year (start of the pre-active life stage in the life-stage
 export). For each region and century with fewer than MINIMUM benchmark individuals, the candidates of
 benchmark_sample.parquet (three life stages, not yet in the benchmark) are taken in drawing order until
 the cell reaches MINIMUM, or until its candidates run out; a candidate whose biography cannot be read
@@ -30,7 +30,7 @@ MINIMUM = 3
 
 
 def cultura_centuries(qids):
-    births = (pl.scan_parquet(STAGES_EXPORT / "batch_*.parquet").filter((pl.col("stage") == "early") & pl.col("qid").is_in(pl.Series(qids).implode()))
+    births = (pl.scan_parquet(STAGES_EXPORT / "batch_*.parquet").filter((pl.col("stage") == "pre_active") & pl.col("qid").is_in(pl.Series(qids).implode()))
               .select("qid", pl.col("start_year").alias("cultura_birth_year")).collect())
     return births.with_columns(cultura_century=pl.col("cultura_birth_year") // 100 + 1)
 
