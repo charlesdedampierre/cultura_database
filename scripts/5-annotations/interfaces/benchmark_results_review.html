@@ -17,6 +17,10 @@
   table { border-collapse: collapse; width: 100%; }
   td { border-top: 1px solid #eef0f2; padding: 5px 14px; vertical-align: top; }
   td.key { width: 210px; color: #666; background: #fafbfc; }
+  tr.bio td { background: #f1f6fc; } tr.bio td.key { border-left: 4px solid #5b8fc9; color: #3d5f86; }
+  tr.cultura td { background: #fcf6ec; } tr.cultura td.key { border-left: 4px solid #d29b4a; color: #86602a; }
+  .legend { display: flex; gap: 10px; font-size: 12px; } .legend span { padding: 2px 8px; border-radius: 3px; }
+  .legend .bio { background: #f1f6fc; border-left: 4px solid #5b8fc9; } .legend .cultura { background: #fcf6ec; border-left: 4px solid #d29b4a; }
   tr.stage td { background: #eef2f7; font-weight: 600; color: #333; }
   .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 8px; }
   .validated { background: #e3f1e6; color: #2f6b3a; }
@@ -33,6 +37,7 @@
   <select id="stage"><option value="">All stages</option><option value="pre_active">Pre-active</option><option value="active">Active</option><option value="post_active">Post-active</option></select>
   <select id="region"><option value="">All regions</option></select>
   <input id="search" placeholder="Search name, QID, polity" size="26">
+  <span class="legend"><span class="bio">Biography (benchmark)</span><span class="cultura">Cultura</span></span>
   <span id="summary"></span>
 </header>
 <main id="cards"></main>
@@ -43,30 +48,30 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&
 const years = y => (y[0] == null && y[1] == null) ? '<span class="muted">none</span>' : `${y[0] ?? "?"} – ${y[1] ?? "?"}`;
 const list = l => l && l.length ? esc(l.join("; ")) : '<span class="muted">none</span>';
 const text = t => t ? esc(t) : '<span class="muted">none</span>';
-const row = (key, value) => `<tr><td class="key">${key}</td><td>${value}</td></tr>`;
+const row = (key, value, source = "") => `<tr class="${source}"><td class="key">${key}</td><td>${value}</td></tr>`;
 const regions = [...new Set(DATA.map(d => d.region))].sort();
 document.getElementById("region").innerHTML += regions.map(r => `<option>${esc(r)}</option>`).join("");
 
 function card(d, stageFilter) {
   let rows = row("QID", `<a href="https://www.wikidata.org/wiki/${d.qid}" target="_blank">${d.qid}</a>`)
     + row("Region", esc(d.region)) + row("Notability", esc(d.notability))
-    + row("Cultura birth – death", years([d.birth, d.death]))
-    + row("Biography", `<a href="${esc(d.url)}" target="_blank">${esc(d.dictionary)}</a>`);
+    + row("Cultura birth – death", years([d.birth, d.death]), "cultura")
+    + row("Biography", `<a href="${esc(d.url)}" target="_blank">${esc(d.dictionary)}</a>`, "bio");
   for (const s of d.stages) {
     if (stageFilter && s.stage !== stageFilter) continue;
     rows += `<tr class="stage"><td colspan="2">${NAMES[s.stage]}<span class="badge ${s.result.replace(" ", "-")}">${s.result}</span></td></tr>`
-      + row("Benchmark polities", list(s.polities))
-      + row("Cultura polities", list(s.cultura_polities))
-      + row("Biography years", years(s.benchmark_years))
-      + row("Cultura years", years(s.cultura_years))
-      + row("Biography place", text(s.place))
-      + row("As written", text(s.written))
-      + row("Extracts (English)", s.verbatim && s.verbatim.length ? "<ul>" + s.verbatim.map(v => `<li>${esc(v)}</li>`).join("") + "</ul>" : '<span class="muted">none</span>')
-      + row("Cliopatria candidates", list(s.candidates))
-      + (JSON.stringify(s.claude) !== JSON.stringify(s.polities) ? row("Claude choice (before smallest)", list(s.claude)) : "")
-      + row("Association", s.confidence ? `${esc(s.confidence)} — ${esc(s.reasoning)}` : '<span class="muted">none</span>')
-      + row("Cultura source field", text(s.cultura_field))
-      + row("Cultura location", text(s.cultura_location));
+      + row("Benchmark polities", list(s.polities), "bio")
+      + row("Cultura polities", list(s.cultura_polities), "cultura")
+      + row("Biography years", years(s.benchmark_years), "bio")
+      + row("Cultura years", years(s.cultura_years), "cultura")
+      + row("Biography place", text(s.place), "bio")
+      + row("As written", text(s.written), "bio")
+      + row("Extracts (English)", s.verbatim && s.verbatim.length ? "<ul>" + s.verbatim.map(v => `<li>${esc(v)}</li>`).join("") + "</ul>" : '<span class="muted">none</span>', "bio")
+      + row("Cliopatria candidates", list(s.candidates), "bio")
+      + (JSON.stringify(s.claude) !== JSON.stringify(s.polities) ? row("Claude choice (before smallest)", list(s.claude), "bio") : "")
+      + row("Association", s.confidence ? `${esc(s.confidence)} — ${esc(s.reasoning)}` : '<span class="muted">none</span>', "bio")
+      + row("Cultura source field", text(s.cultura_field), "cultura")
+      + row("Cultura location", text(s.cultura_location), "cultura");
   }
   return `<div class="card"><h2>${esc(d.label)}</h2><table>${rows}</table></div>`;
 }
