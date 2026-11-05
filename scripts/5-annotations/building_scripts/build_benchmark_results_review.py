@@ -138,18 +138,18 @@ function card(d, stageFilter) {
   for (const s of d.stages) {
     if (stageFilter && s.stage !== stageFilter) continue;
     rows += `<tr class="stage"><td colspan="2">${NAMES[s.stage]}<span class="badge ${s.result.replace(" ", "-")}">${s.result}</span></td></tr>`
-      + row("Benchmark polities", list(s.polities), "bio")
       + row("Cultura polities", list(s.cultura_polities), "cultura")
-      + row("Biography years", years(s.benchmark_years), "bio")
       + row("Cultura years", years(s.cultura_years), "cultura")
+      + row("Cultura source field", text(s.cultura_field), "cultura")
+      + row("Cultura location", text(s.cultura_location), "cultura")
+      + row("Benchmark polities", list(s.polities), "bio")
+      + row("Biography years", years(s.benchmark_years), "bio")
       + row("Biography place", text(s.place), "bio")
       + row("As written", text(s.written), "bio")
       + row("Extracts (English)", s.verbatim && s.verbatim.length ? "<ul>" + s.verbatim.map(v => `<li>${esc(v)}</li>`).join("") + "</ul>" : '<span class="muted">none</span>', "bio")
       + row("Cliopatria candidates", list(s.candidates), "bio")
       + (JSON.stringify(s.claude) !== JSON.stringify(s.polities) ? row("Claude choice (before smallest)", list(s.claude), "bio") : "")
-      + row("Association", s.confidence ? `${esc(s.confidence)} — ${esc(s.reasoning)}` : '<span class="muted">none</span>', "bio")
-      + row("Cultura source field", text(s.cultura_field), "cultura")
-      + row("Cultura location", text(s.cultura_location), "cultura");
+      + row("Association", s.confidence ? `${esc(s.confidence)} — ${esc(s.reasoning)}` : '<span class="muted">none</span>', "bio");
   }
   return `<div class="card"><h2>${esc(d.label)}</h2><table>${rows}</table></div>`;
 }
