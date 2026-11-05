@@ -131,7 +131,14 @@ class Notability(BaseModel):
 class PolityMatch(BaseModel):
     polity: Polity | None = Field(None, description="Matched polity: id, name, world and meta_polities only.")
     years_spent_in_polity: int | None = Field(None, description="Years of the stage spent inside this polity, each year counted once.")
-    assignation_method: Literal["polygon_of_birthplace", "polygon_of_deathplace", "polygon_of_country_of_citizenship", "url_of_birthplace", "url_of_deathplace", "url_of_country_of_citizenship"] | None = Field(None, description="Which location and which test made the match.")
+    assignation_method: Literal[
+        "polygon_of_birthplace", "polygon_of_deathplace", "polygon_of_country_of_citizenship", "polygon_of_work_location",
+        "polygon_of_residence", "polygon_of_employer", "polygon_of_educated_at", "polygon_of_position_held",
+        "url_of_birthplace", "url_of_deathplace", "url_of_country_of_citizenship", "url_of_work_location",
+        "url_of_residence", "url_of_employer", "url_of_educated_at", "url_of_position_held",
+    ] | None = Field(None, description="Which Wikidata location field and which test made the match: 'polygon' when the place's coordinates fall inside the Cliopatria territory, 'url' when the place's Wikipedia article is the polity's own.")
+    certainty: Literal["certain", "unsure"] | None = Field(None, description="'certain' when the location field is a direct witness of the stage (birthplace or educated at for the pre-active life, work location, employer, position held or residence for the active life, deathplace for the post-active life), 'unsure' when it is a fallback field.")
+    location: str | None = Field(None, description="Label of the place, institution or country the match was read from.")
     seshat_ids: tuple[str, ...] = Field((), description="Seshat ids of the polity's territories overlapping the stage.")
 
 
