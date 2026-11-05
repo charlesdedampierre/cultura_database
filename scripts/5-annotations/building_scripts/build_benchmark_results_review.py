@@ -1,8 +1,8 @@
 """HTML review of the benchmark results: one card per individual, features as rows and values in the second column.
 
 Reads the benchmark dataset (notebooks_validation/03_cliopatria_association.ipynb), the Cultura life-stage polities and
-the benchmark individuals, compares the polities of each stage as in 04_benchmark_results.ipynb (same polity, or one a
-parent of the other in the Cliopatria hierarchy), and writes scripts/5-annotations/interfaces/benchmark_results_review.html.
+the benchmark individuals, compares the polities of each stage as in 04_benchmark_results.ipynb (a Cultura polity among the benchmark polities
+or Cliopatria candidates, directly or through a parent polity), and writes scripts/5-annotations/interfaces/benchmark_results_review.html.
 
 Usage: .venv/bin/python scripts/5-annotations/building_scripts/build_benchmark_results_review.py
 """
@@ -41,10 +41,11 @@ def ancestors(name, parents):
     return found
 
 
-def result(found, given, parents):
-    if not found or not given:
+def result(found, candidates, given, parents):
+    """Validated when a Cultura polity is a benchmark polity or candidate, directly or through a parent polity."""
+    if not candidates or not given:
         return "not compared"
-    match = any(a == b or b in ancestors(a, parents) or a in ancestors(b, parents) for a in found for b in given)
+    match = any(a == b or b in ancestors(a, parents) or a in ancestors(b, parents) for a in found + candidates for b in given)
     return "validated" if match else "mismatch"
 
 
@@ -63,7 +64,7 @@ def main():
             "birth": person["cultura_birth_date_year"], "death": person["cultura_death_date_year"],
             "dictionary": row["dictionary_name"], "url": row["biography_url"], "stages": []})
         entry["stages"].append({
-            "stage": row["stage"], "result": result(row["polities"], given.get("polities") or [], parents),
+            "stage": row["stage"], "result": result(row["polities"], row["candidate_polities"], given.get("polities") or [], parents),
             "benchmark_years": [row["biography_start_year"], row["biography_end_year"]],
             "cultura_years": [given.get("start_year"), given.get("end_year")],
             "place": row["place"], "written": row["place_as_written"], "verbatim": row["verbatim_english"],
