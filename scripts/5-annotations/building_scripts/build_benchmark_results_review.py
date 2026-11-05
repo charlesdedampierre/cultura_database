@@ -165,7 +165,11 @@ function render() {
   document.getElementById("summary").textContent = `${shown.length} individuals · ${ok} / ${compared.length} stages validated (${compared.length ? (100 * ok / compared.length).toFixed(1) : 0}%)`;
   document.getElementById("cards").innerHTML = shown.map(d => card(d, stage)).join("");
 }
-["result", "stage", "region", "search"].forEach(id => document.getElementById(id).addEventListener("input", render));
+const params = new URLSearchParams(location.search);
+["result", "stage", "region", "search"].forEach(id => {
+  if (params.has(id)) document.getElementById(id).value = params.get(id);
+  document.getElementById(id).addEventListener("input", render);
+});
 render();
 </script>
 </body>
