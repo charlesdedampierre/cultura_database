@@ -128,8 +128,10 @@ def fill_present_day_states(connection):
 def fill_nested_polities(connection):
     """The polities already matched to individuals, for a database whose 08 ran before this step. The table is
     rewritten rather than altered, because ALTER ... USING cannot bind the nested lambdas."""
-    connection.execute("""CREATE TABLE individual_enriched_new AS SELECT * REPLACE (
-        list_transform(polity, m -> struct_update(m, polity := polity_fix(m.polity))) AS polity) FROM individual_enriched""")
+    stage_columns = ["pre_active_life_polity", "active_life_polity", "post_active_life_polity"]
+    replaced = [f"list_transform({column}, m -> struct_update(m, polity := polity_fix(m.polity))) AS {column}" for column in stage_columns]
+    replaced.append("CASE WHEN main_polity IS NULL THEN NULL ELSE struct_update(main_polity, polity := polity_fix(main_polity.polity)) END AS main_polity")
+    connection.execute(f"CREATE TABLE individual_enriched_new AS SELECT * REPLACE ({', '.join(replaced)}) FROM individual_enriched")
     before, after = (connection.execute(f"SELECT count(*) FROM {name}").fetchone()[0] for name in ("individual_enriched", "individual_enriched_new"))
     assert before == after, f"individual_enriched: {before:,} rows became {after:,}"
     connection.execute("DROP TABLE individual_enriched")
