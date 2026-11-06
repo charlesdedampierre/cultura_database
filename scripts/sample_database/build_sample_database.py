@@ -1,7 +1,7 @@
 """Build data/cultura/humans_clean_v3_sample.duckdb from humans_clean_enriched_v3.duckdb.
 
 Keeps only the individuals of an annotation set — by default those shown in
-annotations/legacy/interfaces/polity_window_review.html, or the wikidata_id column of a TSV — so the
+annotations/_legacy/interfaces/polity_window_review.html, or the wikidata_id column of a TSV — so the
 enrichment scripts can be rerun on them in seconds:
 
     CULTURA_DB=data/cultura/humans_clean_v3_sample.duckdb .venv/bin/python scripts/4-database_enrichment/06_individual_peak_activity_window.py
@@ -24,7 +24,7 @@ from tqdm import tqdm
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "data" / "cultura" / "humans_clean_enriched_v3.duckdb"
 DEFAULT_NAME = "humans_clean_v3_sample"
-ANNOTATION = ROOT / "scripts" / "5-annotations" / "legacy" / "interfaces" / "polity_window_review.html"
+ANNOTATION = ROOT / "scripts" / "5-annotations" / "_legacy" / "interfaces" / "polity_window_review.html"
 
 WHOLE_TABLES = ("place", "polity", "cohort_age_stats", "occupation", "identifier", "sitelink", "wikidata_property")
 

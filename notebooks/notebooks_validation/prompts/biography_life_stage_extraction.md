@@ -3,7 +3,7 @@
 Prompt given to each Claude Code agent (`claude -p`, claude-opus-5-5, run in parallel by
 02_extract_places_from_biographies.ipynb) that extracts the pre-active, active and post-active places and years of the
 benchmark individuals from their biography. Only `{QIDS}` and `{N}` change between agents.
-The stages follow the Cultura life stages of notebooks_polity/01_life_stage_polities_export.py: pre-active life
+The stages follow the Cultura life stages of scripts/4-database_enrichment/02_notebooks_polity/01_life_stage_polities_export.py: pre-active life
 (birth to start of active life), active life (start to end of active life) and post-active life (end of active life
 to death). The places are then associated with Cliopatria polities (biography_cliopatria_association.md) and compared with
 Cultura in 04_benchmark_results.ipynb. It replaces biography_polity_extraction.md (early, active, late).

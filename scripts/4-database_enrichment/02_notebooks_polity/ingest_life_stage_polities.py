@@ -2,7 +2,7 @@
 shaped by datamodel_in_duckdb.PolityMatch.
 
 pre_active_life_polity, active_life_polity and post_active_life_polity get every polity of the stage, longest overlap first;
-main_polity is the first polity of active_life_polity. seshat_ids stay empty: the Polity territories of v3.2 carry no Seshat id yet (enrichment step 11).
+main_polity is the first polity of active_life_polity. seshat_ids stay empty: the Polity territories of v3.2 carry no Seshat id yet (enrichment step 08).
 Every other column keeps the value it already had.
 
 Run with --sample to build the polity matches of 10,000 individuals without writing anything."""
@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
+ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "4-database_enrichment"))
 
 from common import D, DATABASE, SCRATCH, Enrichment, as_json, open_database, stage

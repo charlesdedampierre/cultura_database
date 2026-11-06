@@ -3,7 +3,7 @@
 Claude read each biography and wrote, for the early, active and late stage, the most granular
 place the text gives, with word-for-word extracts and coordinates (biography_examples/claude_extraction.json).
 Each place is mapped to the Cliopatria polities holding it over the years Cultura gives the stage,
-keeping the smallest polity of the hierarchy, as in notebooks_polity/01_life_stage_polities_export.py.
+keeping the smallest polity of the hierarchy, as in scripts/4-database_enrichment/02_notebooks_polity/01_life_stage_polities_export.py.
 A stage is validated when a benchmark polity matches a Cultura polity directly or through a parent
 polity of the hierarchy; it is compared only when both sides have a polity.
 Saved to biography_examples/biography_example_validation.json (BiographyDatabaseValidation) and
@@ -35,7 +35,7 @@ from datamodel_in_duckdb import Polity, WikidataEntity
 FOLDER = ROOT / "scripts" / "5-annotations" / "biography_examples"
 EXTRACTION = FOLDER / "claude_extraction.json"
 TEXTS = ROOT / "scripts" / "5-annotations" / "dictionary_exploration" / "dictionary_texts.json"
-TRECCANI = ROOT / "scripts" / "5-annotations" / "legacy" / "treccani_validation" / "treccani_texts.parquet"
+TRECCANI = ROOT / "scripts" / "5-annotations" / "_legacy" / "treccani_validation" / "treccani_texts.parquet"
 BENCHMARKS = ROOT / "scripts" / "5-annotations" / "benchmark"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 CLIOPATRIA = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"

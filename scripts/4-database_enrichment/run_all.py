@@ -1,6 +1,6 @@
 """Copy the non-enriched database to CULTURA_DB (cultura_enriched_v3.2) and run the enrichment steps on the copy, in order, so the non-enriched one is never touched.
 
-The former date and polity steps (now in legacy/) are left out: 01_notebooks_dates replaces them."""
+The former date and polity steps (now in _legacy/) are left out: 01_notebooks_dates and 02_notebooks_polity replace them."""
 
 import argparse
 import os
@@ -22,7 +22,7 @@ HERE = Path(__file__).resolve().parent
 TASK_LOG = ROOT / "task.log"
 
 STEPS = (
-    "08_occupation_meta_occupation.py",
+    "09_occupation_meta_occupation.py",
     "13_individual_dates_from_life_expectancy.py",
 )
 

@@ -17,7 +17,7 @@ from shapely import STRtree, make_valid, points
 from shapely.geometry import shape
 from tqdm import tqdm
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 DB_PATH = ROOT / 'data' / 'cultura' / 'cultura_enriched_v3.2.duckdb'  # read only
 LIFE_LOCATIONS = ROOT / 'data' / 'raw_data_from_wikidata' / 'wikidata_extraction_scripts_v2' / 'life_locations'
 CLIOPATRIA = ROOT / 'data' / 'cliopatria_data' / 'cliopatria_V2' / 'cliopatria_polities_only_v3.geojson'
