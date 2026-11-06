@@ -2,7 +2,8 @@
 shaped by datamodel_in_duckdb.PolityMatch.
 
 pre_active_life_polity, active_life_polity and post_active_life_polity get every polity of the stage, longest overlap first;
-main_polity is the first polity of active_life_polity. seshat_ids stay empty: the Polity territories of v3.2 carry no Seshat id yet (enrichment step 08).
+main_polity is the first polity of active_life_polity. active_life_ongoing is True for an active stage written with an empty end_year
+(no death year, active life reaching the present), False for any other active stage. seshat_ids stay empty: the Polity territories of v3.2 carry no Seshat id yet (enrichment step 08).
 Every other column keeps the value it already had.
 
 Run with --sample to build the polity matches of 10,000 individuals without writing anything."""
@@ -45,7 +46,7 @@ READS = (
 )
 ENRICHMENTS = {
     column: Enrichment(reads=READS, writes=(f"IndividualEnriched.{column}",), rule=D.IndividualEnriched.model_fields[column].description, answers=HERE / "01_life_stage_polities.ipynb")
-    for column in [*STAGE_COLUMNS.values(), "main_polity"]
+    for column in [*STAGE_COLUMNS.values(), "main_polity", "active_life_ongoing"]
 }
 
 
@@ -92,14 +93,14 @@ def build_matches(connection):
     unmatched = connection.execute("SELECT list(DISTINCT polity_name) FROM stage_polity ANTI JOIN polity_years ON polity_years.name = stage_polity.polity_name").fetchone()[0]
     assert not unmatched, f"polities missing from the polity table: {unmatched}"
     connection.execute(f"""
-        CREATE OR REPLACE TEMP TABLE life_stage_polities (qid VARCHAR, {", ".join(f"{column} {MATCH_LIST_TYPE}" for column in STAGE_COLUMNS.values())})
+        CREATE OR REPLACE TEMP TABLE life_stage_polities (qid VARCHAR, {", ".join(f"{column} {MATCH_LIST_TYPE}" for column in STAGE_COLUMNS.values())}, active_life_ongoing BOOLEAN)
     """)
     for bucket in tqdm(range(BATCHES), desc="match batches"):
         build_bucket(connection, bucket)
-    rows, active, unique = connection.execute("SELECT count(*), count(*) FILTER (len(active_life_polity) > 0), count(DISTINCT qid) FROM life_stage_polities").fetchone()
+    rows, active, unique, ongoing = connection.execute("SELECT count(*), count(*) FILTER (len(active_life_polity) > 0), count(DISTINCT qid), count(*) FILTER (active_life_ongoing) FROM life_stage_polities").fetchone()
     individuals = connection.execute("SELECT count(DISTINCT qid) FROM stage_rows").fetchone()[0]
     assert rows == unique == individuals, f"{rows:,} rows, {unique:,} qids, {individuals:,} individuals"
-    report(f"{rows:,} individuals, {active:,} with an active-life polity")
+    report(f"{rows:,} individuals, {active:,} with an active-life polity, {ongoing:,} with an ongoing active life")
     rows = [{"column_name": column, "provenance": as_json(e.provenance())} for column, e in ENRICHMENTS.items()]
     stage(connection, "polity_provenance", {"column_name": "VARCHAR", "provenance": duck_type(D.Provenance)}, rows)
 
@@ -111,7 +112,7 @@ def build_bucket(connection, bucket):
         CREATE OR REPLACE TEMP TABLE stage_matches AS
         WITH candidates AS (
             SELECT stage_polity.*, polity_years.cliopatria_id, polity_years.world, polity_years.meta_polities,
-                   len(list_filter(polity_years.territory_years, territory -> territory.start_year <= stage_polity.end_year AND territory.end_year >= stage_polity.start_year)) > 0 AS stage_overlap
+                   len(list_filter(polity_years.territory_years, territory -> territory.start_year <= coalesce(stage_polity.end_year, territory.start_year) AND territory.end_year >= stage_polity.start_year)) > 0 AS stage_overlap
             FROM stage_polity
             JOIN polity_years ON polity_years.name = stage_polity.polity_name
             WHERE hash(stage_polity.qid) % {BATCHES} = {bucket}
@@ -135,8 +136,9 @@ def build_bucket(connection, bucket):
     connection.execute(f"""
         INSERT INTO life_stage_polities
         SELECT qid,
-               {", ".join(f"coalesce(list(matches) FILTER (WHERE stage = '{name}')[1], []::{MATCH_LIST_TYPE}) AS {column}" for name, column in STAGE_COLUMNS.items())}
-        FROM (SELECT DISTINCT qid FROM stage_rows WHERE {in_bucket})
+               {", ".join(f"coalesce(list(matches) FILTER (WHERE stage = '{name}')[1], []::{MATCH_LIST_TYPE}) AS {column}" for name, column in STAGE_COLUMNS.items())},
+               any_value(active_life_ongoing) AS active_life_ongoing
+        FROM (SELECT qid, bool_or(end_year IS NULL) FILTER (WHERE stage = 'active') AS active_life_ongoing FROM stage_rows WHERE {in_bucket} GROUP BY qid)
         LEFT JOIN stage_matches USING (qid)
         GROUP BY qid
     """)
@@ -146,6 +148,7 @@ def build_bucket(connection, bucket):
 NEW_VALUES = {
     **{column: f"coalesce(life_stage_polities.{column}, []::{MATCH_LIST_TYPE})" for column in STAGE_COLUMNS.values()},
     "main_polity": "life_stage_polities.active_life_polity[1]",
+    "active_life_ongoing": "life_stage_polities.active_life_ongoing",
     "field_provenance": "map_concat(coalesce(previous.field_provenance, MAP {}), (SELECT map_from_entries(list((polity_provenance.column_name, polity_provenance.provenance))) FROM polity_provenance))",
 }
 
@@ -193,16 +196,19 @@ def rebuild(connection):
 
 def check(connection, before):
     individuals = connection.execute("SELECT count(*) FROM individual").fetchone()[0]
-    rows, pre, active, post, main, births, starts = connection.execute(f"""
+    rows, pre, active, post, main, births, starts, ongoing = connection.execute(f"""
         SELECT count(*), count(*) FILTER (len(pre_active_life_polity) > 0), count(*) FILTER (len(active_life_polity) > 0),
-               count(*) FILTER (len(post_active_life_polity) > 0), count(main_polity), count(birth_date), count(start_of_active_life)
+               count(*) FILTER (len(post_active_life_polity) > 0), count(main_polity), count(birth_date), count(start_of_active_life),
+               count(*) FILTER (active_life_ongoing)
         FROM {TABLE}
     """).fetchone()
     assert rows == individuals, f"{TABLE} has {rows:,} rows for {individuals:,} individuals"
     assert (births, starts) == before, f"dates changed: {(births, starts)} instead of {before}"
     expected = connection.execute("SELECT count(*) FROM life_stage_polities WHERE len(active_life_polity) > 0").fetchone()[0]
     assert active == expected == main, f"{active:,} active-life polities and {main:,} main polities written, {expected:,} expected"
-    report(f"{rows:,} individuals: {pre:,} with a pre-active, {active:,} with an active, {post:,} with a post-active polity")
+    expected = connection.execute("SELECT count(*) FILTER (active_life_ongoing) FROM life_stage_polities").fetchone()[0]
+    assert ongoing == expected, f"{ongoing:,} ongoing active lives written, {expected:,} expected"
+    report(f"{rows:,} individuals: {pre:,} with a pre-active, {active:,} with an active, {post:,} with a post-active polity, {ongoing:,} with an ongoing active life")
 
 
 def main():
@@ -219,6 +225,7 @@ def main():
     build_matches(connection)
     if sample:
         print(connection.execute("SELECT qid, active_life_polity[1] FROM life_stage_polities WHERE len(active_life_polity) > 1 LIMIT 1").fetchone())
+        print(connection.execute("SELECT qid, active_life_ongoing, list_transform(active_life_polity, m -> m.polity.name) FROM life_stage_polities WHERE active_life_ongoing LIMIT 3").fetchall())
         return
     persist_matches(connection)
     report(f"writing {TABLE} of {DATABASE}")

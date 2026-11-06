@@ -1,5 +1,8 @@
-"""Mark Wikipedia editions and present-day states as Western or not, give each state its continent and each polity its cultural world."""
+"""Mark Wikipedia editions and present-day states as Western or not, give each state its continent and each polity its cultural world.
 
+Run with --nested-polities-only after the life-stage polities are ingested again, to fix only the polities matched to individuals."""
+
+import argparse
 import json
 import time
 
@@ -18,6 +21,7 @@ MIDDLE_EAST_COUNTRIES = RUN.middle_east_countries
 WORLDS = RUN.worlds
 
 EDITION_CODE = r"^https://([^.]+)\.wikipedia\.org$"
+REWRITE_RANGES = 40  # qid ranges individual_enriched is rewritten in
 
 SITELINK = Enrichment(
     reads=("Sitelink.url",),
@@ -127,11 +131,17 @@ def fill_present_day_states(connection):
 
 def fill_nested_polities(connection):
     """The polities already matched to individuals, for a database whose 08 ran before this step. The table is
-    rewritten rather than altered, because ALTER ... USING cannot bind the nested lambdas."""
+    rewritten rather than altered, because ALTER ... USING cannot bind the nested lambdas, and in qid ranges, because
+    the whole table at once spills more than the free disk."""
     stage_columns = ["pre_active_life_polity", "active_life_polity", "post_active_life_polity"]
     replaced = [f"list_transform({column}, m -> struct_update(m, polity := polity_fix(m.polity))) AS {column}" for column in stage_columns]
     replaced.append("CASE WHEN main_polity IS NULL THEN NULL ELSE struct_update(main_polity, polity := polity_fix(main_polity.polity)) END AS main_polity")
-    connection.execute(f"CREATE TABLE individual_enriched_new AS SELECT * REPLACE ({', '.join(replaced)}) FROM individual_enriched")
+    cuts = connection.execute(f"SELECT quantile_disc(entity.qid, {[i / REWRITE_RANGES for i in range(1, REWRITE_RANGES)]}) FROM individual_enriched").fetchone()[0]
+    connection.execute("DROP TABLE IF EXISTS individual_enriched_new")
+    for number, (low, high) in enumerate(tqdm(list(zip([None, *cuts], [*cuts, None])), desc="individual_enriched qid ranges")):
+        inside = " AND ".join([f"entity.qid >= '{low}'"] * (low is not None) + [f"entity.qid < '{high}'"] * (high is not None))
+        rows = f"SELECT * REPLACE ({', '.join(replaced)}) FROM individual_enriched WHERE {inside} ORDER BY entity.qid"
+        connection.execute(f"CREATE TABLE individual_enriched_new AS {rows}" if number == 0 else f"INSERT INTO individual_enriched_new {rows}")
     before, after = (connection.execute(f"SELECT count(*) FROM {name}").fetchone()[0] for name in ("individual_enriched", "individual_enriched_new"))
     assert before == after, f"individual_enriched: {before:,} rows became {after:,}"
     connection.execute("DROP TABLE individual_enriched")
@@ -150,12 +160,17 @@ def report(connection):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--nested-polities-only", action="store_true", help="only rewrite the polities matched to individuals (fill_nested_polities)")
+    nested_only = parser.parse_args().nested_polities_only
     for enrichment in (SITELINK, STATE, WORLD):
         enrichment.announce()
     connection = open_database()
     connection.execute("SET enable_progress_bar = true")
+    connection.execute("SET preserve_insertion_order = false; SET threads = 2; SET memory_limit = '10GB'; SET max_temp_directory_size = '24GiB'")
     connection.execute(MACROS)
-    for step in tqdm((fill_sitelink, fill_polity_world, fill_present_day_states, fill_nested_polities), desc="western, continents and worlds", unit=" step"):
+    steps = (fill_nested_polities,) if nested_only else (fill_sitelink, fill_polity_world, fill_present_day_states, fill_nested_polities)
+    for step in tqdm(steps, desc="western, continents and worlds", unit=" step"):
         started = time.time()
         connection.execute("BEGIN")
         step(connection)

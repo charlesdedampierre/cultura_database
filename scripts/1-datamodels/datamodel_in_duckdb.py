@@ -34,7 +34,7 @@ class Cohort(BaseModel):
 class IndividualDate(Date):
     source: Literal["wikidata", "dated works", "dated works and positions", "estimated"] | None = Field(None, description="'wikidata' for a birth or death stated in Wikidata, 'dated works' for a work date read from the individual's works, 'dated works and positions' for an active-life date read from the individual's dated works and positions held, 'estimated' when imputed from the ages of the cohort.")
     cohort: Cohort | None = Field(None, description="Cohort whose age gave an estimated date.")
-    coarse_label: str | None = Field(None, description="'6th AC', '6th BC' ('2nd millennium BC' for a millennium) for an individual with only coarse dates, who could not be imputed: the year is left empty so that analyses do not draw it in, and these categories must be removed before any use of the year (notebooks_dates/05_coarse_dates).")
+    coarse_label: str | None = Field(None, description="'6th AC', '6th BC' ('2nd millennium BC' for a millennium) for an individual with only coarse dates, who could not be imputed: the year is left empty so that analyses do not draw it in, and these categories must be removed before any use of the year (01_notebooks_dates/05_coarse_dates).")
 
 
 class WikidataEntity(BaseModel):
@@ -64,15 +64,15 @@ class ExistencePeriod(BaseModel):
 class PresentDayState(BaseModel):
     name: str | None = Field(None, description="State name in English, 'Russia'.")
     iso_3166_1_alpha_3_code: str | None = Field(None, description="ISO 3166-1 alpha-3 code, 'RUS'.")
-    continent: str | None = Field(None, description="Continent, with 'Latin America' and 'Middle East' regrouped from lists in data/ai_outputs/ (enrichment step 07).")
-    is_western: bool | None = Field(None, description="Whether the state counts as Western, from a list in data/ai_outputs/ (enrichment step 07).")
+    continent: str | None = Field(None, description="Continent, with 'Latin America' and 'Middle East' regrouped from lists in data/ai_outputs/ (enrichment step 05).")
+    is_western: bool | None = Field(None, description="Whether the state counts as Western, from a list in data/ai_outputs/ (enrichment step 05).")
 
 
 class Sitelink(BaseModel):
     url: str = Field(..., description="Wikimedia edition URL, 'https://fr.wikipedia.org'; not all are Wikipedias.")
     label_en: str | None = Field(None, description="Edition name in English, 'French Wikipedia'.")
     language: str | None = Field(None, description="Language of the edition, as a qid.")
-    is_western: bool | None = Field(None, description="Whether a Wikipedia edition counts as Western, from lists in data/ai_outputs/ (enrichment step 07); empty for other sites.")
+    is_western: bool | None = Field(None, description="Whether a Wikipedia edition counts as Western, from lists in data/ai_outputs/ (enrichment step 05); empty for other sites.")
     number_of_articles: int | None = Field(None, description="How many individuals in Cultura the edition has a page on.")
     field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
 
@@ -109,7 +109,7 @@ class Polity(BaseModel):
     entity: WikidataEntity | None = Field(None, description="Wikidata item Cliopatria resolved for the polity, if any.")
     sitelink: Sitelink | None = Field(None, description="English Wikipedia article.")
     territories: tuple[Territory, ...] = Field((), description="Ground held, one entry per change of borders, oldest first.")
-    world: tuple[str, ...] = Field((), description="Cultural worlds the polity belongs to, from lists in data/ai_outputs/ (enrichment step 07).")
+    world: tuple[str, ...] = Field((), description="Cultural worlds the polity belongs to, from lists in data/ai_outputs/ (enrichment step 05).")
     field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
 
 
@@ -118,7 +118,7 @@ class WorksPeriod(BaseModel):
     last_year: int | None = Field(None, description="Year of the latest cleaned work date; estimated as birth year + age_at_last_work when no work is dated.")
     age_at_first_work: int | None = Field(None, description="first_year minus the birth year.")
     age_at_last_work: int | None = Field(None, description="last_year minus the birth year.")
-    source: Literal["dated works", "estimated"] | None = Field(None, description="'dated works' when read from the individual's works, 'estimated' when imputed from the mean ages of their cohort (notebooks_dates/02_works_periods).")
+    source: Literal["dated works", "estimated"] | None = Field(None, description="'dated works' when read from the individual's works, 'estimated' when imputed from the mean ages of their cohort (01_notebooks_dates/02_works_periods).")
     field_provenance: dict[str, Provenance] = Field({}, description="Rule of each value, keyed by field: how the dated works were cleaned, or which cohort mean estimated it.")
 
 
@@ -150,7 +150,7 @@ class Place(BaseModel):
     existence: ExistencePeriod | None = Field(None, description="Years the place existed.")
     present_day_state: PresentDayState | None = Field(None, description="State holding the ground today, from a reverse geocoder on the coordinates.")
     sitelink: Sitelink | None = Field(None, description="English Wikipedia article.")
-    is_settlement: bool | None = Field(None, description="Whether the place is a populated place, from an AI classification of its classes (enrichment step 01).")
+    is_settlement: bool | None = Field(None, description="Whether the place is a populated place, from an AI classification of its classes (enrichment step 03).")
     field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
 
 
@@ -164,7 +164,7 @@ class Institution(BaseModel):
 class Occupation(BaseModel):
     entity: WikidataEntity = Field(..., description="Occupation's Wikidata item.")
     subclass_of: tuple[WikidataEntity, ...] = Field((), description="Parent occupations, P279.")
-    meta_occupation: Literal["Culture", "Discovery/Science", "Leadership", "Sports/Games", "Other"] | None = Field(None, description="Cross-Verified level-1 domain of the occupation, from an AI classification of its label (enrichment step 12).")
+    meta_occupation: Literal["Culture", "Discovery/Science", "Leadership", "Sports/Games", "Other"] | None = Field(None, description="Cross-Verified level-1 domain of the occupation, from an AI classification of its label (enrichment step 09).")
     field_provenance: dict[str, Provenance] = Field({}, description="Source or rule of each value, keyed by column.")
 
 
@@ -253,17 +253,18 @@ class DatedLocation(BaseModel):
 class IndividualEnriched(BaseModel):
     entity: WikidataEntity = Field(..., description="Individual, joining to Individual.entity.qid.")
 
-    birth_date: IndividualDate | None = Field(None, description="The Wikidata birth, else the death year minus the cohort's mean age at death (notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (notebooks_dates/05_coarse_dates).")
-    death_date: IndividualDate | None = Field(None, description="The Wikidata death, else the birth year plus the cohort's mean age at death, for births up to 1920 (notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (notebooks_dates/05_coarse_dates).")
-    start_of_active_life: IndividualDate | None = Field(None, description="The earliest dated work, position start or position end, else the birth year plus the cohort's median age at the start of the active life, no later than its end (notebooks_dates/03_b_active_life).")
-    end_of_active_life: IndividualDate | None = Field(None, description="The latest dated work, position start or position end, else the birth year plus the cohort's median age at the end of the active life, capped at the death (notebooks_dates/03_b_active_life).")
+    birth_date: IndividualDate | None = Field(None, description="The Wikidata birth, else the death year minus the cohort's mean age at death (01_notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (01_notebooks_dates/05_coarse_dates).")
+    death_date: IndividualDate | None = Field(None, description="The Wikidata death, else the birth year plus the cohort's mean age at death, for births up to 1920 (01_notebooks_dates/01_age_at_death); a coarse_label alone for an individual with only coarse dates (01_notebooks_dates/05_coarse_dates).")
+    start_of_active_life: IndividualDate | None = Field(None, description="The earliest dated work, position start or position end, else the birth year plus the cohort's median age at the start of the active life, no later than its end (01_notebooks_dates/03_b_active_life).")
+    end_of_active_life: IndividualDate | None = Field(None, description="The latest dated work, position start or position end, else the birth year plus the cohort's median age at the end of the active life, capped at the death (01_notebooks_dates/03_b_active_life).")
+    active_life_ongoing: bool | None = Field(None, description="True when the individual has no death year and end_of_active_life is in or after 2026 (or empty): the active life is still going on, its end is 'ongoing', its polities were matched up to 2026, and there is no post-active stage. False for an active life that has ended; empty for an individual given no life stage (no birth year or no active life) (02_notebooks_polity/01_life_stage_polities_export.py).")
 
     pre_active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from birth_date to start_of_active_life, longest overlap first.")
-    active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from start_of_active_life to end_of_active_life, longest overlap first.")
-    post_active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from end_of_active_life to death_date, longest overlap first.")
+    active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from start_of_active_life to end_of_active_life (to 2026 when active_life_ongoing), longest overlap first.")
+    post_active_life_polity: tuple[PolityMatch, ...] = Field((), description="Every polity matched from end_of_active_life to death_date, longest overlap first; empty for an individual with no death year.")
     main_polity: PolityMatch | None = Field(None, description="The first match of active_life_polity, the polity with the longest overlap.")
 
-    notability: Notability | None = Field(None, description="Western and non-Western Wikipedia coverage and the cross-cultural score (enrichment step 08).")
+    notability: Notability | None = Field(None, description="Western and non-Western Wikipedia coverage and the cross-cultural score (enrichment step 06).")
 
     field_provenance: dict[str, Provenance] = Field({}, description="Rule and inputs of each value, keyed by column.")
 

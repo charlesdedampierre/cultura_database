@@ -1,9 +1,11 @@
-"""Life-stage polities of every individual with a birth and a death year, written as
+"""Life-stage polities of every individual with a birth year and either a death year or an active life, written as
 parquets of 1,000,000 individuals for ingestion into the enriched database.
 
 The stages are the pre-active life (birth to start of active life), the active life
 (start_of_active_life to end_of_active_life, dated or estimated) and the post-active life
-(end of active life to death). An individual with no active life gets no stage. Then field
+(end of active life to death). An individual with no active life gets no stage. An individual with no death year
+(most are alive) gets no post-active stage; their active life is ongoing when its end is in or after PRESENT_YEAR,
+written with an empty end_year and matched to the polities up to PRESENT_YEAR. Then field
 priorities, URL then coordinates, smallest Cliopatria polity, as in 01_life_stage_polities.ipynb."""
 import json
 import sys
@@ -23,6 +25,7 @@ LIFE_LOCATIONS = ROOT / 'data' / 'raw_data_from_wikidata' / 'wikidata_extraction
 CLIOPATRIA = ROOT / 'data' / 'cliopatria_data' / 'cliopatria_V2' / 'cliopatria_polities_only_v3.geojson'
 OUT_DIR = ROOT / 'data' / 'enriched_parquets' / 'individual_life_stage_polities'
 BATCH_SIZE = 1_000_000
+PRESENT_YEAR = 2026  # an active life ending in or after it is ongoing
 
 PROPERTIES = {'P937': 'work_location', 'P551': 'residence', 'P108': 'employer', 'P69': 'educated_at', 'P39': 'position_held'}
 SOURCES = {
@@ -41,7 +44,7 @@ DATED = '''
     SELECT entity.qid AS qid, entity.label_en AS name, birth_date.year AS birth, death_date.year AS death,
            start_of_active_life.year AS start_active, end_of_active_life.year AS end_active
     FROM individual_enriched
-    WHERE birth_date.year IS NOT NULL AND death_date.year IS NOT NULL
+    WHERE birth_date.year IS NOT NULL AND (death_date.year IS NOT NULL OR start_of_active_life.year IS NOT NULL)
 '''
 
 
@@ -68,15 +71,26 @@ def load_people(connection, qids):
 
 
 def stage_limits(person):
-    """Pre-active, active and post-active years, the active life clipped to the lifetime; none without an active life."""
-    birth, death = person['birth'], person['death']
+    """Pre-active, active and post-active years, the active life clipped to the lifetime; none without an active life.
+    Without a death year there is no post-active stage, and an active life reaching PRESENT_YEAR is ongoing: its end is None."""
+    birth, death, end = person['birth'], person['death'], person['end_active']
     if person['start_active'] is None:
         return {}
-    start, end = max(person['start_active'], birth), min(person['end_active'], death)
+    ongoing = death is None and (end is None or end >= PRESENT_YEAR)
+    start = max(person['start_active'], birth)
+    if ongoing:
+        end = PRESENT_YEAR
+    elif death is not None:
+        end = min(end, death)
     if start > end:
         return {}
-    limits = {'pre_active': [birth, start], 'active': [start, end], 'post_active': [end, death]}
-    return {stage: bounds for stage, bounds in limits.items() if bounds[0] < bounds[1] or stage == 'active'}
+    limits = {'pre_active': [birth, start], 'active': [start, end]}
+    if death is not None:
+        limits['post_active'] = [end, death]
+    stages = {stage: bounds for stage, bounds in limits.items() if bounds[0] < bounds[1] or stage == 'active'}
+    if ongoing:
+        stages['active'] = [start, None]
+    return stages
 
 
 def article(url):
@@ -189,7 +203,7 @@ def main():
     connection = duckdb.connect(str(DB_PATH), read_only=True)
     qids = [qid for (qid,) in connection.sql(f'SELECT qid FROM ({DATED}) ORDER BY qid').fetchall()]
     batches = [qids[start:start + BATCH_SIZE] for start in range(0, len(qids), BATCH_SIZE)]
-    log(f'{len(qids):,} individuals with a birth and a death year, {len(batches)} batches of {BATCH_SIZE:,}')
+    log(f'{len(qids):,} individuals with a birth year and a death year or an active life, {len(batches)} batches of {BATCH_SIZE:,}')
     locations = Locations(connection)
     log('places and Cliopatria loaded')
 
@@ -203,8 +217,8 @@ def main():
         rows = []
         for person in tqdm(people.iter_rows(named=True), total=people.height, desc=f'batch {number}', mininterval=10):
             for stage, (start, end) in stage_limits(person).items():
-                rows.append({'qid': person['qid'], 'stage': stage, 'start_year': start, 'end_year': end, **locations.assign(person, stage, start, end)})
-        export = pl.DataFrame(rows, schema_overrides={'polities': pl.List(pl.String), 'polity_years': pl.List(pl.Int64), 'wikidata_field': pl.String, 'method': pl.String, 'location': pl.String})
+                rows.append({'qid': person['qid'], 'stage': stage, 'start_year': start, 'end_year': end, **locations.assign(person, stage, start, PRESENT_YEAR if end is None else end)})
+        export = pl.DataFrame(rows, schema_overrides={'end_year': pl.Int64, 'polities': pl.List(pl.String), 'polity_years': pl.List(pl.Int64), 'wikidata_field': pl.String, 'method': pl.String, 'location': pl.String})
         export.sort('qid', pl.col('stage').cast(pl.Enum(STAGES))).write_parquet(path)
         log(f'batch {number}: {export.height:,} stages written to {path.relative_to(ROOT)}')
     log('done')
