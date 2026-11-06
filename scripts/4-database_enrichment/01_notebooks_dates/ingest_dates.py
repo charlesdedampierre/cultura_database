@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
+ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "4-database_enrichment"))
 
 from common import D, DATABASE, SCRATCH, Enrichment, as_json, open_database, stage
