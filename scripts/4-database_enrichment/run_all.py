@@ -1,6 +1,8 @@
 """Copy the non-enriched database to CULTURA_DB (cultura_enriched_v3.2) and run the enrichment steps on the copy, in order, so the non-enriched one is never touched.
 
-The former date and polity steps (now in _legacy/) are left out: 01_notebooks_dates and 02_notebooks_polity replace them."""
+The former date and polity steps (now in _legacy/) are left out: 01_notebooks_dates and 02_notebooks_polity replace them.
+Order matters: 06 reads the is_western of 05; 08 reads the polity split of 07; the life-stage polities of
+02_notebooks_polity are matched to the polity ids 07 writes, so they are ingested after 07 and before 08."""
 
 import argparse
 import os
@@ -22,8 +24,13 @@ HERE = Path(__file__).resolve().parent
 TASK_LOG = ROOT / "task.log"
 
 STEPS = (
+    "03_place_is_settlement.py",
+    "04_individual_is_scientist_artist_human.py",
+    "05_western_continents_and_cultural_worlds.py",
+    "06_individual_notability.py",
+    "07_polity_hierarchy.py",
+    "08_seshat_id.py",
     "09_occupation_meta_occupation.py",
-    "13_individual_dates_from_life_expectancy.py",
 )
 
 
