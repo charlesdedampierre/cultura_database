@@ -2,30 +2,25 @@
 
 The century is that of the Cultura birth year (start of the pre-active life stage in the life-stage
 export). For each region and century with fewer than MINIMUM benchmark individuals, the candidates of
-benchmark_sample.parquet (three life stages, not yet in the benchmark) are taken in drawing order until
+sample.parquet (three life stages, not yet in the benchmark) are taken in drawing order until
 the cell reaches MINIMUM, or until its candidates run out; a candidate whose biography cannot be read
-is skipped. Saved to benchmark/benchmark_additions.parquet, with the downloaded texts in
-benchmark/benchmark_additions_texts.json.
+is skipped. Saved to data/additions.parquet, with the downloaded texts in
+data/additions_texts.json.
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/benchmark_fill.py
+Usage: .venv/bin/python notebooks/notebooks_polity_validation/scripts/3_fill.py
 """
 
 import json
 import time
-from pathlib import Path
 
 import polars as pl
 from tqdm import tqdm
 
-from benchmark50_texts import fetch
-from benchmark_cultura import NAMES, URLS
+from dictionaries import DATA, NAMES, STAGES_EXPORT, URLS, fetch
 
-ROOT = Path(__file__).resolve().parents[3]
-FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark"
-SAMPLE = FOLDER / "benchmark_sample.parquet"
-STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
-OUT = FOLDER / "benchmark_additions.parquet"
-TEXTS = FOLDER / "benchmark_additions_texts.json"
+SAMPLE = DATA / "sample.parquet"
+OUT = DATA / "additions.parquet"
+TEXTS = DATA / "additions_texts.json"
 MINIMUM = 3
 
 

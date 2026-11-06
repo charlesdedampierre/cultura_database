@@ -1,10 +1,10 @@
 """HTML review of the benchmark results: one card per individual, features as rows and values in the second column.
 
-Reads the benchmark dataset (notebooks_validation/03_cliopatria_association.ipynb), the Cultura life-stage polities and
+Reads the benchmark dataset (03_cliopatria_association.ipynb), the Cultura life-stage polities and
 the benchmark individuals, compares the polities of each stage as in 04_benchmark_results.ipynb (a Cultura polity among the benchmark polities
-or Cliopatria candidates, directly or through a parent polity), and writes scripts/5-annotations/interfaces/benchmark_results_review.html.
+or Cliopatria candidates, directly or through a parent polity), and writes review/benchmark_results_review.html.
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/build_benchmark_results_review.py
+Usage: .venv/bin/python notebooks/notebooks_polity_validation/scripts/6_review_page.py
 """
 
 import json
@@ -13,10 +13,10 @@ from pathlib import Path
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[3]
-FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark" / "benchmark300"
+FOLDER = Path(__file__).resolve().parents[1] / "data"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 CLIOPATRIA = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
-OUT = ROOT / "scripts" / "5-annotations" / "interfaces" / "benchmark_results_review.html"
+OUT = Path(__file__).resolve().parents[1] / "review" / "benchmark_results_review.html"
 STAGES = ["pre_active", "active", "post_active"]
 
 
@@ -51,7 +51,7 @@ def result(found, candidates, given, parents):
 
 def main():
     parents = hierarchy()
-    people = {person["qid"]: person for person in json.loads((FOLDER / "benchmark300_texts.json").read_text(encoding="utf-8"))}
+    people = {person["qid"]: person for person in json.loads((FOLDER / "benchmark_texts.json").read_text(encoding="utf-8"))}
     benchmark = pl.read_parquet(FOLDER / "benchmark_life_stage_polities.parquet")
     cultura = (pl.scan_parquet(STAGES_EXPORT / "batch_*.parquet").filter(pl.col("qid").is_in(benchmark["qid"].unique().implode())).collect())
     cultura = {(row["qid"], row["stage"]): row for row in cultura.iter_rows(named=True)}

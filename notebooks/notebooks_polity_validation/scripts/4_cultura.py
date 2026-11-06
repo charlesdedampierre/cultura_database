@@ -1,13 +1,13 @@
 """The 300 benchmark individuals with what Cultura says about them, to be compared later with their biography.
 
-Reads the individuals drawn by benchmark_sample.py ("quota") and those added by benchmark_fill.py so that
+Reads the individuals drawn by 2_sample.py ("quota") and those added by 3_fill.py so that
 every region and century has at least three individuals ("century fill"), and adds, from the enriched Cultura database,
 the fields that BiographyData (datamodel_annotations.py) will extract from the biography: birth and
 death dates, first and last work dates (start and end of active life), with their source, and the
 early, active and late stage polities (empty until the polity step of the enrichment has run).
-Saved to scripts/5-annotations/benchmark/benchmark_cultura.tsv.
+Saved to data/benchmark_cultura.tsv.
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/benchmark_cultura.py
+Usage: .venv/bin/python notebooks/notebooks_polity_validation/scripts/4_cultura.py
 """
 
 from pathlib import Path
@@ -15,17 +15,13 @@ from pathlib import Path
 import duckdb
 import polars as pl
 
-from dictionary_texts import DICTIONARIES
+from dictionaries import DATA, NAMES, URLS
 
 ROOT = Path(__file__).resolve().parents[3]
 ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
-FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark"
-SAMPLE = FOLDER / "benchmark_sample.parquet"
-ADDITIONS = FOLDER / "benchmark_additions.parquet"
-OUT = FOLDER / "benchmark_cultura.tsv"
-URLS = {key: dictionary["url"] for key, dictionary in DICTIONARIES.items() if "url" in dictionary} | {
-    "treccani": "https://www.treccani.it/enciclopedia/{}_(Dizionario-Biografico)"}
-NAMES = {key: dictionary["name"] for key, dictionary in DICTIONARIES.items()} | {"treccani": "Dizionario Biografico degli Italiani (Treccani)"}
+SAMPLE = DATA / "sample.parquet"
+ADDITIONS = DATA / "additions.parquet"
+OUT = DATA / "benchmark_cultura.tsv"
 
 
 def date_columns(field):

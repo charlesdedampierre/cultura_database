@@ -6,9 +6,10 @@ Wikidata items carrying it (or the Wikisource article describing them); keeps th
 death year in the enriched database (for the Deutsche Biographie, only those with an NDB or ADB
 article), and downloads the biography of a random one; when the page
 cannot be read, the next candidate is tried. The text is extracted from the page with trafilatura.
-Saved to scripts/5-annotations/dictionary_exploration/dictionary_texts.json.
+Saved to data/dictionary_examples/dictionary_texts.json (Table 13 of the paper).
+Also holds what the other scripts share: the data folder, dictionary names and URLs, and fetch().
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/dictionary_texts.py [--only dbe,hls] [--born-before 1500]
+Usage: .venv/bin/python notebooks/notebooks_polity_validation/scripts/dictionaries.py [--only dbe,hls] [--born-before 1500]
 """
 
 import argparse
@@ -29,8 +30,10 @@ from tqdm import tqdm
 ROOT = Path(__file__).resolve().parents[3]
 DB = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
 ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
-OUT = ROOT / "scripts" / "5-annotations" / "dictionary_exploration" / "dictionary_texts.json"
+DATA = Path(__file__).resolve().parents[1] / "data"
+OUT = DATA / "dictionary_examples" / "dictionary_texts.json"
 RAW = OUT.parent / "raw"
+STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
 HEADERS = {"User-Agent": "cultura-database research (cdedampierre@bunka.ai)"}
 PREFIXES = """PREFIX wd: <http://www.wikidata.org/entity/> PREFIX wdt: <http://www.wikidata.org/prop/direct/>
@@ -63,6 +66,10 @@ DICTIONARIES = {
     "smith_dgrbm": {"name": "Smith's Dictionary of Greek and Roman Biography and Mythology", "source": "Q1210336", "wikisource": "en", "home": "https://en.wikisource.org/wiki/Dictionary_of_Greek_and_Roman_Biography_and_Mythology"},
     "britannica_1911": {"name": "Encyclopaedia Britannica, 11th edition (1911)", "source": "Q867541", "wikisource": "en", "home": "https://en.wikisource.org/wiki/1911_Encyclopædia_Britannica"},
 }
+URLS = {key: dictionary["url"] for key, dictionary in DICTIONARIES.items() if "url" in dictionary} | {
+    "treccani": "https://www.treccani.it/enciclopedia/{}_(Dizionario-Biografico)"}
+NAMES = {key: dictionary["name"] for key, dictionary in DICTIONARIES.items()} | {"treccani": "Dizionario Biografico degli Italiani (Treccani)"}
+SETTINGS = {dictionary["name"]: dictionary for dictionary in DICTIONARIES.values()}
 
 
 def query(sparql):
@@ -123,6 +130,17 @@ def page_text(url, selector=None):
         blocks = BeautifulSoup(html, "html.parser").select(selector)
         return response.url, html, "\n".join(block.get_text(" ", strip=True) for block in blocks)
     return response.url, html, trafilatura.extract(html, include_comments=False, favor_recall=True) or ""
+
+
+def fetch(person):
+    settings = SETTINGS.get(person["dictionary_name"], {})
+    try:
+        _, _, text = page_text(person["biography_url"], settings.get("selector"))
+    except requests.RequestException:
+        return None
+    if len(text) < MIN_TEXT or any(mark in text for mark in settings.get("reject", ())):
+        return None
+    return text
 
 
 def download(key, dictionary, connection, born_before=None):

@@ -6,9 +6,9 @@ individuals Wikidata describes by the NDB or the ADB (P1343), as the other ident
 index page without an article. Individuals need an English label, a birth year and a death year.
 The region is read from the birthplace (else the first country of citizenship), located in a
 Natural Earth country and grouped into world regions (present-day borders).
-Saved to scripts/5-annotations/benchmark/benchmark_population.parquet, one row per individual and dictionary.
+Saved to data/population.parquet, one row per individual and dictionary.
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/benchmark_population.py
+Usage: .venv/bin/python notebooks/notebooks_polity_validation/scripts/1_population.py
 """
 
 import csv
@@ -27,7 +27,7 @@ from tqdm import tqdm
 ROOT = Path(__file__).resolve().parents[3]
 DB = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
 COUNTRIES = ROOT / "data" / "ne_110m_admin_0_countries.geojson"
-OUT = ROOT / "scripts" / "5-annotations" / "benchmark" / "benchmark_population.parquet"
+OUT = Path(__file__).resolve().parents[1] / "data" / "population.parquet"
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
 HEADERS = {"User-Agent": "cultura-database research (cdedampierre@bunka.ai)", "Accept": "text/tab-separated-values"}
 

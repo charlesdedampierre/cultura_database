@@ -1,4 +1,4 @@
-"""Draw the 300-individual benchmark from benchmark_population.parquet, spread over regions, periods and dictionaries.
+"""Draw the 300-individual benchmark from population.parquet, spread over regions, periods and dictionaries.
 
 Each region gets the number of individuals of QUOTAS. Within a region, individuals are drawn in
 rounds: each round visits every period of birth the region has, and in each period takes a random
@@ -10,9 +10,9 @@ Wikipedia editions with an article on the individual: famous (FAMOUS editions or
 known; half of the quota (rounded up) goes to the famous, the rest to the less known, each taken in
 drawing order, and a level short of candidates is completed from the other. The rest of the region's
 candidates are kept in order as replacements, for when a biography cannot be downloaded.
-Saved to scripts/5-annotations/benchmark/benchmark_sample.parquet.
+Saved to data/sample.parquet.
 
-Usage: .venv/bin/python scripts/5-annotations/building_scripts/benchmark_sample.py
+Usage: .venv/bin/python notebooks/notebooks_polity_validation/scripts/2_sample.py
 """
 
 import random
@@ -23,11 +23,11 @@ import duckdb
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[3]
-FOLDER = ROOT / "scripts" / "5-annotations" / "benchmark"
+FOLDER = Path(__file__).resolve().parents[1] / "data"
 DB = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
-POPULATION = FOLDER / "benchmark_population.parquet"
+POPULATION = FOLDER / "population.parquet"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
-OUT = FOLDER / "benchmark_sample.parquet"
+OUT = FOLDER / "sample.parquet"
 SEED = 42
 FAMOUS = 10
 QUOTAS = {
