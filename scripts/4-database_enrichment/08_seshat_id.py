@@ -2,7 +2,7 @@
 
 from tqdm import tqdm
 
-from common import D, DATABASE, SCRATCH, Enrichment, as_json, open_database, provenance_column, stage
+from common import D, DATABASE, SCRATCH, Enrichment, as_json, open_database, provenance_column, rewrite_individual_enriched, stage
 from pydantic_to_duckdb_schema import columns_of
 
 import json_to_raw_models
@@ -185,9 +185,9 @@ def write_individuals(connection):
         for column in STAGES
     )
     keys = ", ".join(f"'{column}.seshat_ids': ?::{provenance_column()}" for column in (*STAGES, "main_polity"))
-    connection.execute(
+    rewrite_individual_enriched(
+        connection,
         f"""
-        CREATE OR REPLACE TABLE individual_enriched AS
         SELECT individual_enriched.* REPLACE (
             {stages},
             CAST(CASE WHEN individual_enriched.main_polity IS NULL THEN NULL ELSE struct_update(
@@ -198,7 +198,7 @@ def write_individuals(connection):
             END AS field_provenance
         )
         FROM individual_enriched LEFT JOIN match_seshat ON individual_enriched.entity.qid = match_seshat.qid
-        ORDER BY individual_enriched.entity.qid
+        WHERE {{inside}}
         """,
         [provenance] * (len(STAGES) + 1),
     )
@@ -219,9 +219,10 @@ def main():
     ).fetchone()
     print(f"{with_id:,} of {territories:,} territories carry a Seshat id, {distinct:,} distinct")
 
-    print("assigning Seshat ids to the life-stage polities of individuals (one SQL pass, a few minutes)")
+    print("assigning Seshat ids to the life-stage polities of individuals, in qid ranges")
     write_individuals(connection)
     connection.commit()
+    connection.execute("CHECKPOINT")
     for column in STAGES:
         matched, with_id = connection.execute(
             f"""

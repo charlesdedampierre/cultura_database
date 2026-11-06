@@ -3,7 +3,9 @@
 import json
 import re
 
-from common import Enrichment, ROOT, as_json, open_database, provenance_column, stage
+from tqdm import tqdm
+
+from common import Enrichment, ROOT, as_json, open_database, provenance_column, qid_ranges, stage
 
 OCCUPATION_ANSWERS = ROOT / "data" / "raw_data_from_wikidata" / "suboccupations_scientist_artist.json"
 
@@ -25,6 +27,12 @@ IS_HUMAN = Enrichment(
     rule="False when any place the individual is tied to — birthplace, deathplace, country of citizenship — is itself fictional, which is read off the labels of that place's Wikidata classes matching fiction, myth, legend, imaginary or hypothetical. It is a test of the places, not of the person: someone born in a fictional city is taken to be a fictional character. Everyone else is True, including anyone tied to no place at all, so a False is evidence and a True is only the absence of it.",
     answers=PLACE_ANSWERS,
 )
+
+
+def update_in_ranges(connection, update):
+    """Run an UPDATE of individual, whose WHERE holds the placeholder {inside}, once per qid range: the whole table at once runs out of memory."""
+    for inside in tqdm(qid_ranges(connection, "individual"), desc="individual qid ranges"):
+        connection.execute(update.replace("{inside}", inside))
 
 
 def descendants():
@@ -57,7 +65,9 @@ def fill_scientist_artist(connection):
     stage(connection, "answer", {"qid": "VARCHAR", "is_scientist": "BOOLEAN", "is_artist": "BOOLEAN"}, rows)
     stage(connection, "provenance", {"value": provenance_column()}, [{"value": as_json(SCIENTIST_ARTIST.provenance())}])
 
-    connection.execute(
+    del people, rows
+    update_in_ranges(
+        connection,
         """
         UPDATE individual SET
             is_scientist = answer.is_scientist,
@@ -66,8 +76,8 @@ def fill_scientist_artist(connection):
                 individual.field_provenance,
                 MAP {'is_scientist': provenance.value, 'is_artist': provenance.value}
             )
-        FROM answer, provenance WHERE individual.entity.qid = answer.qid
-        """
+        FROM answer, provenance WHERE individual.entity.qid = answer.qid AND {inside}
+        """,
     )
 
     scientists, artists, decided, total = connection.execute(
@@ -121,13 +131,14 @@ def fill_is_human(connection):
     )
     stage(connection, "provenance", {"value": provenance_column()}, [{"value": as_json(IS_HUMAN.provenance())}])
 
-    connection.execute(
+    update_in_ranges(
+        connection,
         """
         UPDATE individual SET
             is_human = answer.is_human,
             field_provenance = map_concat(individual.field_provenance, MAP {'is_human': provenance.value})
-        FROM answer, provenance WHERE individual.entity.qid = answer.qid
-        """
+        FROM answer, provenance WHERE individual.entity.qid = answer.qid AND {inside}
+        """,
     )
 
     places = connection.execute("SELECT count(*) FROM fictional_place").fetchone()[0]
@@ -140,6 +151,7 @@ def fill_is_human(connection):
 
 def main():
     connection = open_database()
+    connection.execute("SET threads = 2; SET preserve_insertion_order = false")
     fill_scientist_artist(connection)
     print()
     fill_is_human(connection)

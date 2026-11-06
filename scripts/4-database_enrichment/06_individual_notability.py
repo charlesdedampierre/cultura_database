@@ -4,7 +4,7 @@ import json
 
 from tqdm import tqdm
 
-from common import Enrichment, ROOT, as_json, open_database, provenance_column
+from common import Enrichment, ROOT, as_json, open_database, provenance_column, rewrite_individual_enriched
 
 SITELINK = Enrichment(
     reads=("IndividualSitelink.site_url",),
@@ -44,24 +44,28 @@ def fill_sitelink(connection):
 
 def fill_notability(connection):
     connection.execute(
+        """
+        CREATE OR REPLACE TEMP TABLE counts AS
+        SELECT individual_sitelink.qid,
+               count(DISTINCT individual_sitelink.site_url) FILTER (WHERE sitelink.is_western) AS western,
+               count(DISTINCT individual_sitelink.site_url) FILTER (WHERE NOT sitelink.is_western) AS non_western
+        FROM individual_sitelink JOIN sitelink ON sitelink.url = individual_sitelink.site_url
+        GROUP BY individual_sitelink.qid
+        """
+    )
+    rewrite_individual_enriched(
+        connection,
         f"""
-        CREATE OR REPLACE TABLE individual_enriched AS
-        WITH counts AS (
-            SELECT links.qid,
-                   count(DISTINCT links.site_url) FILTER (WHERE sitelink.is_western) AS western,
-                   count(DISTINCT links.site_url) FILTER (WHERE NOT sitelink.is_western) AS non_western
-            FROM individual_sitelink links JOIN sitelink ON sitelink.url = links.site_url
-            GROUP BY links.qid
-        )
-        SELECT enriched.* REPLACE (
+        SELECT individual_enriched.* REPLACE (
             {{
                 'number_of_western_editions': coalesce(counts.western, 0),
                 'number_of_non_western_editions': coalesce(counts.non_western, 0),
                 'cross_cultural_score': sqrt(coalesce(counts.western, 0) * coalesce(counts.non_western, 0))
             }} AS notability,
-            map_concat(enriched.field_provenance, MAP {{'notability': ?::{provenance_column()}}}) AS field_provenance
+            map_concat(individual_enriched.field_provenance, MAP {{'notability': ?::{provenance_column()}}}) AS field_provenance
         )
-        FROM individual_enriched enriched LEFT JOIN counts ON counts.qid = enriched.entity.qid
+        FROM individual_enriched LEFT JOIN counts ON counts.qid = individual_enriched.entity.qid
+        WHERE {{inside}}
         """,
         [json.dumps(as_json(NOTABILITY.provenance()))],
     )
@@ -83,9 +87,12 @@ def main():
     SITELINK.announce()
     NOTABILITY.announce()
     connection = open_database()
-    connection.execute("SET enable_progress_bar = true")
+    connection.execute("SET enable_progress_bar = true; SET threads = 2; SET memory_limit = '8GB'")
     for step in tqdm((fill_sitelink, fill_notability), desc="notability", unit=" step"):
+        connection.execute("BEGIN")
         step(connection)
+        connection.execute("COMMIT")
+    connection.execute("CHECKPOINT")
     report(connection)
     connection.close()
 
