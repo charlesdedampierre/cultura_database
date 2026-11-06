@@ -79,7 +79,7 @@ def qid_ranges(connection, table):
 def rewrite_individual_enriched(connection, rows, parameters=()):
     """Rebuild individual_enriched from rows, a SELECT whose WHERE holds the placeholder {inside}, a filter on
     individual_enriched.entity.qid. It runs once per qid range, because the whole table at once spills more than the free disk."""
-    connection.execute(f"SET preserve_insertion_order = false; SET temp_directory = '{SCRATCH}'")
+    connection.execute("SET preserve_insertion_order = false")
     connection.execute("DROP TABLE IF EXISTS individual_enriched_new")
     for number, inside in enumerate(tqdm(qid_ranges(connection, "individual_enriched"), desc="individual_enriched qid ranges")):
         chunk = rows.replace("{inside}", inside + " ORDER BY individual_enriched.entity.qid")
