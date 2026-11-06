@@ -1,25 +1,24 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field
 
-Precision = Literal["day", "month", "year", "decade", "century", "millennium"]
+
+class ExportedPolity(BaseModel):
+    cliopatria_id: int | None = Field(None, description="The polity's Cliopatria id, PolityMatch.polity.cliopatria_id.")
+    name: str | None = Field(None, description="The polity's name as Cliopatria spells it, PolityMatch.polity.name.")
+    seshat_ids: list[str] = Field([], description="The Seshat Databank ids of the polity's territories overlapping the stage, oldest first, PolityMatch.seshat_ids; empty where Seshat has not coded it. Each id's page is http://seshat-db.org/core/polity/<id>.")
+    years_spent_in_polity: int | None = Field(None, description="Years of the stage spent inside the polity, each year counted once, PolityMatch.years_spent_in_polity.")
+    certainty: str | None = Field(None, description="'certain' when the location is a direct witness of the stage, 'unsure' for a fallback field, PolityMatch.certainty.")
 
 
 class ExportedIndividualCSV(BaseModel):
     wikidata_id: str = Field(..., description="The individual's Wikidata qid, 'Q937'. Individual.entity.qid.")
-    wikidata_url: str = Field(..., description="The individual's Wikidata page, 'https://www.wikidata.org/wiki/Q937'.")
     label: str | None = Field(None, description="The English label, or the label in another language for an individual with none. Individual.entity.label_en, else label_non_en.")
-    birth_date: str | None = Field(None, description="The birth date the peak activity window prefers: the first entry of Individual.birth_date stated to the decade or finer, else the first entry, in the list's order (Wikidata property, then Wikidata description, then life-expectancy estimate). Written as an ISO date, '1879-03-14', when stated to the day or month, and as the year otherwise; negative before the common era.")
-    birth_precision: Precision | None = Field(None, description="How finely birth_date is known. A year at precision century stands for its whole century.")
-    death_date: str | None = Field(None, description="The death date, chosen and written as birth_date is, from Individual.death_date.")
-    death_precision: Precision | None = Field(None, description="How finely death_date is known.")
-    activity_start: int | None = Field(None, description="First year of the peak activity window, IndividualEnriched.peak_productivity.start_year.")
-    activity_end: int | None = Field(None, description="Last year of the peak activity window, IndividualEnriched.peak_productivity.end_year.")
-    polities: str | None = Field(None, description="The names of the polities the individual is matched to during the window, IndividualEnriched.polity, joined by ' | '.")
-    polity_ids: str | None = Field(None, description="Their Cliopatria ids, in the same order as polities, joined by ' | '.")
-    time_spent_in_polity: str | None = Field(None, description="How many years of the activity window each polity covers, PolityMatch.years_spent_in_polity, each calendar year counted once, in the same order as polities, joined by ' | '.")
-    seshat_ids: str | None = Field(None, description="The Seshat Databank ids of each polity over the window, PolityMatch.seshat_ids, in the same order as polities, joined by ' | '; a polity whose territories changed id during the window lists them oldest first, joined by ';', and one Seshat has not coded is left empty between its separators. Empty when no polity has one. Each id's page is http://seshat-db.org/core/polity/<id>.")
-    meta_polities: str | None = Field(None, description="The meta polities those polities belonged to during the window, once each, joined by ' | '.")
-    meta_polity_ids: str | None = Field(None, description="Their Cliopatria ids, in the same order as meta_polities, joined by ' | '.")
+    birth_date: str | None = Field(None, description="IndividualEnriched.birth_date: the Wikidata birth, else the estimate from the cohort's age at death. Written as an ISO date, '1879-03-14', when stated to the day or month, and as the year otherwise; negative before the common era. Empty for an individual with only coarse dates.")
+    death_date: str | None = Field(None, description="IndividualEnriched.death_date, written as birth_date is.")
+    pre_active_life_range: str | None = Field(None, description="Years from birth to the start of the active life, 'start/end' (ISO 8601 interval), IndividualEnriched.birth_date.year / start_of_active_life.year; '-450/-420' before the common era.")
+    active_life_range: str | None = Field(None, description="Years of the active life, 'start/end', IndividualEnriched.start_of_active_life.year / end_of_active_life.year.")
+    post_active_life_range: str | None = Field(None, description="Years from the end of the active life to death, 'start/end', IndividualEnriched.end_of_active_life.year / death_date.year.")
+    pre_active_life_polities: str | None = Field(None, description="The polities matched over pre_active_life_range, IndividualEnriched.pre_active_life_polity, longest overlap first, as a JSON list of ExportedPolity: [{\"cliopatria_id\": 12, \"name\": \"Roman Republic\", \"seshat_ids\": [\"it_roman_rep_1\"], \"years_spent_in_polity\": 20, \"certainty\": \"certain\"}]. Empty when none is matched.")
+    active_life_polities: str | None = Field(None, description="The polities matched over active_life_range, IndividualEnriched.active_life_polity, as pre_active_life_polities is.")
+    post_active_life_polities: str | None = Field(None, description="The polities matched over post_active_life_range, IndividualEnriched.post_active_life_polity, as pre_active_life_polities is.")
     occupations: str | None = Field(None, description="The English labels of Individual.occupation, read from the Occupation table, joined by ' | '.")
     number_of_works: int = Field(..., description="How many distinct works Wikidata credits to the individual, Individual.work counted once per work_qid whatever the crediting property (P50 author, P170 creator, P175 performer...); 0 for an individual with none.")
