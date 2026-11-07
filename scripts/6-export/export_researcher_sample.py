@@ -1,18 +1,24 @@
 """Export a small sample of the simplified researcher dataset: individuals with a birth, a death, an active life, an occupation
 and at least one Seshat-coded polity during the active life. One flat CSV:
 - individuals.csv: one row per individual (dates, active life, occupations, main Seshat polity and the Seshat polities of each life stage).
-The sample is stratified by era of the start of the active life so that pre-modern individuals are visible."""
+The sample is stratified by era of the start of the active life so that pre-modern individuals are visible, plus a stratum of individuals with century- or millennium-level dates."""
 
 import argparse
+import sys
 import tempfile
 from pathlib import Path
 
 import duckdb
+from tqdm import tqdm
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1-datamodels"))
+from datamodel_export import ExportedIndividualCSV
 
 ROOT = Path(__file__).resolve().parents[2]
 DATABASE = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
 OUTPUT = ROOT / "data" / "exports" / "researcher_sample"
 PER_ERA = 200
+COARSE = 40  # individuals whose birth or death is known only to the century or millennium
 
 SEPARATOR = " | "
 COHORT_DOMAINS = ["Culture", "Discovery/Science", "Leadership", "Sports/Games"]  # the occupational categories of the cohort analysis (01_notebooks_dates), 'Other' left out
@@ -54,6 +60,7 @@ CREATE TEMP TABLE candidate AS
 SELECT
     entity.qid AS qid,
     CASE
+        WHEN birth_date.precision IN ('century', 'millennium') OR death_date.precision IN ('century', 'millennium') THEN 'coarse dates'
         WHEN start_of_active_life.year < 1000 THEN 'before 1000'
         WHEN start_of_active_life.year < 1500 THEN '1000-1499'
         WHEN start_of_active_life.year < 1800 THEN '1500-1799'
@@ -68,7 +75,7 @@ WHERE birth_date.year IS NOT NULL
 
 CREATE TEMP TABLE picked AS
 SELECT qid, era FROM candidate
-QUALIFY row_number() OVER (PARTITION BY era ORDER BY hash(qid)) <= {PER_ERA * 2};
+QUALIFY row_number() OVER (PARTITION BY era ORDER BY hash(qid)) <= 2 * CASE WHEN era = 'coarse dates' THEN {COARSE} ELSE {PER_ERA} END;
 
 CREATE TEMP TABLE sample AS
 SELECT individual_enriched.*, picked.era
@@ -110,8 +117,8 @@ CROSS JOIN seshat_span
 CROSS JOIN LATERAL (
     SELECT main_seshat(main_seshat_match(sample.active_life_polity), sample.start_of_active_life.year, sample.end_of_active_life.year, seshat_span.of) AS polity
 ) AS main
-WHERE len(individual.occupation) > 0
-QUALIFY row_number() OVER (PARTITION BY sample.era ORDER BY hash(sample.entity.qid)) <= {PER_ERA}
+WHERE len(list_filter(individual.occupation, one -> label.of[one.entity.qid] IS NOT NULL)) > 0
+QUALIFY row_number() OVER (PARTITION BY sample.era ORDER BY hash(sample.entity.qid)) <= CASE WHEN sample.era = 'coarse dates' THEN {COARSE} ELSE {PER_ERA} END
 ORDER BY sample.start_of_active_life.year
 """
 
@@ -131,7 +138,13 @@ def main():
     connection.execute(LABELS + SAMPLE)
     connection.execute(f"COPY ({INDIVIDUALS}) TO '{individuals}' (HEADER, DELIMITER ',')")
 
-    print(connection.sql(f"SELECT count(*) AS individuals FROM read_csv('{individuals}')"))
+    rows = connection.execute(f"SELECT * FROM read_csv('{individuals}')")
+    columns = [column[0] for column in rows.description]
+    assert columns == list(ExportedIndividualCSV.model_fields), "the CSV's columns are not those of ExportedIndividualCSV"
+    records = [dict(zip(columns, row)) for row in rows.fetchall()]
+    for record in tqdm(records, desc="validate", unit=" rows"):
+        ExportedIndividualCSV(**record)
+    print(f"{len(records)} individuals written to {individuals}, all valid ExportedIndividualCSV rows")
     connection.close()
 
 
