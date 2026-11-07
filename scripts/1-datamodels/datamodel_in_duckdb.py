@@ -140,6 +140,7 @@ class PolityMatch(BaseModel):
     certainty: Literal["certain", "unsure"] | None = Field(None, description="'certain' when the location field is a direct witness of the stage (birthplace or educated at for the pre-active life, work location, employer, position held or residence for the active life, deathplace for the post-active life), 'unsure' when it is a fallback field.")
     location: str | None = Field(None, description="Label of the place, institution or country the match was read from.")
     seshat_ids: tuple[str, ...] = Field((), description="Seshat ids of the polity's territories overlapping the stage.")
+    seshat_long_names: tuple[str | None, ...] = Field((), description="Seshat long name of each id in seshat_ids, same order ('fr_valois_k_2' -> 'French Kingdom - Late Valois'), read from the Seshat API (api/core/polities, long_name); None for an id the API does not list.")
 
 
 class Place(BaseModel):
