@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATABASE = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
 OUTPUT = ROOT / "data" / "exports" / "researcher_sample"
 PER_ERA = 200
+SESHAT = ROOT / "data" / "seshat" / "seshat_polities.json"
 
 SEPARATOR = " | "
 GENDERS = {"Q6581097": "male", "Q6581072": "female", "Q1052281": "trans woman", "Q2449503": "trans man", "Q48270": "non-binary"}
@@ -20,6 +21,15 @@ GENDERS = {"Q6581097": "male", "Q6581072": "female", "Q1052281": "trans woman", 
 LABELS = f"""
 CREATE TEMP TABLE label AS
 SELECT map(list(entity.qid), list(coalesce(entity.label_en, entity.label_non_en))) AS of FROM occupation;
+CREATE TEMP MACRO main_seshat_match(matches) AS
+    list_max(list_transform(list_filter(matches, m -> len(m.seshat_ids) > 0), m -> {{'years': m.years_spent_in_polity, 'match': m}})).match;
+CREATE TEMP TABLE seshat AS
+SELECT map(list(name), list({{'long_name': long_name, 'start_year': start_year, 'end_year': end_year}})) AS of FROM read_json('{SESHAT}');
+CREATE TEMP MACRO main_seshat_id(ids, active_start, active_end, lookup) AS
+    list_max(list_transform(ids, i -> {{
+        'years': least(coalesce(lookup[i].end_year, active_end), active_end) - greatest(coalesce(lookup[i].start_year, active_start), active_start),
+        'id': i
+    }})).id;
 CREATE TEMP MACRO gender(qid) AS coalesce(MAP {GENDERS!r}[qid], qid);
 """
 
@@ -54,7 +64,6 @@ INDIVIDUALS = f"""
 SELECT
     sample.entity.qid AS wikidata_id,
     coalesce(sample.entity.label_en, sample.entity.label_non_en) AS label,
-    sample.entity.description AS description,
     gender(individual.sex_or_gender) AS sex_or_gender,
     sample.birth_date.year AS birth_year,
     sample.birth_date.precision AS birth_precision,
@@ -66,13 +75,16 @@ SELECT
     sample.end_of_active_life.year AS active_life_end,
     sample.start_of_active_life.source AS active_life_source,
     array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
-    sample.main_polity.polity.name AS main_polity,
-    sample.main_polity.polity.cliopatria_id AS main_polity_cliopatria_id,
-    array_to_string(sample.main_polity.seshat_ids, '{SEPARATOR}') AS main_polity_seshat_ids,
+    main_seshat.id AS main_seshat_polity_id,
+    seshat.of[main_seshat.id].long_name AS main_seshat_polity,
     len(list_distinct(list_transform(individual.work, one -> one.work_qid))) AS number_of_works
 FROM sample
 JOIN individual ON individual.entity.qid = sample.entity.qid
 CROSS JOIN label
+CROSS JOIN seshat
+CROSS JOIN LATERAL (
+    SELECT main_seshat_id(main_seshat_match(sample.active_life_polity).seshat_ids, sample.start_of_active_life.year, sample.end_of_active_life.year, seshat.of) AS id
+) AS main_seshat
 WHERE len(individual.occupation) > 0
 QUALIFY row_number() OVER (PARTITION BY sample.era ORDER BY hash(sample.entity.qid)) <= {PER_ERA}
 ORDER BY sample.start_of_active_life.year
