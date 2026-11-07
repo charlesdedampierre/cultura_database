@@ -1,7 +1,8 @@
 """Export a small sample of the simplified researcher dataset: individuals with a birth, a death, an active life, an occupation
 and at least one Seshat-coded polity during the active life. One flat CSV:
 - individuals.csv: one row per individual (dates, active life, occupations, main Seshat polity and the Seshat polities of each life stage).
-The sample is stratified by era of the start of the active life so that pre-modern individuals are visible, plus a stratum of individuals with century- or millennium-level dates."""
+The sample is stratified by era of the start of the active life so that pre-modern individuals are visible, plus a stratum of individuals with century- or millennium-level dates:
+their dates are century labels ('20th AC'), and their active life may be unknown (their polities then cover the century window of enrichment step 10)."""
 
 import argparse
 import sys
@@ -75,9 +76,9 @@ SELECT
         ELSE '1900 and after'
     END AS era
 FROM individual_enriched
-WHERE birth_date.year IS NOT NULL
-  AND death_date.year IS NOT NULL
-  AND start_of_active_life.year IS NOT NULL
+WHERE coalesce(CAST(birth_date.year AS VARCHAR), birth_date.coarse_label) IS NOT NULL
+  AND coalesce(CAST(death_date.year AS VARCHAR), death_date.coarse_label) IS NOT NULL
+  AND (start_of_active_life.year IS NOT NULL OR birth_date.precision IN ('century', 'millennium') OR death_date.precision IN ('century', 'millennium'))
   AND len(flatten(list_transform(active_life_polity, match -> match.seshat))) > 0;
 
 CREATE TEMP TABLE picked AS
@@ -101,8 +102,8 @@ SELECT
     shown_year(sample.death_date) AS death_year,
     year_precision(sample.death_date.precision) AS death_precision,
     sample.death_date.source AS death_source,
-    sample.start_of_active_life.year AS active_life_start,
-    sample.end_of_active_life.year AS active_life_end,
+    shown_year(sample.start_of_active_life) AS active_life_start,
+    shown_year(sample.end_of_active_life) AS active_life_end,
     year_precision(sample.start_of_active_life.precision) AS active_life_start_precision,
     year_precision(sample.end_of_active_life.precision) AS active_life_end_precision,
     sample.start_of_active_life.source AS active_life_source,
@@ -124,11 +125,11 @@ JOIN individual ON individual.entity.qid = sample.entity.qid
 CROSS JOIN label
 CROSS JOIN seshat_span
 CROSS JOIN LATERAL (
-    SELECT main_seshat(main_seshat_match(sample.active_life_polity), sample.start_of_active_life.year, sample.end_of_active_life.year, seshat_span.of) AS polity
+    SELECT main_seshat(main_seshat_match(sample.active_life_polity), coalesce(sample.start_of_active_life.year, sample.birth_date.year, -100000), coalesce(sample.end_of_active_life.year, sample.death_date.year, 100000), seshat_span.of) AS polity
 ) AS main
 WHERE len(list_filter(individual.occupation, one -> label.of[one.entity.qid] IS NOT NULL)) > 0
 QUALIFY row_number() OVER (PARTITION BY sample.era ORDER BY hash(sample.entity.qid)) <= CASE WHEN sample.era = 'coarse dates' THEN {COARSE} ELSE {PER_ERA} END
-ORDER BY sample.start_of_active_life.year
+ORDER BY coalesce(sample.start_of_active_life.year, sample.birth_date.year, sample.death_date.year)
 """
 
 
