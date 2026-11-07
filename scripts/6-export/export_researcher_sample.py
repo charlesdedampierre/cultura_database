@@ -45,6 +45,7 @@ CREATE TEMP MACRO main_seshat(match, active_start, active_end, span) AS
     }})).polity;
 CREATE TEMP MACRO stage_seshat(matches) AS
     list_filter(flatten(list_transform(matches, m -> m.seshat)), (one, position) -> list_position(flatten(list_transform(matches, m -> m.seshat)), one) = position);
+CREATE TEMP MACRO year_precision(precision) AS CASE WHEN precision IN ('day', 'month') THEN 'year' ELSE precision END;
 CREATE TEMP MACRO gender(qid) AS coalesce(MAP {GENDERS!r}[qid], qid);
 """
 
@@ -81,10 +82,10 @@ SELECT
     coalesce(sample.entity.label_en, sample.entity.label_non_en) AS label,
     gender(individual.sex_or_gender) AS sex_or_gender,
     sample.birth_date.year AS birth_year,
-    sample.birth_date.precision AS birth_precision,
+    year_precision(sample.birth_date.precision) AS birth_precision,
     sample.birth_date.source AS birth_source,
     sample.death_date.year AS death_year,
-    sample.death_date.precision AS death_precision,
+    year_precision(sample.death_date.precision) AS death_precision,
     sample.death_date.source AS death_source,
     sample.start_of_active_life.year AS active_life_start,
     sample.end_of_active_life.year AS active_life_end,
