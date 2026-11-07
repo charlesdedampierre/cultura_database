@@ -52,6 +52,13 @@ CREATE TEMP MACRO main_seshat(match, active_start, active_end, span) AS
 CREATE TEMP MACRO stage_seshat(matches) AS
     list_filter(flatten(list_transform(matches, m -> m.seshat)), (one, position) -> list_position(flatten(list_transform(matches, m -> m.seshat)), one) = position);
 CREATE TEMP MACRO year_precision(stated) AS CASE WHEN stated IN ('day', 'month') THEN 'year' ELSE stated END;
+CREATE TEMP MACRO ordinal(n) AS n || CASE WHEN n % 100 IN (11, 12, 13) THEN 'th' WHEN n % 10 = 1 THEN 'st' WHEN n % 10 = 2 THEN 'nd' WHEN n % 10 = 3 THEN 'rd' ELSE 'th' END;
+CREATE TEMP MACRO era_suffix(year) AS CASE WHEN year < 0 THEN ' BC' ELSE ' AC' END;
+CREATE TEMP MACRO shown_year(d) AS CASE
+    WHEN d.precision = 'century' THEN coalesce(d.coarse_label, ordinal(CAST(ceil(abs(d.year) / 100) AS BIGINT)) || era_suffix(d.year))
+    WHEN d.precision = 'millennium' THEN coalesce(d.coarse_label, ordinal(CAST(ceil(abs(d.year) / 1000) AS BIGINT)) || ' millennium' || era_suffix(d.year))
+    ELSE CAST(d.year AS VARCHAR)
+END;
 CREATE TEMP MACRO gender(qid) AS coalesce(MAP {GENDERS!r}[qid], qid);
 """
 
@@ -88,14 +95,16 @@ SELECT
     sample.entity.qid AS wikidata_id,
     coalesce(sample.entity.label_en, sample.entity.label_non_en) AS label,
     gender(individual.sex_or_gender) AS sex_or_gender,
-    sample.birth_date.year AS birth_year,
+    shown_year(sample.birth_date) AS birth_year,
     year_precision(sample.birth_date.precision) AS birth_precision,
     sample.birth_date.source AS birth_source,
-    sample.death_date.year AS death_year,
+    shown_year(sample.death_date) AS death_year,
     year_precision(sample.death_date.precision) AS death_precision,
     sample.death_date.source AS death_source,
     sample.start_of_active_life.year AS active_life_start,
     sample.end_of_active_life.year AS active_life_end,
+    year_precision(sample.start_of_active_life.precision) AS active_life_start_precision,
+    year_precision(sample.end_of_active_life.precision) AS active_life_end_precision,
     sample.start_of_active_life.source AS active_life_source,
     array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
     main_meta(list_transform(individual.occupation, one -> label.meta[one.entity.qid])) AS occupation_domain,
@@ -138,7 +147,7 @@ def main():
     connection.execute(LABELS + SAMPLE)
     connection.execute(f"COPY ({INDIVIDUALS}) TO '{individuals}' (HEADER, DELIMITER ',')")
 
-    rows = connection.execute(f"SELECT * FROM read_csv('{individuals}')")
+    rows = connection.execute(f"SELECT * FROM read_csv('{individuals}', all_varchar = true)")
     columns = [column[0] for column in rows.description]
     assert columns == list(ExportedIndividualCSV.model_fields), "the CSV's columns are not those of ExportedIndividualCSV"
     records = [dict(zip(columns, row)) for row in rows.fetchall()]
