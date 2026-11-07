@@ -96,11 +96,11 @@ def write_territories(connection):
         f"""
         CREATE OR REPLACE TABLE polity AS
         SELECT polity.* REPLACE (
-            CAST(list_transform(polity.territories, (territory, position) -> struct_insert(
-                struct_update(territory, field_provenance := CASE
+            CAST(list_transform(polity.territories, (territory, position) -> struct_update(territory,
+                field_provenance := CASE
                     WHEN seshat_by_polity.seshat_ids[position] IS NULL THEN territory.field_provenance
                     ELSE map_concat(territory.field_provenance, MAP {{'seshat_id': ?::{provenance_column()}}})
-                END),
+                END,
                 seshat_id := seshat_by_polity.seshat_ids[position]
             )) AS {territories_type}) AS territories
         )
