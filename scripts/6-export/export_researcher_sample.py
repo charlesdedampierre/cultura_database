@@ -1,7 +1,6 @@
 """Export a small sample of the simplified researcher dataset: individuals with a birth, a death, an active life, an occupation
-and at least one Seshat-coded polity during the active life. Two flat CSVs:
+and at least one Seshat-coded polity during the active life. One flat CSV:
 - individuals.csv: one row per individual (dates, active life, occupations, main polity).
-- individual_polities.csv: one row per individual x life stage x polity x Seshat id, ready to join on Seshat ids.
 The sample is stratified by era of the start of the active life so that pre-modern individuals are visible."""
 
 import argparse
@@ -70,8 +69,6 @@ SELECT
     sample.main_polity.polity.name AS main_polity,
     sample.main_polity.polity.cliopatria_id AS main_polity_cliopatria_id,
     array_to_string(sample.main_polity.seshat_ids, '{SEPARATOR}') AS main_polity_seshat_ids,
-    sample.main_polity.certainty AS main_polity_certainty,
-    len(individual.sitelink) AS number_of_wikipedia_links,
     len(list_distinct(list_transform(individual.work, one -> one.work_qid))) AS number_of_works
 FROM sample
 JOIN individual ON individual.entity.qid = sample.entity.qid
@@ -81,26 +78,6 @@ QUALIFY row_number() OVER (PARTITION BY sample.era ORDER BY hash(sample.entity.q
 ORDER BY sample.start_of_active_life.year
 """
 
-POLITIES = """
-WITH stage AS (
-    SELECT entity.qid AS wikidata_id, 'pre_active_life' AS life_stage, unnest(pre_active_life_polity) AS match FROM sample
-    UNION ALL
-    SELECT entity.qid, 'active_life', unnest(active_life_polity) FROM sample
-    UNION ALL
-    SELECT entity.qid, 'post_active_life', unnest(post_active_life_polity) FROM sample
-)
-SELECT
-    wikidata_id,
-    life_stage,
-    match.polity.cliopatria_id AS cliopatria_id,
-    match.polity.name AS polity,
-    unnest(CASE WHEN len(match.seshat_ids) = 0 THEN [NULL] ELSE match.seshat_ids END) AS seshat_id,
-    match.years_spent_in_polity AS years_spent_in_polity,
-    match.certainty AS certainty
-FROM stage
-WHERE wikidata_id IN (SELECT wikidata_id FROM read_csv('{individuals}'))
-ORDER BY wikidata_id, life_stage, years_spent_in_polity DESC
-"""
 
 
 def main():
@@ -111,16 +88,13 @@ def main():
 
     args.output.mkdir(parents=True, exist_ok=True)
     individuals = args.output / "individuals.csv"
-    polities = args.output / "individual_polities.csv"
 
     connection = duckdb.connect(str(args.database), read_only=True)
     connection.execute(f"SET memory_limit = '6GB'; SET threads = 4; SET temp_directory = '{tempfile.mkdtemp()}'")
     connection.execute(LABELS + SAMPLE)
     connection.execute(f"COPY ({INDIVIDUALS}) TO '{individuals}' (HEADER, DELIMITER ',')")
-    connection.execute(f"COPY ({POLITIES.format(individuals=individuals)}) TO '{polities}' (HEADER, DELIMITER ',')")
 
     print(connection.sql(f"SELECT count(*) AS individuals FROM read_csv('{individuals}')"))
-    print(connection.sql(f"SELECT life_stage, count(*) AS rows FROM read_csv('{polities}') GROUP BY ALL"))
     connection.close()
 
 
