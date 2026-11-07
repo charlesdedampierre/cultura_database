@@ -6,9 +6,11 @@
    as coarse_label. An active life read from dated works and positions keeps its year.
 3. Their polities: the life-stage matching of 02_notebooks_polity needs a birth year, so these individuals had none.
    active_life_polity (and main_polity) gets the polities over a window: the years of the active life when known,
-   else the birth and death years or centuries, clipped to the coarse centuries. The pre- and post-active stages stay
-   empty, since a century gives no split of the life. Locations are those of the active stage, with the same rules
-   (01_life_stage_polities_export.py), and the Seshat polities of the territories overlapping the window (as step 08)."""
+   else the birth and death years or centuries, clipped to the coarse centuries. When the active life is dated (from works
+   and positions), the pre-active stage runs from the birth year, else the first year of the birth century, to its start,
+   and the post-active stage from its end to the death year, else the last year of the death century. Without a dated
+   active life the life cannot be split: the pre- and post-active stages stay empty. Each stage uses its own location
+   rules (01_life_stage_polities_export.py), and the Seshat polities of the territories overlapping the stage (as step 08)."""
 
 import argparse
 import importlib.util
@@ -48,7 +50,8 @@ POLITIES = Enrichment(
            "IndividualWikidata.position_held", "Polity.territories", "Seshat API long_name"),
     writes=tuple(f"IndividualEnriched.{column}" for column in (*STAGES, "main_polity")),
     rule="Individuals with a century- or millennium-level birth or death: active_life_polity matched over the years of the active life when known, "
-         "else the birth and death years or centuries, clipped to the coarse centuries, with the active-stage location rules; pre- and post-active stages left empty.",
+         "else the birth and death years or centuries, clipped to the coarse centuries; with a dated active life, pre-active from the birth year or the start of the birth century "
+         "to the start of the active life and post-active from its end to the death year or the end of the death century, else both left empty; each stage with its own location rules.",
     answers=Path(__file__),
 )
 
@@ -120,6 +123,21 @@ def window(person):
     return low, high
 
 
+def windows(person):
+    """Years of each stage: the active window, plus the pre- and post-active stages around a dated active life, bounded by the life dates or their centuries."""
+    low, high = window(person)
+    stages = {"active": (low, high)}
+    if person["start_active"] is None or person["end_active"] is None:
+        return stages
+    birth = label_span(person["birth_label"]) or (person["birth_year"],) * 2
+    death = label_span(person["death_label"]) or (person["death_year"],) * 2
+    if birth[0] is not None and birth[0] < low:
+        stages["pre_active"] = (birth[0], low)
+    if death[1] is not None and high < death[1]:
+        stages["post_active"] = (high, death[1])
+    return stages
+
+
 class Polities:
     """Polity rows by name, and the Seshat long names, to turn a located polity name into a PolityMatch."""
 
@@ -162,15 +180,18 @@ def match_people(connection, sample):
     polities = Polities(connection)
     rows = []
     for person in tqdm(people.iter_rows(named=True), total=people.height, desc="coarse-date polities"):
-        low, high = window(person)
-        located = locations.assign(person, "active", low, high)
-        matches = [polities.match(name, years, located, low, high) for name, years in zip(located["polities"], located["polity_years"])]
-        rows.append({"qid": person["qid"], "active_life_polity": [as_json(match) for match in matches]})
+        row = {"qid": person["qid"]}
+        for stage, (low, high) in windows(person).items():
+            located = locations.assign(person, stage, low, high)
+            row[f"{stage}_life_polity"] = [as_json(polities.match(name, years, located, low, high)) for name, years in zip(located["polities"], located["polity_years"])]
+        rows.append(row)
     path = SCRATCH / ("coarse_date_polities_sample.json" if sample else "coarse_date_polities.json")
     path.write_text(json.dumps(rows))
-    connection.execute(f"CREATE OR REPLACE TEMP TABLE coarse_polity AS SELECT * FROM read_json(?, columns := {{'qid': 'VARCHAR', 'active_life_polity': '{MATCH_LIST_TYPE}'}})", [str(path)])
-    matched = sum(1 for row in rows if row["active_life_polity"])
-    print(f"{matched:,} of {len(rows):,} matched to a polity")
+    columns = {"qid": "VARCHAR", **{column: MATCH_LIST_TYPE for column in STAGES}}
+    connection.execute(f"CREATE OR REPLACE TEMP TABLE coarse_polity AS SELECT * FROM read_json(?, columns := {columns!r})", [str(path)])
+    for column in STAGES:
+        matched = sum(1 for row in rows if row.get(column))
+        print(f"{column}: {matched:,} of {len(rows):,} matched to a polity")
 
 
 def rows_sql(connection):
@@ -178,7 +199,7 @@ def rows_sql(connection):
     dates = as_json(DATES.provenance())
     polities = as_json(POLITIES.provenance())
     stages = ",\n            ".join(
-        f"CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN {'coalesce(coarse_polity.active_life_polity, [])' if column == 'active_life_polity' else '[]'} "
+        f"CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN coalesce(coarse_polity.{column}, []) "
         f"ELSE individual_enriched.{column} END::{types[column]} AS {column}"
         for column in STAGES
     )
@@ -207,24 +228,25 @@ def write(connection):
 
 
 def show_sample(connection):
-    """The rewritten rows of three sampled individuals with a polity, nothing written."""
+    """The rewritten rows of three sampled individuals with all three stages, nothing written."""
     rows, parameters = rows_sql(connection)
-    inside = "individual_enriched.entity.qid IN (SELECT qid FROM coarse_polity WHERE len(active_life_polity) > 0 ORDER BY qid LIMIT 3)"
-    query = f"SELECT entity.qid, birth_date.coarse_label, death_date.coarse_label, start_of_active_life.coarse_label, start_of_active_life.year, list_transform(active_life_polity, m -> (m.polity.name, m.years_spent_in_polity, m.assignation_method, m.seshat)) FROM ({rows.replace('{inside}', inside)})"
+    inside = "individual_enriched.entity.qid IN (SELECT qid FROM coarse_polity WHERE len(pre_active_life_polity) > 0 AND len(post_active_life_polity) > 0 ORDER BY qid LIMIT 3)"
+    query = f"SELECT entity.qid, birth_date.coarse_label, death_date.coarse_label, start_of_active_life.coarse_label, start_of_active_life.year, end_of_active_life.year, list_transform(pre_active_life_polity, m -> m.polity.name), list_transform(active_life_polity, m -> (m.polity.name, m.seshat)), list_transform(post_active_life_polity, m -> m.polity.name) FROM ({rows.replace('{inside}', inside)})"
     for row in connection.execute(query, parameters).fetchall():
         print(row)
 
 
 def check(connection):
-    kept_years, individuals, with_polity, estimated_years = connection.execute(f"""
+    kept_years, individuals, pre, with_polity, post, estimated_years = connection.execute(f"""
         SELECT count(*) FILTER (WHERE (is_coarse(birth_date) AND birth_date.year IS NOT NULL) OR (is_coarse(death_date) AND death_date.year IS NOT NULL)),
-               count(*), count(*) FILTER (WHERE len(active_life_polity) > 0),
+               count(*), count(*) FILTER (WHERE len(pre_active_life_polity) > 0), count(*) FILTER (WHERE len(active_life_polity) > 0),
+               count(*) FILTER (WHERE len(post_active_life_polity) > 0),
                count(*) FILTER (WHERE start_of_active_life.source = 'estimated' AND start_of_active_life.year IS NOT NULL)
         FROM individual_enriched WHERE has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date)
     """).fetchone()
     assert kept_years == 0, f"{kept_years:,} coarse dates keep a year"
     assert estimated_years == 0, f"{estimated_years:,} estimated active lives keep a year"
-    print(f"{individuals:,} individuals with a coarse date: {with_polity:,} with an active-life polity")
+    print(f"{individuals:,} individuals with a coarse date: {pre:,} with a pre-active, {with_polity:,} with an active, {post:,} with a post-active polity")
 
 
 def main():
