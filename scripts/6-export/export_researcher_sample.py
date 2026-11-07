@@ -15,6 +15,7 @@ OUTPUT = ROOT / "data" / "exports" / "researcher_sample"
 PER_ERA = 200
 
 SEPARATOR = " | "
+COHORT_DOMAINS = ["Culture", "Discovery/Science", "Leadership", "Sports/Games"]  # the occupational categories of the cohort analysis (01_notebooks_dates), 'Other' left out
 GENDERS = {"Q6581097": "male", "Q6581072": "female", "Q1052281": "trans woman", "Q2449503": "trans man", "Q48270": "non-binary"}
 
 LABELS = f"""
@@ -23,7 +24,7 @@ SELECT map(list(entity.qid), list(coalesce(entity.label_en, entity.label_non_en)
        map(list(entity.qid), list(meta_occupation)) AS meta
 FROM occupation;
 CREATE TEMP MACRO main_meta(metas) AS
-    list_max(list_transform(list_distinct(list_filter(metas, m -> m IS NOT NULL)), m -> {{
+    list_max(list_transform(list_distinct(list_filter(metas, m -> list_contains({COHORT_DOMAINS!r}, m))), m -> {{
         'count': len(list_filter(metas, other -> other = m)), 'first': -list_position(metas, m), 'meta': m
     }})).meta;
 CREATE TEMP MACRO main_seshat_match(matches) AS
@@ -89,8 +90,7 @@ SELECT
     sample.end_of_active_life.year AS active_life_end,
     sample.start_of_active_life.source AS active_life_source,
     array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
-    array_to_string(list_transform(individual.occupation, one -> coalesce(label.meta[one.entity.qid], 'unclassified')), '{SEPARATOR}') AS meta_occupations,
-    main_meta(list_transform(individual.occupation, one -> label.meta[one.entity.qid])) AS main_meta_occupation,
+    main_meta(list_transform(individual.occupation, one -> label.meta[one.entity.qid])) AS occupation_domain,
     individual.is_scientist AS is_scientist,
     individual.is_artist AS is_artist,
     main.polity.id AS main_seshat_polity_id,
