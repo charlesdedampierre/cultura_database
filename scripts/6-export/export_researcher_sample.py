@@ -45,7 +45,7 @@ CREATE TEMP MACRO main_seshat(match, active_start, active_end, span) AS
     }})).polity;
 CREATE TEMP MACRO stage_seshat(matches) AS
     list_filter(flatten(list_transform(matches, m -> m.seshat)), (one, position) -> list_position(flatten(list_transform(matches, m -> m.seshat)), one) = position);
-CREATE TEMP MACRO year_precision(precision) AS CASE WHEN precision IN ('day', 'month') THEN 'year' ELSE precision END;
+CREATE TEMP MACRO year_precision(stated) AS CASE WHEN stated IN ('day', 'month') THEN 'year' ELSE stated END;
 CREATE TEMP MACRO gender(qid) AS coalesce(MAP {GENDERS!r}[qid], qid);
 """
 
