@@ -2,7 +2,8 @@
 
 The former date and polity steps (now in _legacy/) are left out: 01_notebooks_dates and 02_notebooks_polity replace them.
 Order matters: 06 reads the is_western of 05; 08 reads the polity split of 07; the life-stage polities of
-02_notebooks_polity are matched to the polity ids 07 writes, so they are ingested after 07 and before 08."""
+02_notebooks_polity are matched to the polity ids 07 writes, so they are ingested after 07 and before 08;
+10 comes last: it rewrites the dates and polities of the individuals with century- or millennium-level dates."""
 
 import argparse
 import os
@@ -31,6 +32,7 @@ STEPS = (
     "07_polity_hierarchy.py",
     "08_seshat_id.py",
     "09_occupation_meta_occupation.py",
+    "10_coarse_dates.py",
 )
 
 
