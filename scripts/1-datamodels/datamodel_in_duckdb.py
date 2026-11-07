@@ -128,6 +128,11 @@ class Notability(BaseModel):
     cross_cultural_score: float | None = Field(None, description="Geometric mean of the two counts; 0 when either is 0.")
 
 
+class Seshat(BaseModel):
+    id: str = Field(..., description="Seshat Databank polity id, 'fr_valois_k_2'; its page is https://seshat-db.com/core/polity/<id>.")
+    long_name: str | None = Field(None, description="Seshat long name, 'French Kingdom - Late Valois', from the Seshat API (api/core/polities); None for an id the API does not list.")
+
+
 class PolityMatch(BaseModel):
     polity: Polity | None = Field(None, description="Matched polity: id, name, world and meta_polities only.")
     years_spent_in_polity: int | None = Field(None, description="Years of the stage spent inside this polity, each year counted once.")
@@ -139,8 +144,7 @@ class PolityMatch(BaseModel):
     ] | None = Field(None, description="Which Wikidata location field and which test made the match: 'polygon' when the place's coordinates fall inside the Cliopatria territory, 'url' when the place's Wikipedia article is the polity's own.")
     certainty: Literal["certain", "unsure"] | None = Field(None, description="'certain' when the location field is a direct witness of the stage (birthplace or educated at for the pre-active life, work location, employer, position held or residence for the active life, deathplace for the post-active life), 'unsure' when it is a fallback field.")
     location: str | None = Field(None, description="Label of the place, institution or country the match was read from.")
-    seshat_ids: tuple[str, ...] = Field((), description="Seshat ids of the polity's territories overlapping the stage.")
-    seshat_long_names: tuple[str | None, ...] = Field((), description="Seshat long name of each id in seshat_ids, same order ('fr_valois_k_2' -> 'French Kingdom - Late Valois'), read from the Seshat API (api/core/polities, long_name); None for an id the API does not list.")
+    seshat: tuple[Seshat, ...] = Field((), description="Seshat polities of the polity's territories overlapping the stage, oldest first.")
 
 
 class Place(BaseModel):

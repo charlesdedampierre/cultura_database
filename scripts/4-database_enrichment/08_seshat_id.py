@@ -2,7 +2,7 @@
 
 from tqdm import tqdm
 
-from common import D, DATABASE, SCRATCH, Enrichment, as_json, open_database, provenance_column, rewrite_individual_enriched, stage
+from common import D, DATABASE, ROOT, SCRATCH, Enrichment, as_json, open_database, provenance_column, rewrite_individual_enriched, stage
 from pydantic_to_duckdb_schema import columns_of
 
 import json_to_raw_models
@@ -16,13 +16,16 @@ TERRITORY = Enrichment(
 
 PRESENT_YEAR = 2026  # end of an ongoing active life, as in 02_notebooks_polity/01_life_stage_polities_export.py
 STAGES = ("pre_active_life_polity", "active_life_polity", "post_active_life_polity")
+SESHAT_POLITIES = ROOT / "data" / "seshat" / "seshat_polities.json"
+MATCH_FIELDS = [field for field in D.PolityMatch.model_fields if field != "seshat"]
 
 INDIVIDUAL = Enrichment(
-    reads=("Polity.territories",),
-    writes=(*(f"IndividualEnriched.{column}.seshat_ids" for column in STAGES), "IndividualEnriched.main_polity.seshat_ids"),
-    rule="For each polity matched to a life stage, the seshat_id of every territory of that polity whose years overlap the stage, ordered by the territory's first year, each id once. "
+    reads=("Polity.territories", "Seshat API long_name"),
+    writes=(*(f"IndividualEnriched.{column}.seshat" for column in STAGES), "IndividualEnriched.main_polity.seshat"),
+    rule="For each polity matched to a life stage, the seshat_id of every territory of that polity whose years overlap the stage, ordered by the territory's first year, each id once, "
+         "with its long name from the Seshat API (data/seshat/seshat_polities.json, scripts/2-wikidata_extraction_scripts/09_extract_seshat_polities.py). "
          "The stages are those of the polity export: pre-active from birth to start of active life, active from start to end of active life (to the present year when ongoing, cut at death), "
-         "post-active from end of active life to death. main_polity takes the ids of the first active-life match.",
+         "post-active from end of active life to death. main_polity takes the Seshat polities of the first active-life match.",
     inputs=("IndividualEnriched.birth_date", "IndividualEnriched.death_date", "IndividualEnriched.start_of_active_life", "IndividualEnriched.end_of_active_life",
             "IndividualEnriched.active_life_ongoing", *(f"IndividualEnriched.{column}" for column in STAGES)),
     answers=DATABASE,
@@ -142,7 +145,10 @@ def stage_windows(connection):
 
 
 def match_individuals(connection):
-    """For each individual, a map from match position to Seshat ids, one map per stage."""
+    """For each individual, a map from match position to Seshat ids, one map per stage; the long names are looked up when writing (seshat_polities)."""
+    if not SESHAT_POLITIES.exists():
+        raise SystemExit(f"{SESHAT_POLITIES} does not exist; run scripts/2-wikidata_extraction_scripts/09_extract_seshat_polities.py")
+    connection.execute("CREATE OR REPLACE TEMP TABLE seshat_name AS SELECT map(list(name), list(long_name)) AS long_name FROM read_json(?)", [str(SESHAT_POLITIES)])
     connection.execute(
         """
         CREATE OR REPLACE TEMP TABLE seshat_territory AS
@@ -174,30 +180,42 @@ def match_individuals(connection):
     )
 
 
+def seshat_polities(ids):
+    """The Seshat structs (id, long name) of a list of Seshat ids."""
+    return f"list_transform(coalesce({ids}, []), seshat_id -> {{'id': seshat_id, 'long_name': seshat_name.long_name[seshat_id]}})"
+
+
+def with_seshat(match, seshat):
+    """The polity match rebuilt with its seshat field (the stored struct may still carry the former seshat_ids)."""
+    return "{" + ", ".join(f"'{field}': {match}.{field}" for field in MATCH_FIELDS) + f", 'seshat': {seshat}" + "}"
+
+
 def write_individuals(connection):
     provenance = as_json(INDIVIDUAL.provenance())
     types = columns_of(D.IndividualEnriched)
     match_individuals(connection)
     stages = ",\n            ".join(
-        f"""CAST(list_transform(individual_enriched.{column}, (match, position) -> struct_update(
-                match, seshat_ids := coalesce(match_seshat.{column}[position], []::VARCHAR[])
-            )) AS {types[column]}) AS {column}"""
+        f"CAST(list_transform(individual_enriched.{column}, (match, position) -> "
+        + with_seshat("match", seshat_polities(f"match_seshat.{column}[position]"))
+        + f") AS {types[column]}) AS {column}"
         for column in STAGES
     )
-    keys = ", ".join(f"'{column}.seshat_ids': ?::{provenance_column()}" for column in (*STAGES, "main_polity"))
+    main_polity = with_seshat("individual_enriched.main_polity", seshat_polities("match_seshat.active_life_polity[1]"))
+    keys = ", ".join(f"'{column}.seshat': ?::{provenance_column()}" for column in (*STAGES, "main_polity"))
     rewrite_individual_enriched(
         connection,
         f"""
         SELECT individual_enriched.* REPLACE (
             {stages},
-            CAST(CASE WHEN individual_enriched.main_polity IS NULL THEN NULL ELSE struct_update(
-                individual_enriched.main_polity, seshat_ids := coalesce(match_seshat.active_life_polity[1], []::VARCHAR[])
-            ) END AS {types["main_polity"]}) AS main_polity,
+            CAST(CASE WHEN individual_enriched.main_polity IS NULL THEN NULL ELSE
+                {main_polity}
+            END AS {types["main_polity"]}) AS main_polity,
             CASE WHEN match_seshat.qid IS NULL THEN individual_enriched.field_provenance
                  ELSE map_concat(coalesce(individual_enriched.field_provenance, MAP {{}}), MAP {{{keys}}})
             END AS field_provenance
         )
         FROM individual_enriched LEFT JOIN match_seshat ON individual_enriched.entity.qid = match_seshat.qid
+        CROSS JOIN seshat_name
         WHERE {{inside}}
         """,
         [provenance] * (len(STAGES) + 1),
@@ -227,11 +245,15 @@ def main():
         matched, with_id = connection.execute(
             f"""
             SELECT count(*) FILTER (WHERE len({column}) > 0),
-                   count(*) FILTER (WHERE len(flatten(list_transform({column}, match -> match.seshat_ids))) > 0)
+                   count(*) FILTER (WHERE len(flatten(list_transform({column}, match -> match.seshat))) > 0)
             FROM individual_enriched
             """
         ).fetchone()
-        print(f"{column}: {with_id:,} of {matched:,} individuals with a polity carry a Seshat id")
+        print(f"{column}: {with_id:,} of {matched:,} individuals with a polity carry a Seshat polity")
+    named, ids = connection.execute(
+        "SELECT count(seshat.long_name), count(*) FROM individual_enriched, unnest(active_life_polity) AS m(match), unnest(match.seshat) AS s(seshat)"
+    ).fetchone()
+    print(f"active_life_polity: {named:,} of {ids:,} Seshat polities carry a long name")
     connection.close()
 
 

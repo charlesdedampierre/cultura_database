@@ -3,7 +3,7 @@ shaped by datamodel_in_duckdb.PolityMatch.
 
 pre_active_life_polity, active_life_polity and post_active_life_polity get every polity of the stage, longest overlap first;
 main_polity is the first polity of active_life_polity. active_life_ongoing is True for an active stage written with an empty end_year
-(no death year, active life reaching the present), False for any other active stage. seshat_ids stay empty: the Polity territories of v3.2 carry no Seshat id yet (enrichment step 08).
+(no death year, active life reaching the present), False for any other active stage. seshat stays empty: the Polity territories of v3.2 carry no Seshat id yet (enrichment step 08).
 Every other column keeps the value it already had.
 
 Run with --sample to build the polity matches of 10,000 individuals without writing anything."""
@@ -128,7 +128,7 @@ def build_bucket(connection, bucket):
                    'assignation_method': assignation_method,
                    'certainty': certainty,
                    'location': location,
-                   'seshat_ids': []
+                   'seshat': []
                }} ORDER BY years_spent_in_polity DESC, rank) AS {MATCH_LIST_TYPE}) AS matches
         FROM candidates
         GROUP BY qid, stage
