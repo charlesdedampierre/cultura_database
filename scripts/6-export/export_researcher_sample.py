@@ -34,10 +34,11 @@ CREATE TEMP MACRO main_meta(metas) AS
     list_max(list_transform(list_distinct(list_filter(metas, m -> list_contains({COHORT_DOMAINS!r}, m))), m -> {{
         'count': len(list_filter(metas, other -> other = m)), 'first': -list_position(metas, m), 'meta': m
     }})).meta;
+CREATE TEMP MACRO no_seshat(polity) AS 'no Seshat polity associated with Cliopatria id ' || polity.cliopatria_id || coalesce(' (' || polity.name || ')', '');
 CREATE TEMP MACRO stage_entries(matches) AS
     flatten(list_transform(matches, m -> CASE WHEN len(m.seshat) > 0
         THEN list_transform(m.seshat, one -> {{'id': one.id, 'name': coalesce(one.long_name, 'no Seshat name')}})
-        ELSE [{{'id': 'no_seshat_polity', 'name': 'no Seshat polity associated with Cliopatria id ' || m.polity.cliopatria_id || ' (' || m.polity.name || ')'}}] END));
+        ELSE [{{'id': no_seshat(m.polity), 'name': no_seshat(m.polity)}}] END));
 CREATE TEMP MACRO stage_polities(matches) AS
     list_filter(stage_entries(matches), (one, position) -> list_position(stage_entries(matches), one) = position);
 CREATE TEMP MACRO year_precision(stated) AS CASE WHEN stated IN ('day', 'month') THEN 'year' ELSE stated END;
