@@ -3,7 +3,9 @@
 1. A century- or millennium-level date is always a label, never a year: the 127 births and deaths that kept Wikidata's
    year (1950 for "20th century") get the year emptied and their coarse_label ('20th AC').
 2. Their estimated start and end of active life become century-level too: the year emptied, the century of the estimate
-   as coarse_label. An active life read from dated works and positions keeps its year.
+   as coarse_label. An active life read from dated works and positions keeps its year. With no active life at all, the
+   start is the century of the birth and the end the century of the death ('19th AC' to '20th AC'), source
+   'estimated from the century dates'; the start stays empty without a birth, the end without a death.
 3. Their polities: the life-stage matching of 02_notebooks_polity needs a birth year, so these individuals had none.
    active_life_polity (and main_polity) gets the polities over a window: the years of the active life when known,
    else the birth and death years or centuries, clipped to the coarse centuries. When the active life is dated (from works
@@ -41,7 +43,8 @@ STAGES = ("pre_active_life_polity", "active_life_polity", "post_active_life_poli
 DATES = Enrichment(
     reads=("IndividualEnriched.birth_date", "IndividualEnriched.death_date", "IndividualEnriched.start_of_active_life", "IndividualEnriched.end_of_active_life"),
     writes=("IndividualEnriched.birth_date", "IndividualEnriched.death_date", "IndividualEnriched.start_of_active_life", "IndividualEnriched.end_of_active_life"),
-    rule="A date known only to the century or millennium is a label without a year ('20th AC'); an estimated active life of an individual with such a date is kept at the century of the estimate.",
+    rule="A date known only to the century or millennium is a label without a year ('20th AC'); an estimated active life of an individual with such a date is kept at the century of the estimate; "
+         "with no active life, it runs from the century of the birth to the century of the death, source 'estimated from the century dates'.",
     answers=Path(__file__),
 )
 POLITIES = Enrichment(
@@ -65,6 +68,14 @@ CREATE OR REPLACE TEMP MACRO has_coarse_date(birth, death) AS coalesce(is_coarse
 CREATE OR REPLACE TEMP MACRO coarse_date(d, provenance) AS CASE WHEN is_coarse(d) AND d.year IS NOT NULL THEN struct_update(d,
     iso := NULL::VARCHAR, year := NULL::BIGINT, coarse_label := year_label(d.year, d.precision),
     field_provenance := map_concat(coalesce(d.field_provenance, MAP {{}}), MAP {{'year': provenance, 'coarse_label': provenance}})) ELSE d END;
+CREATE OR REPLACE TEMP MACRO life_century(d) AS CASE
+    WHEN is_coarse(d) THEN coalesce(d.coarse_label, year_label(d.year, d.precision))
+    WHEN d.year IS NOT NULL THEN year_label(d.year, 'century') END;
+CREATE OR REPLACE TEMP MACRO century_active(d, life, provenance) AS CASE WHEN d.year IS NULL AND d.coarse_label IS NULL AND life_century(life) IS NOT NULL THEN {{
+    'iso': NULL, 'year': NULL, 'precision': CASE WHEN life.precision = 'millennium' THEN 'millennium' ELSE 'century' END,
+    'field_provenance': MAP {{'precision': provenance, 'coarse_label': provenance, 'source': provenance}},
+    'source': 'estimated from the century dates', 'cohort': NULL, 'coarse_label': life_century(life)
+}} ELSE d END;
 CREATE OR REPLACE TEMP MACRO coarse_active(d, provenance) AS CASE WHEN d.source = 'estimated' AND d.year IS NOT NULL THEN struct_update(d,
     iso := NULL::VARCHAR, year := NULL::BIGINT, "precision" := 'century', coarse_label := year_label(d.year, 'century'),
     field_provenance := map_concat(coalesce(d.field_provenance, MAP {{}}), MAP {{'year': provenance, 'precision': provenance, 'coarse_label': provenance}})) ELSE d END;
@@ -209,8 +220,8 @@ def rows_sql(connection):
         SELECT individual_enriched.* REPLACE (
             CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN coarse_date(individual_enriched.birth_date, ?::{provenance_column()}) ELSE individual_enriched.birth_date END::{types['birth_date']} AS birth_date,
             CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN coarse_date(individual_enriched.death_date, ?::{provenance_column()}) ELSE individual_enriched.death_date END::{types['death_date']} AS death_date,
-            CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN coarse_active(individual_enriched.start_of_active_life, ?::{provenance_column()}) ELSE individual_enriched.start_of_active_life END::{types['start_of_active_life']} AS start_of_active_life,
-            CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN coarse_active(individual_enriched.end_of_active_life, ?::{provenance_column()}) ELSE individual_enriched.end_of_active_life END::{types['end_of_active_life']} AS end_of_active_life,
+            CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN century_active(coarse_active(individual_enriched.start_of_active_life, ?::{provenance_column()}), individual_enriched.birth_date, ?::{provenance_column()}) ELSE individual_enriched.start_of_active_life END::{types['start_of_active_life']} AS start_of_active_life,
+            CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN century_active(coarse_active(individual_enriched.end_of_active_life, ?::{provenance_column()}), individual_enriched.death_date, ?::{provenance_column()}) ELSE individual_enriched.end_of_active_life END::{types['end_of_active_life']} AS end_of_active_life,
             {stages},
             CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN coarse_polity.active_life_polity[1] ELSE individual_enriched.main_polity END::{types['main_polity']} AS main_polity,
             CASE WHEN has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date) THEN map_concat(coalesce(individual_enriched.field_provenance, MAP {{}}), MAP {{{keys}}})
@@ -219,7 +230,7 @@ def rows_sql(connection):
         FROM individual_enriched LEFT JOIN coarse_polity ON coarse_polity.qid = individual_enriched.entity.qid
         WHERE {{inside}}
         """,
-        [dates] * 4 + [polities] * (len(STAGES) + 1),
+        [dates] * 6 + [polities] * (len(STAGES) + 1),
     )
 
 
@@ -230,23 +241,24 @@ def write(connection):
 def show_sample(connection):
     """The rewritten rows of three sampled individuals with all three stages, nothing written."""
     rows, parameters = rows_sql(connection)
-    inside = "individual_enriched.entity.qid IN (SELECT qid FROM coarse_polity WHERE len(pre_active_life_polity) > 0 AND len(post_active_life_polity) > 0 ORDER BY qid LIMIT 3)"
-    query = f"SELECT entity.qid, birth_date.coarse_label, death_date.coarse_label, start_of_active_life.coarse_label, start_of_active_life.year, end_of_active_life.year, list_transform(pre_active_life_polity, m -> m.polity.name), list_transform(active_life_polity, m -> (m.polity.name, m.seshat)), list_transform(post_active_life_polity, m -> m.polity.name) FROM ({rows.replace('{inside}', inside)})"
+    inside = "individual_enriched.entity.qid IN (SELECT qid FROM coarse_polity WHERE len(active_life_polity) > 0 ORDER BY qid LIMIT 3)"
+    query = f"SELECT entity.qid, birth_date.coarse_label, death_date.coarse_label, start_of_active_life.coarse_label, end_of_active_life.coarse_label, start_of_active_life.source, start_of_active_life.year, end_of_active_life.year, list_transform(pre_active_life_polity, m -> m.polity.name), list_transform(active_life_polity, m -> (m.polity.name, m.seshat)), list_transform(post_active_life_polity, m -> m.polity.name) FROM ({rows.replace('{inside}', inside)})"
     for row in connection.execute(query, parameters).fetchall():
         print(row)
 
 
 def check(connection):
-    kept_years, individuals, pre, with_polity, post, estimated_years = connection.execute(f"""
+    kept_years, individuals, pre, with_polity, post, estimated_years, century_lives = connection.execute(f"""
         SELECT count(*) FILTER (WHERE (is_coarse(birth_date) AND birth_date.year IS NOT NULL) OR (is_coarse(death_date) AND death_date.year IS NOT NULL)),
                count(*), count(*) FILTER (WHERE len(pre_active_life_polity) > 0), count(*) FILTER (WHERE len(active_life_polity) > 0),
                count(*) FILTER (WHERE len(post_active_life_polity) > 0),
-               count(*) FILTER (WHERE start_of_active_life.source = 'estimated' AND start_of_active_life.year IS NOT NULL)
+               count(*) FILTER (WHERE start_of_active_life.source = 'estimated' AND start_of_active_life.year IS NOT NULL),
+               count(*) FILTER (WHERE start_of_active_life.source = 'estimated from the century dates')
         FROM individual_enriched WHERE has_coarse_date(individual_enriched.birth_date, individual_enriched.death_date)
     """).fetchone()
     assert kept_years == 0, f"{kept_years:,} coarse dates keep a year"
     assert estimated_years == 0, f"{estimated_years:,} estimated active lives keep a year"
-    print(f"{individuals:,} individuals with a coarse date: {pre:,} with a pre-active, {with_polity:,} with an active, {post:,} with a post-active polity")
+    print(f"{individuals:,} individuals with a coarse date: {pre:,} with a pre-active, {with_polity:,} with an active, {post:,} with a post-active polity, {century_lives:,} with a century-level active life from their century dates")
 
 
 def main():
