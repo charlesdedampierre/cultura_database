@@ -31,10 +31,8 @@ CREATE TEMP TABLE label AS
 SELECT map(list(entity.qid), list(coalesce(entity.label_en, entity.label_non_en))) AS of,
        map(list(entity.qid), list(meta_occupation)) AS meta
 FROM occupation;
-CREATE TEMP MACRO main_meta(metas) AS
-    list_max(list_transform(list_distinct(list_filter(metas, m -> list_contains({COHORT_DOMAINS!r}, m))), m -> {{
-        'count': len(list_filter(metas, other -> other = m)), 'first': -list_position(metas, m), 'meta': m
-    }})).meta;
+CREATE TEMP MACRO cohort_metas(metas) AS list_filter(metas, m -> list_contains({COHORT_DOMAINS!r}, m));
+CREATE TEMP MACRO all_metas(metas) AS list_filter(cohort_metas(metas), (m, position) -> list_position(cohort_metas(metas), m) = position);
 CREATE TEMP MACRO no_seshat(polity) AS 'no Seshat polity associated with Cliopatria id ' || polity.cliopatria_id || coalesce(' (' || polity.name || ')', '');
 CREATE TEMP MACRO stage_entries(matches) AS
     flatten(list_transform(matches, m -> CASE WHEN len(m.seshat) > 0
@@ -98,7 +96,7 @@ SELECT
     year_precision(sample.end_of_active_life.precision) AS active_life_end_precision,
     sample.start_of_active_life.source AS active_life_source,
     array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
-    main_meta(list_transform(individual.occupation, one -> label.meta[one.entity.qid])) AS occupation_domain,
+    nullif(array_to_string(all_metas(list_transform(individual.occupation, one -> label.meta[one.entity.qid])), '{SEPARATOR}'), '') AS occupation_domain,
     individual.is_scientist AS is_scientist,
     individual.is_artist AS is_artist,
     array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.id), '{SEPARATOR}') AS pre_active_life_seshat_ids,
