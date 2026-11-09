@@ -22,6 +22,7 @@ PER_ERA = 200
 COARSE = 40  # individuals whose birth or death is known only to the century or millennium
 
 SEPARATOR = " | "
+ENDED_AT_DEATH = "active life ended at death"  # no post-active stage: the active life runs to the death year
 COHORT_DOMAINS = ["Culture", "Discovery/Science", "Leadership", "Sports/Games"]  # the occupational categories of the cohort analysis (01_notebooks_dates), 'Other' left out
 GENDERS = {"Q6581097": "male", "Q6581072": "female", "Q1052281": "trans woman", "Q2449503": "trans man", "Q48270": "non-binary"}
 
@@ -104,8 +105,10 @@ SELECT
     array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.name), '{SEPARATOR}') AS pre_active_life_seshat_polities,
     array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.id), '{SEPARATOR}') AS active_life_seshat_ids,
     array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.name), '{SEPARATOR}') AS active_life_seshat_polities,
-    array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.id), '{SEPARATOR}') AS post_active_life_seshat_ids,
-    array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.name), '{SEPARATOR}') AS post_active_life_seshat_polities,
+    CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
+         ELSE array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.id), '{SEPARATOR}') END AS post_active_life_seshat_ids,
+    CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
+         ELSE array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.name), '{SEPARATOR}') END AS post_active_life_seshat_polities,
     len(list_distinct(list_transform(individual.work, one -> one.work_qid))) AS number_of_works
 FROM sample
 JOIN individual ON individual.entity.qid = sample.entity.qid
