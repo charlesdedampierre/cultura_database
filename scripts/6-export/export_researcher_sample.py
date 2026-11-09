@@ -94,7 +94,7 @@ SELECT
     shown_year(sample.end_of_active_life) AS active_life_end,
     year_precision(sample.start_of_active_life.precision) AS active_life_start_precision,
     year_precision(sample.end_of_active_life.precision) AS active_life_end_precision,
-    sample.start_of_active_life.source AS active_life_source,
+    CASE sample.start_of_active_life.source WHEN 'dated works and positions' THEN 'dated works and positions (wikidata: P571, P577, P39)' ELSE sample.start_of_active_life.source END AS active_life_source,
     array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
     nullif(array_to_string(all_metas(list_transform(individual.occupation, one -> label.meta[one.entity.qid])), '{SEPARATOR}'), '') AS occupation_domain,
     individual.is_scientist AS is_scientist,
