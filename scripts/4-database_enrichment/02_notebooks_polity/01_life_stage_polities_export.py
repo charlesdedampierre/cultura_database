@@ -6,7 +6,8 @@ The stages are the pre-active life (birth to start of active life), the active l
 (end of active life to death). An individual with no active life gets no stage. An individual with no death year
 (most are alive) gets no post-active stage; their active life is ongoing when its end is in or after PRESENT_YEAR,
 written with an empty end_year and matched to the polities up to PRESENT_YEAR. Then field
-priorities, URL then coordinates, smallest Cliopatria polity, as in 01_life_stage_polities.ipynb."""
+priorities, URL then coordinates, smallest Cliopatria polity, as in 01_life_stage_polities.ipynb. Every polity that held a location
+during the stage is kept (a stage across a regime change gets both regimes), ranked by years of overlap."""
 import json
 import sys
 import time
@@ -186,8 +187,8 @@ class Locations:
             if located:
                 polities = {}
                 for _, _, found in located:
-                    polity = max(found, key=found.get)
-                    polities[polity] = max(found[polity], polities.get(polity, 0))
+                    for polity, years in found.items():
+                        polities[polity] = max(years, polities.get(polity, 0))
                 ranked = sorted(polities, key=polities.get, reverse=True)
                 return {
                     'polities': [polity.strip('()') for polity in ranked], 'polity_years': [polities[polity] for polity in ranked],
