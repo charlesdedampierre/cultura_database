@@ -40,6 +40,8 @@ CREATE TEMP MACRO stage_entries(matches) AS
         ELSE [{{'id': 'no_seshat_polity', 'name': 'no Seshat polity associated with Cliopatria id ' || m.polity.cliopatria_id}}] END));
 CREATE TEMP MACRO stage_polities(matches) AS
     list_filter(stage_entries(matches), (one, position) -> list_position(stage_entries(matches), one) = position);
+CREATE TEMP MACRO cohort_metas(metas) AS list_filter(metas, m -> list_contains({COHORT_DOMAINS!r}, m));
+CREATE TEMP MACRO all_metas(metas) AS list_filter(cohort_metas(metas), (m, position) -> list_position(cohort_metas(metas), m) = position);
 CREATE TEMP MACRO year_precision(stated) AS CASE WHEN stated IN ('day', 'month') THEN 'year' ELSE stated END;
 CREATE TEMP MACRO ordinal(n) AS n || CASE WHEN n % 100 IN (11, 12, 13) THEN 'th' WHEN n % 10 = 1 THEN 'st' WHEN n % 10 = 2 THEN 'nd' WHEN n % 10 = 3 THEN 'rd' ELSE 'th' END;
 CREATE TEMP MACRO era_suffix(year) AS CASE WHEN year < 0 THEN ' BC' ELSE ' AC' END;
@@ -97,6 +99,7 @@ SELECT
     sample.start_of_active_life.source AS active_life_source,
     array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
     main_meta(list_transform(individual.occupation, one -> label.meta[one.entity.qid])) AS occupation_domain,
+    nullif(array_to_string(all_metas(list_transform(individual.occupation, one -> label.meta[one.entity.qid])), '{SEPARATOR}'), '') AS occupation_domains,
     individual.is_scientist AS is_scientist,
     individual.is_artist AS is_artist,
     array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.id), '{SEPARATOR}') AS pre_active_life_seshat_ids,
