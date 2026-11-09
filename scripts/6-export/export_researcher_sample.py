@@ -24,6 +24,7 @@ COARSE = 40  # individuals whose birth or death is known only to the century or 
 SEPARATOR = " | "
 ENDED_AT_DEATH = "active life ended at death"  # no post-active stage: the active life runs to the death year
 COHORT_DOMAINS = ["Culture", "Discovery/Science", "Leadership", "Sports/Games"]  # the occupational categories of the cohort analysis (01_notebooks_dates), 'Other' left out
+POLITY_FIELDS = {'birthplace': 'place of birth (P19)', 'deathplace': 'place of death (P20)', 'country_of_citizenship': 'country of citizenship (P27)', 'work_location': 'work location (P937)', 'residence': 'residence (P551)', 'employer': 'employer (P108)', 'educated_at': 'educated at (P69)', 'position_held': 'position held (P39)'}  # the Wikidata field each life-stage polity was located from (PolityMatch.assignation_method)
 GENDERS = {"Q6581097": "male", "Q6581072": "female", "Q1052281": "trans woman", "Q2449503": "trans man", "Q48270": "non-binary"}
 
 LABELS = f"""
@@ -49,6 +50,23 @@ CREATE TEMP MACRO shown_year(d) AS CASE
     ELSE CAST(d.year AS VARCHAR)
 END;
 CREATE TEMP MACRO gender(qid) AS coalesce(MAP {GENDERS!r}[qid], qid);
+CREATE TEMP MACRO match_source(method, certainty) AS
+    MAP {POLITY_FIELDS!r}[regexp_replace(method, '^(url|polygon)_of_', '')]
+    || CASE WHEN method LIKE 'url_of_%' THEN ', Wikipedia article of the place' ELSE ', place coordinates' END || ', ' || certainty;
+CREATE TEMP MACRO stage_sources(matches) AS
+    nullif(array_to_string(list_distinct(list_transform(matches, m -> match_source(m.assignation_method, m.certainty))), '{SEPARATOR}'), '');
+CREATE TEMP MACRO born_in(century) AS CASE WHEN century < 0 THEN abs(century) || '–' || abs(century + 99) || ' BC' ELSE century || '–' || (century + 99) END;
+CREATE TEMP MACRO cohort_label(cohort) AS
+    'cohort: ' || coalesce(cohort.occupation, 'all occupations') || ', born ' || born_in(cohort.century) || ', ' || format('{{:,}}', cohort.individuals) || ' individuals';
+CREATE TEMP MACRO date_source(d, wikidata) AS CASE d.source
+    WHEN 'wikidata' THEN wikidata
+    WHEN 'estimated' THEN 'estimated (' || cohort_label(d.cohort) || ', mean age at death ' || printf('%.1f', d.cohort.age) || ')'
+    ELSE d.source END;
+CREATE TEMP MACRO active_life_source(start_of_life, end_of_life) AS CASE start_of_life.source
+    WHEN 'dated works and positions' THEN 'dated works and positions (wikidata: P571, P577, P39)'
+    WHEN 'estimated' THEN 'estimated (' || cohort_label(start_of_life.cohort) || ', median age at start ' || printf('%.1f', start_of_life.cohort.age)
+                          || ', at end ' || printf('%.1f', end_of_life.cohort.age) || ')'
+    ELSE start_of_life.source END;
 """
 
 SAMPLE = f"""
@@ -86,27 +104,31 @@ SELECT
     gender(individual.sex_or_gender) AS sex_or_gender,
     shown_year(sample.birth_date) AS birth_year,
     year_precision(sample.birth_date.precision) AS birth_precision,
-    CASE sample.birth_date.source WHEN 'wikidata' THEN 'wikidata (P569, date of birth)' ELSE sample.birth_date.source END AS birth_source,
+    date_source(sample.birth_date, 'wikidata (P569, date of birth)') AS birth_source,
     shown_year(sample.death_date) AS death_year,
     year_precision(sample.death_date.precision) AS death_precision,
-    CASE sample.death_date.source WHEN 'wikidata' THEN 'wikidata (P570, date of death)' ELSE sample.death_date.source END AS death_source,
+    date_source(sample.death_date, 'wikidata (P570, date of death)') AS death_source,
     shown_year(sample.start_of_active_life) AS active_life_start,
     shown_year(sample.end_of_active_life) AS active_life_end,
     year_precision(sample.start_of_active_life.precision) AS active_life_start_precision,
     year_precision(sample.end_of_active_life.precision) AS active_life_end_precision,
-    CASE sample.start_of_active_life.source WHEN 'dated works and positions' THEN 'dated works and positions (wikidata: P571, P577, P39)' ELSE sample.start_of_active_life.source END AS active_life_source,
+    active_life_source(sample.start_of_active_life, sample.end_of_active_life) AS active_life_source,
     array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
     nullif(array_to_string(all_metas(list_transform(individual.occupation, one -> label.meta[one.entity.qid])), '{SEPARATOR}'), '') AS occupation_domain,
     individual.is_scientist AS is_scientist,
     individual.is_artist AS is_artist,
     array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.id), '{SEPARATOR}') AS pre_active_life_seshat_ids,
     array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.name), '{SEPARATOR}') AS pre_active_life_seshat_polities,
+    stage_sources(sample.pre_active_life_polity) AS pre_active_life_polity_source,
     array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.id), '{SEPARATOR}') AS active_life_seshat_ids,
     array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.name), '{SEPARATOR}') AS active_life_seshat_polities,
+    stage_sources(sample.active_life_polity) AS active_life_polity_source,
     CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
          ELSE array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.id), '{SEPARATOR}') END AS post_active_life_seshat_ids,
     CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
          ELSE array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.name), '{SEPARATOR}') END AS post_active_life_seshat_polities,
+    CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
+         ELSE stage_sources(sample.post_active_life_polity) END AS post_active_life_polity_source,
     len(list_distinct(list_transform(individual.work, one -> one.work_qid))) AS number_of_works
 FROM sample
 JOIN individual ON individual.entity.qid = sample.entity.qid
