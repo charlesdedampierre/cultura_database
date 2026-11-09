@@ -37,7 +37,7 @@ CREATE TEMP MACRO main_meta(metas) AS
 CREATE TEMP MACRO stage_entries(matches) AS
     flatten(list_transform(matches, m -> CASE WHEN len(m.seshat) > 0
         THEN list_transform(m.seshat, one -> {{'id': one.id, 'name': coalesce(one.long_name, 'no Seshat name')}})
-        ELSE [{{'id': 'no_seshat_polity', 'name': 'no Seshat polity associated with Cliopatria id ' || m.polity.cliopatria_id}}] END));
+        ELSE [{{'id': 'no_seshat_polity', 'name': 'no Seshat polity associated with Cliopatria id ' || m.polity.cliopatria_id || ' (' || m.polity.name || ')'}}] END));
 CREATE TEMP MACRO stage_polities(matches) AS
     list_filter(stage_entries(matches), (one, position) -> list_position(stage_entries(matches), one) = position);
 CREATE TEMP MACRO year_precision(stated) AS CASE WHEN stated IN ('day', 'month') THEN 'year' ELSE stated END;
