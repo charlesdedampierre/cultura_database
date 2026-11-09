@@ -57,15 +57,15 @@ CREATE TEMP MACRO stage_sources(matches) AS
     nullif(array_to_string(list_distinct(list_transform(matches, m -> match_source(m.assignation_method, m.certainty))), '{SEPARATOR}'), '');
 CREATE TEMP MACRO born_in(century) AS CASE WHEN century < 0 THEN abs(century) || '–' || abs(century + 99) || ' BC' ELSE century || '–' || (century + 99) END;
 CREATE TEMP MACRO cohort_label(cohort) AS
-    'cohort: ' || coalesce(cohort.occupation, 'all occupations') || ', born ' || born_in(cohort.century) || ', ' || format('{{:,}}', cohort.individuals) || ' individuals';
+    'cohort: ' || coalesce(cohort.occupation, 'all occupations') || ', born ' || born_in(cohort.century);
+CREATE TEMP MACRO age(years) AS printf('%g', round(years, 1));
 CREATE TEMP MACRO date_source(d, wikidata) AS CASE d.source
     WHEN 'wikidata' THEN wikidata
-    WHEN 'estimated' THEN 'estimated (' || cohort_label(d.cohort) || ', mean age at death ' || printf('%.1f', d.cohort.age) || ')'
+    WHEN 'estimated' THEN 'estimated (' || cohort_label(d.cohort) || ', mean age at death ' || age(d.cohort.age) || ')'
     ELSE d.source END;
 CREATE TEMP MACRO active_life_source(start_of_life, end_of_life) AS CASE start_of_life.source
     WHEN 'dated works and positions' THEN 'dated works and positions (wikidata: P571, P577, P39)'
-    WHEN 'estimated' THEN 'estimated (' || cohort_label(start_of_life.cohort) || ', median age at start ' || printf('%.1f', start_of_life.cohort.age)
-                          || ', at end ' || printf('%.1f', end_of_life.cohort.age) || ')'
+    WHEN 'estimated' THEN 'estimated (' || cohort_label(start_of_life.cohort) || ', ages ' || age(start_of_life.cohort.age) || '–' || age(end_of_life.cohort.age) || ')'
     ELSE start_of_life.source END;
 """
 
