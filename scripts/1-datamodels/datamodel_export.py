@@ -3,8 +3,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 YearPrecision = Literal["year", "decade", "century", "millennium"]
-BirthSource = Literal["wikidata (P569)", "estimated"]
-DeathSource = Literal["wikidata (P570)", "estimated"]
+BirthSource = Literal["wikidata (P569, date of birth)", "estimated"]
+DeathSource = Literal["wikidata (P570, date of death)", "estimated"]
 SEPARATOR_NOTE = "separated by ' | '"
 
 
@@ -14,10 +14,10 @@ class ExportedIndividualCSV(BaseModel):
     sex_or_gender: str | None = Field(None, description="'male', 'female', 'trans woman', 'trans man' or 'non-binary', else the Wikidata qid of the value. Individual.sex_or_gender.")
     birth_year: str = Field(..., description="Year of birth, negative before the common era, '-450'; for a date known only to the century or millennium, its label, '20th AC', '4th BC', '2nd millennium AC'. IndividualEnriched.birth_date.year (else coarse_label): Wikidata, else estimated from the cohort's age at death.")
     birth_precision: YearPrecision | None = Field(None, description="Precision of birth_year; a date stated to the day or month counts as 'year'. IndividualEnriched.birth_date.precision.")
-    birth_source: BirthSource | None = Field(None, description="'wikidata (P569)' when stated in Wikidata's date of birth, 'estimated' when imputed from the cohort. IndividualEnriched.birth_date.source.")
+    birth_source: BirthSource | None = Field(None, description="'wikidata (P569, date of birth)' when stated in Wikidata's date of birth, 'estimated' when imputed from the cohort. IndividualEnriched.birth_date.source.")
     death_year: str = Field(..., description="Year of death, written as birth_year is. IndividualEnriched.death_date.year (else coarse_label).")
     death_precision: YearPrecision | None = Field(None, description="Precision of death_year, as birth_precision. IndividualEnriched.death_date.precision.")
-    death_source: DeathSource | None = Field(None, description="'wikidata (P570)' when stated in Wikidata's date of death, 'estimated' when imputed from the cohort. IndividualEnriched.death_date.source.")
+    death_source: DeathSource | None = Field(None, description="'wikidata (P570, date of death)' when stated in Wikidata's date of death, 'estimated' when imputed from the cohort. IndividualEnriched.death_date.source.")
     active_life_start: str | None = Field(None, description="First year of the active life, written as birth_year is ('20th AC' for an active life estimated for an individual with a century-level date); empty only for an individual with a century- or millennium-level date and no active life. IndividualEnriched.start_of_active_life.year (else coarse_label).")
     active_life_end: str | None = Field(None, description="Last year of the active life, written as active_life_start. IndividualEnriched.end_of_active_life.year (else coarse_label).")
     active_life_start_precision: YearPrecision | None = Field(None, description="Precision of active_life_start, as birth_precision. IndividualEnriched.start_of_active_life.precision.")
