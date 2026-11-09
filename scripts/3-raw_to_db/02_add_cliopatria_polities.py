@@ -77,7 +77,7 @@ def a_polity(cliopatria_id, key, spans, existence):
             "sitelink": read_from("PolityCliopatria.wikipedia"),
             "territories": read_from(
                 "PolityCliopatria.from_year", "PolityCliopatria.to_year",
-                "PolityCliopatria.area", "PolityCliopatria.geometry",
+                "PolityCliopatria.area", "PolityCliopatria.geometry", "PolityCliopatria.seshat_id",
             ),
         },
     )

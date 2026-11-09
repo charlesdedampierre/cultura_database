@@ -1,18 +1,8 @@
-"""Give each Cliopatria territory its Seshat id, and each polity match of an individual's life stages (pre-active, active, post-active) the Seshat ids of the territories that stage overlaps."""
+"""Give each polity match of an individual's life stages (pre-active, active, post-active) the Seshat ids of the territories that stage overlaps.
+Each territory already carries the SeshatID of its Cliopatria feature, read from the raw file when the polity table is built (raw_to_duckdb_models.territory)."""
 
-from tqdm import tqdm
-
-from common import D, DATABASE, ROOT, SCRATCH, Enrichment, as_json, open_database, provenance_column, rewrite_individual_enriched, stage
+from common import D, DATABASE, ROOT, SCRATCH, Enrichment, as_json, open_database, provenance_column, rewrite_individual_enriched
 from pydantic_to_duckdb_schema import columns_of
-
-import json_to_raw_models
-
-TERRITORY = Enrichment(
-    reads=("PolityCliopatria.seshat_id", "PolityCliopatria.name", "PolityCliopatria.wikidata", "PolityCliopatria.from_year", "PolityCliopatria.to_year", "PolityCliopatria.area"),
-    writes=("Polity.territories.seshat_id",),
-    rule="The SeshatID of the Cliopatria feature the territory was built from, matched on the polity's name without parentheses, whether it is a meta polity (parentheses in Cliopatria, child_polities here), its Wikidata item, the years and the area, which find exactly one feature for each of the 13 755 territories.",
-    answers=DATABASE,
-)
 
 PRESENT_YEAR = 2026  # end of an ongoing active life, as in 02_notebooks_polity/01_life_stage_polities_export.py
 STAGES = ("pre_active_life_polity", "active_life_polity", "post_active_life_polity")
@@ -30,85 +20,6 @@ INDIVIDUAL = Enrichment(
             "IndividualEnriched.active_life_ongoing", *(f"IndividualEnriched.{column}" for column in STAGES)),
     answers=DATABASE,
 )
-
-
-def features():
-    """One row per Cliopatria feature: the key a territory is found by — its polity's name without parentheses, whether it is a meta polity, its Wikidata item, years and area — and its SeshatID."""
-    for span in tqdm(json_to_raw_models.polities(), desc="cliopatria features", unit=" features"):
-        name = (span.name or "").strip()
-        if not name:
-            continue
-        is_meta = name.startswith("(") and name.endswith(")")
-        yield {
-            "name": name[1:-1] if is_meta else name,
-            "is_meta": is_meta,
-            "wikidata": span.wikidata,
-            "start_year": span.from_year,
-            "end_year": span.to_year,
-            "area": span.area,
-            "seshat_id": span.seshat_id,
-        }
-
-
-def match_territories(connection):
-    """Each territory's SeshatID, listed per polity in the order of its territories; stops unless every territory finds exactly one feature."""
-    stage(connection, "feature", {
-        "name": "VARCHAR", "is_meta": "BOOLEAN", "wikidata": "VARCHAR",
-        "start_year": "BIGINT", "end_year": "BIGINT", "area": "DOUBLE", "seshat_id": "VARCHAR",
-    }, features())
-    connection.execute(
-        """
-        CREATE OR REPLACE TEMP TABLE territory_feature AS
-        WITH territory AS (
-            SELECT polity.cliopatria_id, polity.name, len(polity.child_polities) > 0 AS is_meta, polity.entity.qid AS wikidata,
-                   positions.position, polity.territories[positions.position] AS territory
-            FROM polity, unnest(generate_series(1, len(polity.territories))) AS positions(position)
-        )
-        SELECT territory.cliopatria_id, territory.position, count(feature.name) AS found, any_value(feature.seshat_id) AS seshat_id
-        FROM territory LEFT JOIN feature
-          ON feature.name = territory.name
-         AND feature.is_meta = territory.is_meta
-         AND feature.wikidata IS NOT DISTINCT FROM territory.wikidata
-         AND feature.start_year = territory.territory.start_year
-         AND feature.end_year = territory.territory.end_year
-         AND feature.area = territory.territory.area
-        GROUP BY ALL
-        """
-    )
-    territories, unmatched, ambiguous = connection.execute(
-        "SELECT count(*), count(*) FILTER (WHERE found = 0), count(*) FILTER (WHERE found > 1) FROM territory_feature"
-    ).fetchone()
-    if unmatched or ambiguous:
-        raise SystemExit(f"of {territories:,} territories, {unmatched:,} match no Cliopatria feature and {ambiguous:,} more than one")
-    connection.execute(
-        """
-        CREATE OR REPLACE TEMP TABLE seshat_by_polity AS
-        SELECT cliopatria_id, list(seshat_id ORDER BY position) AS seshat_ids
-        FROM territory_feature GROUP BY cliopatria_id
-        """
-    )
-
-
-def write_territories(connection):
-    provenance = as_json(TERRITORY.provenance())
-    territories_type = columns_of(D.Polity)["territories"]
-    connection.execute(
-        f"""
-        CREATE OR REPLACE TABLE polity AS
-        SELECT polity.* REPLACE (
-            CAST(list_transform(polity.territories, (territory, position) -> struct_update(territory,
-                field_provenance := CASE
-                    WHEN seshat_by_polity.seshat_ids[position] IS NULL THEN territory.field_provenance
-                    ELSE map_concat(territory.field_provenance, MAP {{'seshat_id': ?::{provenance_column()}}})
-                END,
-                seshat_id := seshat_by_polity.seshat_ids[position]
-            )) AS {territories_type}) AS territories
-        )
-        FROM polity LEFT JOIN seshat_by_polity ON polity.cliopatria_id = seshat_by_polity.cliopatria_id
-        ORDER BY polity.cliopatria_id
-        """,
-        [provenance],
-    )
 
 
 def stage_windows(connection):
@@ -223,15 +134,12 @@ def write_individuals(connection):
 
 
 def main():
-    TERRITORY.announce()
     INDIVIDUAL.announce()
     connection = open_database()
     SCRATCH.mkdir(parents=True, exist_ok=True)
     connection.execute(f"SET memory_limit='8GB'; SET threads=2; SET preserve_insertion_order=false; SET temp_directory='{SCRATCH}'")
 
-    match_territories(connection)
     connection.begin()
-    write_territories(connection)
     territories, with_id, distinct = connection.execute(
         "SELECT count(*), count(territory.seshat_id), count(DISTINCT territory.seshat_id) FROM polity, unnest(territories) AS t(territory)"
     ).fetchone()
