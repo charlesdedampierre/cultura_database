@@ -1,6 +1,6 @@
 """Export a small sample of the simplified researcher dataset: individuals with a birth, a death, an active life, an occupation
 and at least one Seshat-coded polity during the active life. One flat CSV:
-- individuals.csv: one row per individual (dates, active life, occupations, main Seshat polity and the Seshat polities of each life stage).
+- individuals.csv: one row per individual (dates, active life, occupations and the polities of each life stage: Seshat polities, else the Cliopatria polity).
 The sample is stratified by era of the start of the active life so that pre-modern individuals are visible, plus a stratum of individuals with century- or millennium-level dates:
 their dates are century labels ('20th AC'), and their active life may be unknown (their polities then cover the century window of enrichment step 10)."""
 
@@ -34,24 +34,12 @@ CREATE TEMP MACRO main_meta(metas) AS
     list_max(list_transform(list_distinct(list_filter(metas, m -> list_contains({COHORT_DOMAINS!r}, m))), m -> {{
         'count': len(list_filter(metas, other -> other = m)), 'first': -list_position(metas, m), 'meta': m
     }})).meta;
-CREATE TEMP MACRO main_seshat_match(matches) AS
-    list_max(list_transform(list_filter(matches, m -> len(m.seshat) > 0), m -> {{'years': m.years_spent_in_polity, 'match': m}})).match;
-CREATE TEMP TABLE seshat_span AS
-SELECT map(list(cliopatria_id || '/' || seshat_id), list({{'start_year': start_year, 'end_year': end_year}})) AS of
-FROM (
-    SELECT polity.cliopatria_id, territory.seshat_id, min(territory.start_year) AS start_year, max(territory.end_year) AS end_year
-    FROM polity, unnest(polity.territories) AS t(territory)
-    WHERE territory.seshat_id IS NOT NULL
-    GROUP BY ALL
-);
-CREATE TEMP MACRO main_seshat(match, active_start, active_end, span) AS
-    list_max(list_transform(match.seshat, one -> {{
-        'years': least(span[match.polity.cliopatria_id || '/' || one.id].end_year, active_end)
-               - greatest(span[match.polity.cliopatria_id || '/' || one.id].start_year, active_start),
-        'polity': one
-    }})).polity;
-CREATE TEMP MACRO stage_seshat(matches) AS
-    list_filter(flatten(list_transform(matches, m -> m.seshat)), (one, position) -> list_position(flatten(list_transform(matches, m -> m.seshat)), one) = position);
+CREATE TEMP MACRO stage_entries(matches) AS
+    flatten(list_transform(matches, m -> CASE WHEN len(m.seshat) > 0
+        THEN list_transform(m.seshat, one -> {{'id': one.id, 'name': coalesce(one.long_name, 'no Seshat name')}})
+        ELSE [{{'id': 'cliopatria_' || m.polity.cliopatria_id, 'name': m.polity.name}}] END));
+CREATE TEMP MACRO stage_polities(matches) AS
+    list_filter(stage_entries(matches), (one, position) -> list_position(stage_entries(matches), one) = position);
 CREATE TEMP MACRO year_precision(stated) AS CASE WHEN stated IN ('day', 'month') THEN 'year' ELSE stated END;
 CREATE TEMP MACRO ordinal(n) AS n || CASE WHEN n % 100 IN (11, 12, 13) THEN 'th' WHEN n % 10 = 1 THEN 'st' WHEN n % 10 = 2 THEN 'nd' WHEN n % 10 = 3 THEN 'rd' ELSE 'th' END;
 CREATE TEMP MACRO era_suffix(year) AS CASE WHEN year < 0 THEN ' BC' ELSE ' AC' END;
@@ -111,22 +99,16 @@ SELECT
     main_meta(list_transform(individual.occupation, one -> label.meta[one.entity.qid])) AS occupation_domain,
     individual.is_scientist AS is_scientist,
     individual.is_artist AS is_artist,
-    main.polity.id AS main_seshat_polity_id,
-    main.polity.long_name AS main_seshat_polity,
-    array_to_string(list_transform(stage_seshat(sample.pre_active_life_polity), one -> one.id), '{SEPARATOR}') AS pre_active_life_seshat_ids,
-    array_to_string(list_transform(stage_seshat(sample.pre_active_life_polity), one -> coalesce(one.long_name, 'no Seshat name')), '{SEPARATOR}') AS pre_active_life_seshat_polities,
-    array_to_string(list_transform(stage_seshat(sample.active_life_polity), one -> one.id), '{SEPARATOR}') AS active_life_seshat_ids,
-    array_to_string(list_transform(stage_seshat(sample.active_life_polity), one -> coalesce(one.long_name, 'no Seshat name')), '{SEPARATOR}') AS active_life_seshat_polities,
-    array_to_string(list_transform(stage_seshat(sample.post_active_life_polity), one -> one.id), '{SEPARATOR}') AS post_active_life_seshat_ids,
-    array_to_string(list_transform(stage_seshat(sample.post_active_life_polity), one -> coalesce(one.long_name, 'no Seshat name')), '{SEPARATOR}') AS post_active_life_seshat_polities,
+    array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.id), '{SEPARATOR}') AS pre_active_life_polity_ids,
+    array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.name), '{SEPARATOR}') AS pre_active_life_polities,
+    array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.id), '{SEPARATOR}') AS active_life_polity_ids,
+    array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.name), '{SEPARATOR}') AS active_life_polities,
+    array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.id), '{SEPARATOR}') AS post_active_life_polity_ids,
+    array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.name), '{SEPARATOR}') AS post_active_life_polities,
     len(list_distinct(list_transform(individual.work, one -> one.work_qid))) AS number_of_works
 FROM sample
 JOIN individual ON individual.entity.qid = sample.entity.qid
 CROSS JOIN label
-CROSS JOIN seshat_span
-CROSS JOIN LATERAL (
-    SELECT main_seshat(main_seshat_match(sample.active_life_polity), coalesce(sample.start_of_active_life.year, sample.birth_date.year, -100000), coalesce(sample.end_of_active_life.year, sample.death_date.year, 100000), seshat_span.of) AS polity
-) AS main
 WHERE len(list_filter(individual.occupation, one -> label.of[one.entity.qid] IS NOT NULL)) > 0
 QUALIFY row_number() OVER (PARTITION BY sample.era ORDER BY hash(sample.entity.qid)) <= CASE WHEN sample.era = 'coarse dates' THEN {COARSE} ELSE {PER_ERA} END
 ORDER BY coalesce(sample.start_of_active_life.year, sample.birth_date.year, sample.death_date.year)
