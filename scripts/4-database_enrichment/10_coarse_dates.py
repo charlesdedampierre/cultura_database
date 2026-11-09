@@ -175,7 +175,6 @@ class Polities:
             polity={"cliopatria_id": polity["cliopatria_id"], "name": name, "world": polity["world"], "meta_polities": polity["meta_polities"]},
             years_spent_in_polity=years,
             assignation_method=f"{METHOD_NAMES[located['method']]}_of_{FIELD_NAMES[located['wikidata_field']]}",
-            certainty=located["certainty"],
             location=located["location"],
             seshat=seshat,
         )

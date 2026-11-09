@@ -50,11 +50,11 @@ CREATE TEMP MACRO shown_year(d) AS CASE
     ELSE CAST(d.year AS VARCHAR)
 END;
 CREATE TEMP MACRO gender(qid) AS coalesce(MAP {GENDERS!r}[qid], qid);
-CREATE TEMP MACRO match_source(method, certainty) AS
+CREATE TEMP MACRO match_source(method) AS
     MAP {POLITY_FIELDS!r}[regexp_replace(method, '^(url|polygon)_of_', '')]
-    || CASE WHEN method LIKE 'url_of_%' THEN ', Wikipedia article of the place' ELSE ', place coordinates' END || ', ' || certainty;
+    || CASE WHEN method LIKE 'url_of_%' THEN ', Wikipedia article of the place' ELSE ', place coordinates' END;
 CREATE TEMP MACRO stage_sources(matches) AS
-    nullif(array_to_string(list_distinct(list_transform(matches, m -> match_source(m.assignation_method, m.certainty))), '{SEPARATOR}'), '');
+    nullif(array_to_string(list_distinct(list_transform(matches, m -> match_source(m.assignation_method))), '{SEPARATOR}'), '');
 CREATE TEMP MACRO born_in(century) AS CASE WHEN century < 0 THEN abs(century) || '–' || abs(century + 99) || ' BC' ELSE century || '–' || (century + 99) END;
 CREATE TEMP MACRO cohort_label(cohort) AS
     'cohort: ' || coalesce(cohort.occupation, 'all occupations') || ', born ' || born_in(cohort.century);

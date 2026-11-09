@@ -75,7 +75,7 @@ def build_matches(connection):
     """One row per individual with the PolityMatch list of each stage, longest overlap first."""
     connection.execute(f"""
         CREATE OR REPLACE TEMP TABLE stage_polity AS
-        SELECT qid, stage, start_year, end_year, certainty, location,
+        SELECT qid, stage, start_year, end_year, location,
                {sql_map(METHOD_NAMES)}[method] || '_of_' || {sql_map(FIELD_NAMES)}[wikidata_field] AS assignation_method,
                coalesce({sql_map(NAME_FIXES)}[polity_name], polity_name) AS polity_name,
                years_spent_in_polity, rank
@@ -126,7 +126,6 @@ def build_bucket(connection, bucket):
                    }},
                    'years_spent_in_polity': years_spent_in_polity,
                    'assignation_method': assignation_method,
-                   'certainty': certainty,
                    'location': location,
                    'seshat': []
                }} ORDER BY years_spent_in_polity DESC, rank) AS {MATCH_LIST_TYPE}) AS matches

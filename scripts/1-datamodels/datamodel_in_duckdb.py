@@ -142,7 +142,6 @@ class PolityMatch(BaseModel):
         "url_of_birthplace", "url_of_deathplace", "url_of_country_of_citizenship", "url_of_work_location",
         "url_of_residence", "url_of_employer", "url_of_educated_at", "url_of_position_held",
     ] | None = Field(None, description="Which Wikidata location field and which test made the match: 'polygon' when the place's coordinates fall inside the Cliopatria territory, 'url' when the place's Wikipedia article is the polity's own.")
-    certainty: Literal["certain", "unsure"] | None = Field(None, description="'certain' when the location field is a direct witness of the stage (birthplace or educated at for the pre-active life, work location, employer, position held or residence for the active life, deathplace for the post-active life), 'unsure' when it is a fallback field.")
     location: str | None = Field(None, description="Label of the place, institution or country the match was read from.")
     seshat: tuple[Seshat, ...] = Field((), description="Seshat polities of the polity's territories overlapping the stage, oldest first.")
 

@@ -35,9 +35,9 @@ SOURCES = {
 }
 STAGES = ['pre_active', 'active', 'post_active']
 RULES = {
-    'pre_active': [('place_of_birth', 'certain'), ('educated_at', 'certain'), ('residence', 'unsure'), ('country_of_citizenship', 'unsure'), ('work_location', 'unsure'), ('employer', 'unsure'), ('position_held', 'unsure'), ('place_of_death', 'unsure')],
-    'active': [('work_location', 'certain'), ('employer', 'certain'), ('position_held', 'certain'), ('residence', 'certain'), ('country_of_citizenship', 'unsure'), ('place_of_death', 'unsure'), ('educated_at', 'unsure'), ('place_of_birth', 'unsure')],
-    'post_active': [('place_of_death', 'certain'), ('residence', 'unsure'), ('work_location', 'unsure'), ('position_held', 'unsure'), ('employer', 'unsure'), ('country_of_citizenship', 'unsure'), ('educated_at', 'unsure'), ('place_of_birth', 'unsure')],
+    'pre_active': ['place_of_birth', 'educated_at', 'residence', 'country_of_citizenship', 'work_location', 'employer', 'position_held', 'place_of_death'],
+    'active': ['work_location', 'employer', 'position_held', 'residence', 'country_of_citizenship', 'place_of_death', 'educated_at', 'place_of_birth'],
+    'post_active': ['place_of_death', 'residence', 'work_location', 'position_held', 'employer', 'country_of_citizenship', 'educated_at', 'place_of_birth'],
 }
 METHODS = ['URL', 'coordinates']
 
@@ -182,7 +182,7 @@ class Locations:
         return None
 
     def assign(self, person, stage, start, end):
-        for source, certainty in RULES[stage]:
+        for source in RULES[stage]:
             located = [hit for qid in person[source] if (hit := self.locate(source, qid, start, end))]
             if located:
                 polities = {}
@@ -192,11 +192,11 @@ class Locations:
                 ranked = sorted(polities, key=polities.get, reverse=True)
                 return {
                     'polities': [polity.strip('()') for polity in ranked], 'polity_years': [polities[polity] for polity in ranked],
-                    'wikidata_field': SOURCES[source], 'certainty': certainty,
+                    'wikidata_field': SOURCES[source],
                     'method': 'URL' if any(method == 'URL' for method, _, _ in located) else 'coordinates',
                     'location': '; '.join(dict.fromkeys(self.label.get(spot, spot) for _, spot, _ in located)),
                 }
-        return {'polities': [], 'polity_years': [], 'wikidata_field': None, 'certainty': 'none', 'method': None, 'location': None}
+        return {'polities': [], 'polity_years': [], 'wikidata_field': None, 'method': None, 'location': None}
 
 
 def main():
