@@ -134,8 +134,8 @@ keyed by `entity.qid`. Every table is described in [docs/database.md](docs/datab
 
 ## License
 
-Data derived from [Wikidata](https://www.wikidata.org/) under
-[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+The code is released under the [MIT License](LICENSE). The data, derived from [Wikidata](https://www.wikidata.org/),
+is released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 
 ## Contact
 
