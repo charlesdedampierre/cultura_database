@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 ## Quick start
 
-Download `cultura_database_V4.csv` from [OSF](https://doi.org/10.17605/OSF.IO/F3A47) and scan it with [Polars](https://pola.rs):
+Download `cultura_database_V4.csv.zip` (395 MB, 3.5 GB unzipped) from [OSF](https://doi.org/10.17605/OSF.IO/F3A47), unzip it, and scan it with [Polars](https://pola.rs):
 only the rows a query keeps are loaded, so the 13 million rows never have to fit in memory.
 
 ```python
