@@ -62,3 +62,6 @@ _wt/
 
 # Third-party packages (Cliopatria repo, ~430 MB with map images)
 External/
+
+# Superseded code and notebooks, kept locally only
+_legacy/

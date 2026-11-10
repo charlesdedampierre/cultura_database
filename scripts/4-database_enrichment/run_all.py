@@ -1,6 +1,6 @@
 """Copy the non-enriched database to CULTURA_DB (cultura_database_V4) and run the enrichment steps on the copy, in order, so the non-enriched one is never touched.
 
-The former date and polity steps (now in _legacy/) are left out: 01_notebooks_dates and 02_notebooks_polity replace them.
+The former date and polity steps are retired: 01_notebooks_dates and 02_notebooks_polity replace them.
 Order matters: 06 reads the is_western of 05; 08 reads the polity split of 07; the life-stage polities of
 02_notebooks_polity are matched to the polity ids 07 writes, so they are ingested after 07 and before 08;
 10 rewrites the dates and polities of the individuals with century- or millennium-level dates; 11 comes last: it removes the
