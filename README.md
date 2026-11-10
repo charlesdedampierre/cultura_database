@@ -7,11 +7,11 @@ geospatial dataset and the [Seshat](https://seshat-db.com) Global History Databa
 
 ## The data
 
-The data is available on OSF, [doi:10.17605/OSF.IO/F3A47](https://doi.org/10.17605/OSF.IO/F3A47), in two forms:
+The data is available on Zenodo, [doi:10.5281/zenodo.24110595](https://doi.org/10.5281/zenodo.24110595), in two forms:
 
 | File | Content | Documentation |
 | --- | --- | --- |
-| `cultura_database_V4.csv` | The simplified database: one row per individual, 28 columns (dates and their sources, active life, occupations, Seshat polities of each life stage) | [docs/csv.md](docs/csv.md) |
+| `cultura_database_V4.csv.zip` | The simplified database: one row per individual, 28 columns (dates and their sources, active life, occupations, Seshat polities of each life stage) | [docs/csv.md](docs/csv.md) |
 | `cultura_database_V4.duckdb` | The complete database: every extracted and enriched field, in 13 tables | [docs/database.md](docs/database.md) |
 
 Place the files in `data/exports/` (CSV) and `data/cultura/` (DuckDB) to run the examples below as written.
@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 ## Quick start
 
-Download `cultura_database_V4.csv.zip` (395 MB, 3.5 GB unzipped) from [OSF](https://doi.org/10.17605/OSF.IO/F3A47), unzip it, and scan it with [Polars](https://pola.rs):
+Download `cultura_database_V4.csv.zip` (395 MB, 3.5 GB unzipped) from [Zenodo](https://doi.org/10.5281/zenodo.24110595), unzip it, and scan it with [Polars](https://pola.rs):
 only the rows a query keeps are loaded, so the 13 million rows never have to fit in memory.
 
 ```python
@@ -127,8 +127,8 @@ keyed by `entity.qid`. Every table is described in [docs/database.md](docs/datab
   title  = {Cultura Database: 13 million individuals with birth, death, and activity dates linked to historical polities (3500 BCE-2024)},
   author = {de Dampierre, Charles and Bennett, James S. and Baumard, Nicolas},
   year   = {2026},
-  doi    = {10.17605/OSF.IO/F3A47},
-  url    = {https://doi.org/10.17605/OSF.IO/F3A47}
+  doi    = {10.5281/zenodo.24110595},
+  url    = {https://doi.org/10.5281/zenodo.24110595}
 }
 ```
 
