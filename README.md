@@ -1,4 +1,4 @@
-# Cultura Database: Dated biographies of 13 million individuals linked to historical polities from 3500 BCE to 2024
+# Cultura Database: Linking notable individuals to historical polities, 3500 BCE to 2024
 
 Cultura gathers the 13,002,840 humans of Wikidata with their birth and death dates (imputed from comparable
 cohorts when missing), an estimated active life, their occupations, and the historical polities they lived in
@@ -14,7 +14,7 @@ The data is available on Zenodo, [doi:10.5281/zenodo.24110595](https://doi.org/1
 | `cultura_database_V4.csv.zip` | The simplified database: one row per individual, 28 columns (dates and their sources, active life, occupations, Seshat polities of each life stage) | [docs/csv.md](docs/csv.md) |
 | `cultura_database_V4.duckdb` | The complete database: every extracted and enriched field, in 13 tables | [docs/database.md](docs/database.md) |
 
-`python scripts/download_data.py` places them where the examples below expect them: `data/exports/` (CSV) and `data/cultura/` (DuckDB).
+`python scripts/download_data.py` (CSV), `duckdb` (DuckDB) or `all` places them where the examples below expect them: `data/exports/` (CSV) and `data/cultura/` (DuckDB).
 
 ## Installation
 
@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ## Quick start
 
 Download the CSV from [Zenodo](https://doi.org/10.5281/zenodo.24110595) with the Zenodo API (395 MB, unzipped into
-`data/exports/`; add `--duckdb` to also fetch the 13.7 GB DuckDB file):
+`data/exports/`):
 
 ```bash
 python scripts/download_data.py
@@ -75,11 +75,18 @@ Reading the CSV:
 - **Life stages**: pre-active (birth to the start of the active life), active, and post-active (end of the active
   life to death). `active life ended at death` means there is no post-active stage.
 
-Every column is described in [docs/csv.md](docs/csv.md). A longer walk-through is in [getting_started.ipynb](getting_started.ipynb).
+Every column is described in [docs/csv.md](docs/csv.md). A longer walk-through, with a Ming dynasty use case and maps of the Chinese world, is in [getting_started_quick.ipynb](getting_started_quick.ipynb).
 
 ## The complete database (DuckDB)
 
-For fields beyond the CSV (places, positions held, identifiers, works, Wikipedia links), use the DuckDB file. DuckDB needs no server. Open the file read-only and query it with SQL:
+For fields beyond the CSV (places, positions held, identifiers, works, Wikipedia links), use the DuckDB file. It is
+13.7 GB, so the download can take a long time:
+
+```bash
+python scripts/download_data.py duckdb
+```
+
+DuckDB needs no server. Open the file read-only and query it with SQL:
 
 ```python
 import duckdb
@@ -109,7 +116,7 @@ con.execute("""
 
 `individual_enriched` holds the dates, active life, life-stage polities and notability of each individual;
 `individual` holds the raw Wikidata fields (places, occupations, positions held, identifiers, works). Both are
-keyed by `entity.qid`. Every table is described in [docs/database.md](docs/database.md).
+keyed by `entity.qid`. Every table is described in [docs/database.md](docs/database.md). The same use case on the full dataset is in [getting_started_full_dataset.ipynb](getting_started_full_dataset.ipynb).
 
 ## Repository
 
@@ -127,11 +134,11 @@ keyed by `entity.qid`. Every table is described in [docs/database.md](docs/datab
 ## Citation
 
 > Charles de Dampierre, James S. Bennett, Nicolas Baumard.
-> *Cultura Database: Dated biographies of 13 million individuals linked to historical polities from 3500 BCE to 2024.*
+> *Cultura Database: Linking notable individuals to historical polities, 3500 BCE to 2024.*
 
 ```bibtex
 @misc{cultura_database,
-  title  = {Cultura Database: Dated biographies of 13 million individuals linked to historical polities from 3500 BCE to 2024},
+  title  = {Cultura Database: Linking notable individuals to historical polities, 3500 BCE to 2024},
   author = {de Dampierre, Charles and Bennett, James S. and Baumard, Nicolas},
   year   = {2026},
   doi    = {10.5281/zenodo.24110595},

@@ -1,11 +1,12 @@
 """Download the Cultura Database from Zenodo (doi:10.5281/zenodo.24110595) through the Zenodo REST API.
 
-By default only the simplified database is fetched: cultura_database_V4.csv.zip (395 MB), unzipped into data/exports/.
-With --duckdb, the complete database cultura_database_V4.duckdb (13.7 GB) is also fetched, into data/cultura/.
-Every file is checked against the checksum Zenodo publishes.
+csv (default): the simplified database, cultura_database_V4.csv.zip (395 MB), unzipped into data/exports/.
+duckdb: the complete database, cultura_database_V4.duckdb (13.7 GB, long to download), into data/cultura/.
+all: both. Every file is checked against the checksum Zenodo publishes.
 
-    python scripts/download_data.py            # the CSV
-    python scripts/download_data.py --duckdb   # the CSV and the DuckDB file
+    python scripts/download_data.py          # the CSV
+    python scripts/download_data.py duckdb   # the DuckDB file
+    python scripts/download_data.py all      # both
 """
 
 import argparse
@@ -56,16 +57,16 @@ def download(file, target):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--duckdb", action="store_true", help=f"also download {DUCKDB} (13.7 GB)")
+    parser.add_argument("files", nargs="?", choices=("csv", "duckdb", "all"), default="csv", help="what to download (default: csv)")
     args = parser.parse_args()
 
     files = record_files()
-    archive = download(files[CSV_ZIP], ROOT / "data" / "cultura" / CSV_ZIP)
-    with zipfile.ZipFile(archive) as opened:
-        opened.extractall(ROOT / "data" / "exports")
-    print(f"CSV ready: {ROOT / 'data' / 'exports' / 'cultura_database_V4.csv'}")
-
-    if args.duckdb:
+    if args.files in ("csv", "all"):
+        archive = download(files[CSV_ZIP], ROOT / "data" / "cultura" / CSV_ZIP)
+        with zipfile.ZipFile(archive) as opened:
+            opened.extractall(ROOT / "data" / "exports")
+        print(f"CSV ready: {ROOT / 'data' / 'exports' / 'cultura_database_V4.csv'}")
+    if args.files in ("duckdb", "all"):
         database = download(files[DUCKDB], ROOT / "data" / "cultura" / DUCKDB)
         print(f"DuckDB ready: {database}")
 
