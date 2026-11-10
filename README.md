@@ -1,4 +1,4 @@
-# Cultura Database: Linking notable individuals to historical polities, 3500 BCE to 2024
+# Linking notable individuals to historical polities, 3500 BCE to 2024
 
 Cultura gathers the 13,002,840 humans of Wikidata with their birth and death dates (imputed from comparable
 cohorts when missing), an estimated active life, their occupations, and the historical polities they lived in
@@ -134,11 +134,11 @@ keyed by `entity.qid`. Every table is described in [docs/database.md](docs/datab
 ## Citation
 
 > Charles de Dampierre, James S. Bennett, Nicolas Baumard.
-> *Cultura Database: Linking notable individuals to historical polities, 3500 BCE to 2024.*
+> *Linking notable individuals to historical polities, 3500 BCE to 2024.*
 
 ```bibtex
 @misc{cultura_database,
-  title  = {Cultura Database: Linking notable individuals to historical polities, 3500 BCE to 2024},
+  title  = {Linking notable individuals to historical polities, 3500 BCE to 2024},
   author = {de Dampierre, Charles and Bennett, James S. and Baumard, Nicolas},
   year   = {2026},
   doi    = {10.5281/zenodo.24110595},
