@@ -1,4 +1,4 @@
-# Cultura Database: 13 million individuals with birth, death, and activity dates linked to historical polities (3500 BCE-2024)
+# Cultura Database: Dated biographies of 13 million individuals linked to historical polities from 3500 BCE to 2024
 
 Cultura gathers the 13,002,840 humans of Wikidata with their birth and death dates (imputed from comparable
 cohorts when missing), an estimated active life, their occupations, and the historical polities they lived in
@@ -14,7 +14,7 @@ The data is available on Zenodo, [doi:10.5281/zenodo.24110595](https://doi.org/1
 | `cultura_database_V4.csv.zip` | The simplified database: one row per individual, 28 columns (dates and their sources, active life, occupations, Seshat polities of each life stage) | [docs/csv.md](docs/csv.md) |
 | `cultura_database_V4.duckdb` | The complete database: every extracted and enriched field, in 13 tables | [docs/database.md](docs/database.md) |
 
-Place the files in `data/exports/` (CSV) and `data/cultura/` (DuckDB) to run the examples below as written.
+`python scripts/download_data.py` places them where the examples below expect them: `data/exports/` (CSV) and `data/cultura/` (DuckDB).
 
 ## Installation
 
@@ -28,8 +28,15 @@ pip install -r requirements.txt
 
 ## Quick start
 
-Download `cultura_database_V4.csv.zip` (395 MB, 3.5 GB unzipped) from [Zenodo](https://doi.org/10.5281/zenodo.24110595), unzip it, and scan it with [Polars](https://pola.rs):
-only the rows a query keeps are loaded, so the 13 million rows never have to fit in memory.
+Download the CSV from [Zenodo](https://doi.org/10.5281/zenodo.24110595) with the Zenodo API (395 MB, unzipped into
+`data/exports/`; add `--duckdb` to also fetch the 13.7 GB DuckDB file):
+
+```bash
+python scripts/download_data.py
+```
+
+Then scan it with [Polars](https://pola.rs): only the rows a query keeps are loaded, so the 13 million rows never
+have to fit in memory.
 
 ```python
 import polars as pl
@@ -120,11 +127,11 @@ keyed by `entity.qid`. Every table is described in [docs/database.md](docs/datab
 ## Citation
 
 > Charles de Dampierre, James S. Bennett, Nicolas Baumard.
-> *Cultura Database: 13 million individuals with birth, death, and activity dates linked to historical polities (3500 BCE-2024).*
+> *Cultura Database: Dated biographies of 13 million individuals linked to historical polities from 3500 BCE to 2024.*
 
 ```bibtex
 @misc{cultura_database,
-  title  = {Cultura Database: 13 million individuals with birth, death, and activity dates linked to historical polities (3500 BCE-2024)},
+  title  = {Cultura Database: Dated biographies of 13 million individuals linked to historical polities from 3500 BCE to 2024},
   author = {de Dampierre, Charles and Bennett, James S. and Baumard, Nicolas},
   year   = {2026},
   doi    = {10.5281/zenodo.24110595},
@@ -139,4 +146,4 @@ is released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 
 ## Contact
 
-Charles de Dampierre — [charlesdedampierre@gmail.com](mailto:charlesdedampierre@gmail.com)
+Charles de Dampierre, [charlesdedampierre@gmail.com](mailto:charlesdedampierre@gmail.com)
