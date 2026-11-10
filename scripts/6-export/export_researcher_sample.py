@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1-datamodels"))
 from datamodel_export import ExportedIndividualCSV
 
 ROOT = Path(__file__).resolve().parents[2]
-DATABASE = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
+DATABASE = ROOT / "data" / "cultura" / "cultura_database_V4.duckdb"
 OUTPUT = ROOT / "data" / "exports" / "researcher_sample"
 PER_ERA = 200
 COARSE = 40  # individuals whose birth or death is known only to the century or millennium
@@ -97,8 +97,7 @@ FROM individual_enriched
 JOIN picked ON picked.qid = individual_enriched.entity.qid;
 """
 
-INDIVIDUALS = f"""
-SELECT
+COLUMNS = f"""
     sample.entity.qid AS wikidata_id,
     coalesce(sample.entity.label_en, sample.entity.label_non_en) AS label,
     gender(individual.sex_or_gender) AS sex_or_gender,
@@ -113,24 +112,28 @@ SELECT
     year_precision(sample.start_of_active_life.precision) AS active_life_start_precision,
     year_precision(sample.end_of_active_life.precision) AS active_life_end_precision,
     active_life_source(sample.start_of_active_life, sample.end_of_active_life) AS active_life_source,
-    array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}') AS occupations,
+    nullif(array_to_string(list_transform(individual.occupation, one -> label.of[one.entity.qid]), '{SEPARATOR}'), '') AS occupations,
     nullif(array_to_string(all_metas(list_transform(individual.occupation, one -> label.meta[one.entity.qid])), '{SEPARATOR}'), '') AS occupation_domain,
     individual.is_scientist AS is_scientist,
     individual.is_artist AS is_artist,
-    array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.id), '{SEPARATOR}') AS pre_active_life_seshat_ids,
-    array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.name), '{SEPARATOR}') AS pre_active_life_seshat_polities,
+    nullif(array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.id), '{SEPARATOR}'), '') AS pre_active_life_seshat_ids,
+    nullif(array_to_string(list_transform(stage_polities(sample.pre_active_life_polity), one -> one.name), '{SEPARATOR}'), '') AS pre_active_life_seshat_polities,
     stage_sources(sample.pre_active_life_polity) AS pre_active_life_polity_source,
-    array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.id), '{SEPARATOR}') AS active_life_seshat_ids,
-    array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.name), '{SEPARATOR}') AS active_life_seshat_polities,
+    nullif(array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.id), '{SEPARATOR}'), '') AS active_life_seshat_ids,
+    nullif(array_to_string(list_transform(stage_polities(sample.active_life_polity), one -> one.name), '{SEPARATOR}'), '') AS active_life_seshat_polities,
     stage_sources(sample.active_life_polity) AS active_life_polity_source,
     CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
-         ELSE array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.id), '{SEPARATOR}') END AS post_active_life_seshat_ids,
+         ELSE nullif(array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.id), '{SEPARATOR}'), '') END AS post_active_life_seshat_ids,
     CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
-         ELSE array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.name), '{SEPARATOR}') END AS post_active_life_seshat_polities,
+         ELSE nullif(array_to_string(list_transform(stage_polities(sample.post_active_life_polity), one -> one.name), '{SEPARATOR}'), '') END AS post_active_life_seshat_polities,
     CASE WHEN sample.end_of_active_life.year >= sample.death_date.year THEN '{ENDED_AT_DEATH}'
          ELSE stage_sources(sample.post_active_life_polity) END AS post_active_life_polity_source,
     len(list_distinct(list_transform(individual.work, one -> one.work_qid))) AS number_of_works
-FROM sample
+"""  # the ExportedIndividualCSV columns of one individual: sample (individual_enriched rows) joined to individual and label
+
+INDIVIDUALS = f"""
+SELECT
+{COLUMNS}FROM sample
 JOIN individual ON individual.entity.qid = sample.entity.qid
 CROSS JOIN label
 WHERE len(list_filter(individual.occupation, one -> label.of[one.entity.qid] IS NOT NULL)) > 0

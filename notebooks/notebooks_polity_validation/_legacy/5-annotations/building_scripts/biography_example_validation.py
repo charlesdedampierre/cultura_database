@@ -39,7 +39,7 @@ TRECCANI = ROOT / "scripts" / "5-annotations" / "_legacy" / "treccani_validation
 BENCHMARKS = ROOT / "scripts" / "5-annotations" / "benchmark"
 STAGES_EXPORT = ROOT / "data" / "enriched_parquets" / "individual_life_stage_polities"
 CLIOPATRIA = ROOT / "data" / "cliopatria_data" / "cliopatria_V2" / "cliopatria_polities_only_v3.geojson"
-ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
+ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_database_V4.duckdb"
 STAGES = ["early", "active", "late"]
 MODEL = "claude-opus-5-5 (in a Claude Code session)"
 

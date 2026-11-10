@@ -17,7 +17,7 @@ import datamodel_in_duckdb as D
 import datamodel_raw as R
 from pydantic_to_duckdb_schema import duck_type
 
-DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"))
+DATABASE = Path(os.environ.get("CULTURA_DB", ROOT / "data" / "cultura" / "cultura_database_V4.duckdb"))
 BASE = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
 AI_OUTPUTS = ROOT / "data" / "ai_outputs"
 SCRATCH = Path(os.environ.get("SCRATCH", "/tmp")) / "database_enrichment"

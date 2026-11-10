@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Monitor extraction process and send email at milestones."""
 
+import os
 import re
 import smtplib
 import subprocess
@@ -11,7 +12,7 @@ from email.mime.text import MIMEText
 PROCESS_NAME = "04_extract_all_individuals_info_qlever"
 EMAIL_TO = "cdedampierre@bunka.ai"
 EMAIL_FROM = "cdedampierre@bunka.ai"
-APP_PASSWORD = "***REMOVED***"
+APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 PROGRESS_FILE = "/Users/charlesdedampierre/Desktop/Rsearch Folder/cultura_database/data/extracted/individuals_qlever/extraction_progress.txt"
 
 # Milestones to notify (in order)

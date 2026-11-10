@@ -6,10 +6,12 @@ duckdb==1.5.2
 polars==1.39.3
 pandas==3.0.2
 numpy==2.4.4
+pyarrow==23.0.1
 
 # Visualization
 matplotlib==3.10.8
 plotly==6.7.0
+kaleido==1.3.0
 
 # Geospatial (polity / country maps)
 geopandas==1.1.3
@@ -21,6 +23,9 @@ scipy==1.17.1
 # HTTP / Wikidata extraction
 requests==2.33.1
 python-dotenv==1.2.2
+ijson==3.5.1
+beautifulsoup4==4.14.3
+trafilatura==2.3.1
 
 # Notebook execution
 jupyter>=1.0

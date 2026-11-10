@@ -18,7 +18,7 @@ import polars as pl
 from dictionaries import DATA, NAMES, URLS
 
 ROOT = Path(__file__).resolve().parents[3]
-ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
+ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_database_V4.duckdb"
 SAMPLE = DATA / "sample.parquet"
 ADDITIONS = DATA / "additions.parquet"
 OUT = DATA / "benchmark_cultura.tsv"

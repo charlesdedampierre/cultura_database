@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parents[3]
 DB = ROOT / "data" / "cultura" / "humans_clean_non_enriched_v3.duckdb"
-ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_enriched_v3.2.duckdb"
+ENRICHED_DB = ROOT / "data" / "cultura" / "cultura_database_V4.duckdb"
 DATA = Path(__file__).resolve().parents[1] / "data"
 OUT = DATA / "dictionary_examples" / "dictionary_texts.json"
 RAW = OUT.parent / "raw"

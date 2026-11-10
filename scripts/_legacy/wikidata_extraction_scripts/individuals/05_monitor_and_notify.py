@@ -1,5 +1,6 @@
 """Monitor extraction progress and send email notifications at milestones."""
 
+import os
 import json
 import random
 import smtplib
@@ -10,7 +11,7 @@ from pathlib import Path
 
 # Email config
 GMAIL_ADDRESS = "cdedampierre@bunka.ai"
-GMAIL_APP_PASSWORD = "***REMOVED***"
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
 

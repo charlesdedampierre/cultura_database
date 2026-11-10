@@ -1,4 +1,4 @@
-"""Copy the non-enriched database to CULTURA_DB (cultura_enriched_v3.2) and run the enrichment steps on the copy, in order, so the non-enriched one is never touched.
+"""Copy the non-enriched database to CULTURA_DB (cultura_database_V4) and run the enrichment steps on the copy, in order, so the non-enriched one is never touched.
 
 The former date and polity steps (now in _legacy/) are left out: 01_notebooks_dates and 02_notebooks_polity replace them.
 Order matters: 06 reads the is_western of 05; 08 reads the polity split of 07; the life-stage polities of

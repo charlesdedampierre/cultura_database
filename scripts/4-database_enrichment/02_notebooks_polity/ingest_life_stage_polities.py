@@ -1,4 +1,4 @@
-"""Ingest the life-stage polity parquets of 01_life_stage_polities_export.py into individual_enriched of cultura_enriched_v3.2,
+"""Ingest the life-stage polity parquets of 01_life_stage_polities_export.py into individual_enriched of cultura_database_V4,
 shaped by datamodel_in_duckdb.PolityMatch.
 
 pre_active_life_polity, active_life_polity and post_active_life_polity get every polity of the stage, longest overlap first;

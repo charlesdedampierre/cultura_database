@@ -60,7 +60,7 @@ fn log(msg: &str) {
 fn send_email(subject: &str, body: &str) -> Result<()> {
     let py = format!(
         r#"
-import smtplib, ssl
+import os, smtplib, ssl
 from email.message import EmailMessage
 m = EmailMessage()
 m['Subject'] = {subject:?}
@@ -69,7 +69,7 @@ m['To']      = 'cdedampierre@bunka.ai'
 m.set_content({body:?})
 ctx = ssl.create_default_context()
 with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=ctx) as s:
-    s.login('cdedampierre@bunka.ai', '***REMOVED***')
+    s.login('cdedampierre@bunka.ai', os.environ['GMAIL_APP_PASSWORD'])
     s.send_message(m)
 print('email sent')
 "#,
